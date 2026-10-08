@@ -47,7 +47,7 @@ export async function PortalShell({ user, children }: { user: User; children: Re
   const display = user.businessName || user.name;
   const first = user.name.split(" ")[0];
   return (
-    <div className="min-h-screen lg:flex">
+    <div className="portal-shell min-h-screen lg:flex">
       {/* Desktop sidebar */}
       <aside className="no-print hidden bg-brand-900 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col">
         <Link href="/" className="px-5 pb-5 pt-6"><Logo tone="light" size="lg" /></Link>
@@ -68,12 +68,12 @@ export async function PortalShell({ user, children }: { user: User; children: Re
         </div>
       </aside>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 bg-cream">
         {/* Phone header */}
-        <header className="no-print sticky top-0 z-30 bg-brand-900 px-4 pb-7 pt-[calc(env(safe-area-inset-top)+1.25rem)] text-white lg:hidden">
+        <header className="no-print sticky top-0 z-30 bg-brand-900 px-4 pb-5 pt-[calc(env(safe-area-inset-top)+1rem)] text-white lg:hidden">
           <div className="flex items-center justify-between gap-3">
             <MobileTitle root={homeFor(user.role)} items={[...items, { href: "/profile", label: "Profile", icon: "user" }]} greeting={greetingNow()} name={first}
-              avatar={<Avatar name={user.name} className="h-11 w-11 text-sm ring-2 ring-gold-400/70" />} />
+              avatar={<Avatar name={user.name} tone="bg-gold-400 text-brand-950" className="h-11 w-11 text-sm" />} />
             <Notifications user={user} tone="light" />
           </div>
         </header>
@@ -82,7 +82,7 @@ export async function PortalShell({ user, children }: { user: User; children: Re
           <span className="text-sm text-stone-500">{greetingNow()}, <span className="font-semibold text-brand-900">{first}</span></span>
           <Notifications user={user} tone="dark" />
         </header>
-        <main className="relative z-10 -mt-4 min-h-[60vh] rounded-t-3xl bg-cream px-4 pb-28 pt-5 lg:mx-auto lg:mt-0 lg:max-w-6xl lg:rounded-none lg:px-8 lg:pb-12 lg:pt-2">
+        <main className="min-h-[calc(100vh-5rem)] bg-cream px-4 pb-28 pt-5 lg:mx-auto lg:mt-0 lg:max-w-6xl lg:rounded-none lg:px-8 lg:pb-12 lg:pt-2">
           {children}
         </main>
       </div>

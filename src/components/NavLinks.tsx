@@ -94,13 +94,13 @@ export function MobileTitle({ root, items, greeting, name, avatar }: { root: str
   const router = useRouter();
   if (path === root) {
     return (
-      <div className="flex min-w-0 items-center gap-3">
+      <Link href="/profile" aria-label="My profile" className="-m-1 flex min-w-0 items-center gap-3 rounded-full p-1 pr-3 active:bg-white/10">
         {avatar}
         <div className="min-w-0">
           <div className="text-xs text-white/70">{greeting},</div>
           <div className="truncate text-lg font-semibold leading-tight">{name}</div>
         </div>
-      </div>
+      </Link>
     );
   }
   const hrefs = items.map((i) => i.href);

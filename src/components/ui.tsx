@@ -113,9 +113,9 @@ export function Field({ label, children, hint }: { label: string; children: Reac
 }
 
 const avatarTones = ["bg-brand-700 text-white", "bg-gold-400 text-brand-950", "bg-brand-100 text-brand-800", "bg-gold-100 text-gold-700"];
-export function Avatar({ name, className = "h-10 w-10 text-sm" }: { name: string; className?: string }) {
+export function Avatar({ name, className = "h-10 w-10 text-sm", tone }: { name: string; className?: string; tone?: string }) {
   const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w[0]!.toUpperCase()).join("");
-  const t = avatarTones[[...name].reduce((s, c) => s + c.charCodeAt(0), 0) % avatarTones.length];
+  const t = tone ?? avatarTones[[...name].reduce((s, c) => s + c.charCodeAt(0), 0) % avatarTones.length];
   return <span className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${t} ${className}`}>{initials || "?"}</span>;
 }
 
