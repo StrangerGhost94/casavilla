@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import type { Prisma } from "@prisma/client";
 import { db, type User } from "@/db";
 import { fmtDate, fmtDateTime, ugx } from "@/lib/format";
+import { ChevronRight } from "lucide-react";
+import { CategoryIcon } from "@/lib/icons";
 import { Badge, Empty, Photo } from "./ui";
 import { Submit } from "./client";
 import { addNote, assignProvider, providerRespond, cancelJob, reopenJob } from "@/app/job-actions";
@@ -19,25 +21,26 @@ export async function JobList({ where, base, empty = "No jobs yet" }: { where: P
   const rows = await db.job.findMany({ where, include: jobInclude, orderBy: { updatedAt: "desc" } });
   if (!rows.length) return <Empty title={empty} />;
   return (
-    <div className="card overflow-x-auto p-0">
-      <table className="table">
-        <thead><tr><th>Job</th><th>Where</th><th>Requested by</th><th>Provider</th><th>Status</th><th>Updated</th></tr></thead>
-        <tbody>
-          {rows.map((j) => (
-            <tr key={j.id}>
-              <td>
-                <Link href={`${base}/${j.id}`} className="link">{j.title}</Link>
-                <div className="text-xs text-stone-500">{j.category}{j.priority === "urgent" && <> · <span className="font-semibold text-maroon-600">Urgent</span></>}</div>
-              </td>
-              <td>{j.property ? `${j.property.name}${j.unit ? ` · ${j.unit.label}` : ""}` : "—"}</td>
-              <td>{j.requester.name}</td>
-              <td>{j.provider ? j.provider.businessName || j.provider.name : <span className="text-stone-400">Not assigned</span>}</td>
-              <td><Badge>{j.status}</Badge></td>
-              <td className="whitespace-nowrap text-stone-500">{fmtDate(j.updatedAt)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="card divide-y divide-stone-100 p-0">
+      {rows.map((j) => (
+        <Link key={j.id} href={`${base}/${j.id}`} className="flex items-center gap-3 px-4 py-3.5 transition hover:bg-stone-50">
+          <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${j.priority === "urgent" ? "bg-maroon-50 text-maroon-600" : "bg-brand-50 text-brand-700"}`}>
+            <CategoryIcon category={j.category} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold text-stone-800">{j.title}</div>
+            <div className="truncate text-xs text-stone-500">
+              {j.property ? `${j.property.name}${j.unit ? ` · ${j.unit.label}` : ""}` : j.category}
+              {" · "}{j.provider ? j.provider.businessName || j.provider.name : "No provider yet"}
+            </div>
+            <div className="mt-0.5 text-[11px] text-stone-400">
+              {j.requester.name} · {fmtDate(j.updatedAt)}{j.priority === "urgent" && <span className="font-semibold text-maroon-600"> · Urgent</span>}
+            </div>
+          </div>
+          <Badge>{j.status}</Badge>
+          <ChevronRight className="h-4 w-4 shrink-0 text-stone-400" />
+        </Link>
+      ))}
     </div>
   );
 }

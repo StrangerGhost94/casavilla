@@ -4,16 +4,9 @@ import { PortalShell } from "@/components/PortalShell";
 export default async function ProviderLayout({ children }: { children: React.ReactNode }) {
   const user = await requireUser("provider");
   return (
-    <PortalShell user={user} nav={[
-      { href: "/provider", label: "Overview" },
-      { href: "/provider/jobs", label: "Jobs" },
-      { href: "/provider/services", label: "My services" },
-      { href: "/provider/products", label: "Items for sale" },
-      { href: "/provider/orders", label: "Orders" },
-      { href: "/provider/profile", label: "Business profile" },
-    ]}>
+    <PortalShell user={user}>
       {user.status === "pending" && (
-        <div className="mb-6 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">
+        <div className="mb-5 rounded-2xl border border-gold-200 bg-gold-50 p-3.5 text-sm text-gold-700">
           CasaVilla is verifying your business. Add your services and items now — you&apos;ll appear in the directory and receive jobs once approved.
         </div>
       )}

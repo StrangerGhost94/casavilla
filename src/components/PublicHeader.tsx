@@ -1,63 +1,66 @@
 import Link from "next/link";
+import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { getUser, homeFor } from "@/lib/auth";
-import { Logo } from "./ui";
+import { tabs } from "@/lib/nav";
+import { Avatar, Logo } from "./ui";
+import { BottomNav } from "./NavLinks";
 
 export async function PublicHeader() {
   const u = await getUser();
   return (
-    <header className="sticky top-0 z-30 border-b border-stone-200 bg-white/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-2">
-        <Link href="/"><Logo className="h-12" /></Link>
-        <nav className="hidden items-center gap-1 md:flex">
-          <Link href="/listings" className="btn-ghost">Homes for rent</Link>
-          <Link href="/services" className="btn-ghost">Service providers</Link>
-          <Link href="/shop" className="btn-ghost">Shop</Link>
-        </nav>
-        <div className="flex items-center gap-2">
-          {u ? (
-            <Link href={homeFor(u.role)} className="btn-primary">My dashboard</Link>
-          ) : (
-            <>
-              <Link href="/login" className="btn-ghost">Sign in</Link>
-              <Link href="/register" className="btn-primary">Join</Link>
-            </>
-          )}
+    <>
+      <header className="no-print sticky top-0 z-30 bg-brand-900 pt-[env(safe-area-inset-top)]">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
+          <Link href="/"><Logo tone="light" size="sm" /></Link>
+          <nav className="hidden items-center gap-1 md:flex">
+            {[["/listings", "Discover homes"], ["/services", "Services"], ["/shop", "Shop"]].map(([h, l]) => (
+              <Link key={h} href={h} className="rounded-lg px-3 py-2 text-sm font-medium text-white/75 hover:bg-white/10 hover:text-white">{l}</Link>
+            ))}
+          </nav>
+          <div className="flex items-center gap-2">
+            {u ? (
+              <Link href={homeFor(u.role)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-semibold text-white hover:bg-white/10">
+                <Avatar name={u.name} className="h-8 w-8 text-xs ring-2 ring-gold-400/70" /> <span className="hidden sm:inline">My dashboard</span>
+              </Link>
+            ) : (
+              <>
+                <Link href="/login" className="rounded-lg px-3 py-2 text-sm font-semibold text-white/85 hover:bg-white/10 hover:text-white">Sign in</Link>
+                <Link href="/register" className="btn-gold btn-sm hidden px-4 py-2 sm:inline-flex">Get started</Link>
+              </>
+            )}
+          </div>
         </div>
-      </div>
-      <nav className="flex gap-1 overflow-x-auto px-4 pb-2 md:hidden">
-        <Link href="/listings" className="btn-ghost btn-sm">Homes</Link>
-        <Link href="/services" className="btn-ghost btn-sm">Providers</Link>
-        <Link href="/shop" className="btn-ghost btn-sm">Shop</Link>
-      </nav>
-    </header>
+      </header>
+      <BottomNav tabs={tabs[u?.role ?? "guest"]} />
+    </>
   );
 }
 
 export function PublicFooter() {
   return (
-    <footer className="mt-16 border-t border-stone-200 bg-white">
-      <div className="mx-auto grid max-w-6xl gap-6 px-4 py-10 text-sm text-stone-600 md:grid-cols-3">
+    <footer className="no-print mt-14 bg-brand-950 pb-28 text-white/70 lg:pb-0">
+      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 text-sm md:grid-cols-3">
         <div>
-          <Logo className="h-14" />
-          <p className="mt-3">Property management for landlords, tenants and trusted service providers across Kampala.</p>
+          <Logo tone="light" />
+          <p className="mt-4 max-w-xs">Connect. Manage. Grow. Property management for landlords, tenants and trusted service providers across Kampala.</p>
         </div>
-        <div className="space-y-1">
-          <div className="font-semibold text-stone-900">Contact</div>
-          <div><a href="tel:+256776593482" className="hover:underline">+256 776 593 482</a></div>
-          <div><a href="tel:+256756390089" className="hover:underline">+256 756 390 089</a></div>
-          <div><a href="mailto:info.casavilla026@gmail.com" className="hover:underline">info.casavilla026@gmail.com</a></div>
-          <div>P.O. Box 214887, Rubaga Road, Kampala, Uganda</div>
+        <div className="space-y-2.5">
+          <div className="font-semibold text-gold-300">Contact</div>
+          <a href="tel:+256776593482" className="flex items-center gap-2 hover:text-white"><Phone className="h-4 w-4" /> +256 776 593 482</a>
+          <a href="tel:+256756390089" className="flex items-center gap-2 hover:text-white"><Phone className="h-4 w-4" /> +256 756 390 089</a>
+          <a href="mailto:info.casavilla026@gmail.com" className="flex items-center gap-2 hover:text-white"><Mail className="h-4 w-4" /> info.casavilla026@gmail.com</a>
+          <div className="flex items-start gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /> P.O. Box 214887, Rubaga Road, Kampala, Uganda</div>
         </div>
-        <div className="space-y-1">
-          <div className="font-semibold text-stone-900">Explore</div>
-          <div><Link href="/listings" className="hover:underline">Homes for rent</Link></div>
-          <div><Link href="/services" className="hover:underline">Find a service provider</Link></div>
-          <div><Link href="/register?role=landlord" className="hover:underline">List your property</Link></div>
-          <div><Link href="/register?role=provider" className="hover:underline">Become a provider</Link></div>
-          <div><a href="https://wa.me/256776593482" className="hover:underline">Chat on WhatsApp</a></div>
+        <div className="space-y-2.5">
+          <div className="font-semibold text-gold-300">Explore</div>
+          <div><Link href="/listings" className="hover:text-white">Homes for rent</Link></div>
+          <div><Link href="/services" className="hover:text-white">Find a service provider</Link></div>
+          <div><Link href="/register?role=landlord" className="hover:text-white">List your property</Link></div>
+          <div><Link href="/register?role=provider" className="hover:text-white">Become a provider</Link></div>
+          <a href="https://wa.me/256776593482" className="flex items-center gap-2 hover:text-white"><MessageCircle className="h-4 w-4" /> Chat on WhatsApp</a>
         </div>
       </div>
-      <div className="border-t border-stone-100 py-4 text-center text-xs text-stone-400">© {new Date().getFullYear()} CasaVilla Property Management</div>
+      <div className="border-t border-white/10 py-5 text-center text-xs text-white/40">© {new Date().getFullYear()} CasaVilla Property Management</div>
     </footer>
   );
 }

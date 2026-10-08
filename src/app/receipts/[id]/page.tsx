@@ -34,7 +34,7 @@ export default async function Receipt({ params }: { params: Promise<{ id: string
       </div>
       <div className="rounded-xl border border-stone-200 bg-white p-8 shadow-sm print:border-0 print:shadow-none">
         <div className="flex items-start justify-between gap-4 border-b border-stone-200 pb-6">
-          <Logo className="h-20" />
+          <Logo size="md" />
           <div className="text-right text-xs text-stone-500">
             <div>P.O. Box 214887, Rubaga Road</div><div>Kampala, Uganda</div>
             <div>+256 776 593 482 · +256 756 390 089</div><div>info.casavilla026@gmail.com</div>
@@ -42,7 +42,7 @@ export default async function Receipt({ params }: { params: Promise<{ id: string
         </div>
         <div className="mt-6 flex items-end justify-between">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-widest text-maroon-600">Payment receipt</div>
+            <div className="text-xs font-semibold uppercase tracking-widest text-gold-600">Payment receipt</div>
             <div className="text-2xl font-bold">{r.p.receiptNo}</div>
           </div>
           <div className="text-right text-sm">

@@ -20,7 +20,7 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
   const u = await db.user.findUnique({ where: { email } });
   if (!u || !(await bcrypt.compare(password, u.passwordHash))) return { error: "Wrong email or password." };
   if (u.status === "suspended") return { error: "This account is suspended. Contact CasaVilla." };
-  await startSession(u);
+  await startSession(u, fd.get("remember") === "on");
   redirect(safeNext(fd.get("next")) || homeFor(u.role));
 }
 

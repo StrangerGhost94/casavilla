@@ -1,109 +1,97 @@
 import Link from "next/link";
+import { Building2, ChevronRight, Home as HomeIcon, Search, UserRound, Wrench } from "lucide-react";
 import { listedUnits } from "@/lib/queries";
 import { SERVICE_CATEGORIES } from "@/db";
-import { ugx } from "@/lib/format";
-import { Photo } from "@/components/ui";
+import { CategoryIcon, categoryLabel } from "@/lib/icons";
+import { BuildingArt, LogoMark, SectionTitle } from "@/components/ui";
+import { PropertyCard } from "@/components/PropertyCard";
 
 export const dynamic = "force-dynamic";
 
 const roles = [
-  { title: "Tenants", body: "Find a home, pick your landlord, pay rent by MTN or Airtel Mobile Money, get instant receipts and report repairs from your phone.", cta: "Find a home", href: "/listings" },
-  { title: "Landlords", body: "List every property and unit, approve tenants, track who has paid and who owes, and send repairs to vetted providers.", cta: "List your property", href: "/register?role=landlord" },
-  { title: "Service providers", body: "Cleaners, plumbers, electricians, builders, pest control and carpenters receive jobs and sell materials directly.", cta: "Join as a provider", href: "/register?role=provider" },
-  { title: "CasaVilla team", body: "Oversees every property, approves landlords and providers, assigns jobs and keeps rent collection on track.", cta: "Contact us", href: "#contact" },
+  { id: "tenant", title: "Tenant", body: "Find a home, pay rent, request services", icon: UserRound, tone: "bg-brand-800 text-gold-300" },
+  { id: "landlord", title: "Landlord", body: "List properties, track income, manage tenants", icon: HomeIcon, tone: "bg-gold-400 text-brand-950" },
+  { id: "provider", title: "Service provider", body: "Offer your services, get hired", icon: Wrench, tone: "bg-brand-800 text-gold-300" },
 ];
 
 export default async function Home() {
   const homes = await listedUnits({ limit: 6 });
   return (
     <main>
-      <section className="relative overflow-hidden bg-gradient-to-br from-white via-stone-50 to-brand-50">
-        <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-14 md:grid-cols-2 md:py-20">
-          <div>
-            <span className="inline-block rounded-full bg-maroon-50 px-3 py-1 text-xs font-semibold text-maroon-600">Kampala · Rubaga Road</span>
-            <h1 className="mt-4 text-4xl font-extrabold leading-tight text-stone-900 md:text-5xl">
-              One home for <span className="text-brand-600">landlords</span>, <span className="text-maroon-600">tenants</span> and the people who keep properties running.
-            </h1>
-            <p className="mt-4 text-lg text-stone-600">Rent tracking, Mobile Money payments, leases and maintenance — all connected in one place by CasaVilla Property Management.</p>
-            <form action="/listings" className="mt-6 flex max-w-md gap-2">
-              <input name="q" className="input" placeholder="Search area, e.g. Rubaga, Ntinda, Kira" />
-              <button className="btn-primary">Search</button>
-            </form>
-            <div className="mt-4 flex flex-wrap gap-2 text-sm">
-              <Link href="/register?role=landlord" className="btn-outline">I&apos;m a landlord</Link>
-              <Link href="/register?role=provider" className="btn-outline">I offer a service</Link>
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {[["Rent collected", "MTN & Airtel MoMo"], ["Receipts", "Issued instantly"], ["Repairs", "Tracked to done"], ["Providers", "Vetted by CasaVilla"]].map(([a, b], i) => (
-              <div key={a} className={`card ${i % 2 ? "mt-6" : ""}`}>
-                <div className={`h-1.5 w-10 rounded ${i % 3 ? "bg-maroon-600" : "bg-brand-500"}`} />
-                <div className="mt-3 font-bold text-stone-900">{a}</div>
-                <div className="muted">{b}</div>
-              </div>
-            ))}
+      {/* Splash / hero */}
+      <section className="relative overflow-hidden bg-brand-900 text-white">
+        <BuildingArt className="pointer-events-none absolute inset-x-0 bottom-0 h-64 w-full text-white/[0.07] md:h-80" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-brand-950/60" />
+        <div className="relative mx-auto max-w-3xl px-5 pb-16 pt-10 text-center md:pb-24 md:pt-16">
+          <LogoMark className="mx-auto h-16 w-[4.5rem] md:h-20 md:w-[5.5rem]" />
+          <div className="mt-3 font-serif text-4xl font-semibold md:text-5xl">CasaVilla</div>
+          <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/75">Property Management</div>
+          <h1 className="mt-8 text-2xl font-semibold md:text-4xl">Connect. Manage. Grow.</h1>
+          <p className="mx-auto mt-2 max-w-md text-sm text-white/70 md:text-base">All your property needs in one place — rent, Mobile Money payments, leases, repairs and trusted service providers.</p>
+          <form action="/listings" className="mx-auto mt-7 flex max-w-md items-center gap-2 rounded-2xl bg-white p-1.5 shadow-float">
+            <Search className="ml-2.5 h-5 w-5 shrink-0 text-stone-400" />
+            <input name="q" className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:outline-none" placeholder="Search location, e.g. Rubaga, Kira, Ntinda" />
+            <button className="btn-primary px-4 py-2">Search</button>
+          </form>
+          <div className="mt-5 flex justify-center gap-3">
+            <Link href="/register" className="btn-gold px-6">Get started</Link>
+            <Link href="/login" className="btn border border-white/30 px-6 text-white hover:bg-white/10">Sign in</Link>
           </div>
         </div>
       </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-14">
-        <h2 className="text-2xl font-bold text-stone-900">Everyone connected</h2>
+      <div className="relative z-10 mx-auto -mt-6 max-w-6xl rounded-t-3xl bg-cream px-4 pt-6 md:rounded-none md:pt-10">
+        {/* Role picker */}
+        <h2 className="text-xl font-bold text-brand-950 md:text-2xl">How do you want to use CasaVilla?</h2>
         <p className="muted mt-1">Each person gets their own dashboard, and everything links together.</p>
-        <div className="mt-6 grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
           {roles.map((r) => (
-            <div key={r.title} className="card flex flex-col">
-              <div className="font-bold text-stone-900">{r.title}</div>
-              <p className="mt-2 flex-1 text-sm text-stone-600">{r.body}</p>
-              <Link href={r.href} className="link mt-4 text-sm">{r.cta} →</Link>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      <section className="mx-auto max-w-6xl px-4">
-        <div className="flex items-end justify-between">
-          <div>
-            <h2 className="text-2xl font-bold text-stone-900">Available now</h2>
-            <p className="muted mt-1">Vacant units from CasaVilla landlords.</p>
-          </div>
-          <Link href="/listings" className="link text-sm">See all →</Link>
-        </div>
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {homes.length === 0 && <div className="muted">New listings coming soon.</div>}
-          {homes.map((h) => (
-            <Link key={h.id} href={`/listings/${h.id}`} className="card overflow-hidden p-0 hover:shadow-md">
-              <Photo id={h.photoId} alt={h.property} className="h-44 w-full" />
-              <div className="p-4">
-                <div className="font-semibold text-stone-900">{h.property} · {h.label}</div>
-                <div className="muted">{h.location} · {h.bedrooms} bed</div>
-                <div className="mt-2 font-bold text-brand-600">{ugx(h.rent)}<span className="text-xs font-normal text-stone-500"> / month</span></div>
-              </div>
+            <Link key={r.id} href={`/register?role=${r.id}`} className="card flex items-center gap-4 p-4 transition hover:-translate-y-0.5 hover:border-brand-200">
+              <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${r.tone}`}><r.icon className="h-6 w-6" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-semibold text-brand-950">{r.title}</span>
+                <span className="block text-xs text-stone-500">{r.body}</span>
+              </span>
+              <ChevronRight className="h-4 w-4 text-stone-400" />
             </Link>
           ))}
         </div>
-      </section>
 
-      <section className="mx-auto max-w-6xl px-4 py-14">
-        <h2 className="text-2xl font-bold text-stone-900">Services for your property</h2>
-        <div className="mt-5 flex flex-wrap gap-2">
+        {/* Featured properties */}
+        <SectionTitle title="Featured properties" href="/listings" />
+        {homes.length === 0 ? (
+          <div className="card text-center text-sm text-stone-500">New listings coming soon.</div>
+        ) : (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {homes.map((h) => <PropertyCard key={h.id} h={h} />)}
+          </div>
+        )}
+
+        {/* Services */}
+        <SectionTitle title="Services for your property" href="/services" />
+        <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-6 lg:grid-cols-11">
           {SERVICE_CATEGORIES.map((c) => (
-            <Link key={c} href={`/services?category=${encodeURIComponent(c)}`} className="rounded-full border border-stone-200 bg-white px-4 py-2 text-sm font-medium hover:border-brand-500 hover:text-brand-600">{c}</Link>
+            <Link key={c} href={`/services?category=${encodeURIComponent(c)}`} className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200/70 bg-white px-1 py-3 text-center shadow-card transition hover:border-brand-200">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><CategoryIcon category={c} /></span>
+              <span className="text-[11px] font-medium leading-tight text-stone-700">{categoryLabel[c] ?? c}</span>
+            </Link>
           ))}
         </div>
-      </section>
 
-      <section id="contact" className="mx-auto max-w-6xl px-4">
-        <div className="rounded-2xl bg-brand-700 p-8 text-white md:flex md:items-center md:justify-between">
-          <div>
-            <div className="text-2xl font-bold">Talk to CasaVilla</div>
-            <p className="mt-1 text-brand-100">Want us to manage your property? Call, email or WhatsApp us.</p>
+        {/* Better living */}
+        <section id="contact" className="relative mt-10 overflow-hidden rounded-3xl bg-brand-900 p-7 text-white md:flex md:items-center md:justify-between md:p-10">
+          <BuildingArt className="pointer-events-none absolute inset-x-0 bottom-0 h-40 w-full text-white/[0.06]" />
+          <div className="relative">
+            <div className="flex items-center gap-2 text-gold-300"><Building2 className="h-5 w-5" /><span className="text-xs font-semibold uppercase tracking-widest">Better living starts here</span></div>
+            <div className="mt-2 text-2xl font-semibold">Want CasaVilla to manage your property?</div>
+            <p className="mt-1 text-sm text-white/70">Call, email or WhatsApp our team on Rubaga Road.</p>
           </div>
-          <div className="mt-4 flex flex-wrap gap-2 md:mt-0">
-            <a href="https://wa.me/256776593482" className="btn bg-white text-brand-700 hover:bg-brand-50">WhatsApp</a>
-            <a href="tel:+256776593482" className="btn border border-white/40 text-white hover:bg-white/10">+256 776 593 482</a>
+          <div className="relative mt-5 flex flex-wrap gap-2 md:mt-0">
+            <a href="https://wa.me/256776593482" className="btn-gold">WhatsApp us</a>
+            <a href="tel:+256776593482" className="btn border border-white/30 text-white hover:bg-white/10">+256 776 593 482</a>
           </div>
-        </div>
-      </section>
+        </section>
+      </div>
     </main>
   );
 }

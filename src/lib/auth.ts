@@ -20,11 +20,11 @@ export async function requireUser(...roles: Role[]): Promise<User> {
   return u;
 }
 
-export async function startSession(u: User) {
+export async function startSession(u: User, remember = true) {
   const token = await signSession({ uid: u.id, role: u.role });
   const store = await cookies();
   store.set(SESSION_COOKIE, token, {
-    httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", maxAge: 60 * 60 * 24 * 30,
+    httpOnly: true, sameSite: "lax", secure: process.env.NODE_ENV === "production", path: "/", ...(remember ? { maxAge: 60 * 60 * 24 * 30 } : {}),
   });
 }
 

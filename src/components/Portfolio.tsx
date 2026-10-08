@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { Prisma, Property } from "@prisma/client";
 import { db, type User } from "@/db";
 import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
-import { Badge, Empty, Field, Photo } from "./ui";
+import { Avatar, Badge, Empty, Field, Photo } from "./ui";
 import { Submit, ConfirmSubmit } from "./client";
 import { Documents } from "./Documents";
 import { Ledger } from "./Ledger";
@@ -74,43 +74,43 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
   return (
     <div>
       <Link href={base} className="link text-sm">← Properties</Link>
-      <div className="mt-3 grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
-          <div className="card overflow-x-auto p-0">
-            <div className="p-5 pb-3"><div className="h1">{p.name}</div><div className="muted">{p.location} · {p.type}</div></div>
-            <table className="table">
-              <thead><tr><th>Unit</th><th>Beds</th><th>Rent (UGX)</th><th>Listed</th><th>Status / tenant</th><th></th></tr></thead>
-              <tbody>
-                {p.units.map((u) => {
-                  const lease = u.leases[0];
-                  return (
-                    <tr key={u.id}>
-                      <td colSpan={4} className="p-0">
-                        <form action={updateUnit} className="grid grid-cols-[1.2fr_0.6fr_1fr_0.5fr_auto] items-center gap-2 px-3 py-2">
-                          <input type="hidden" name="id" value={u.id} />
-                          <input name="label" defaultValue={u.label} className="input py-1" />
-                          <input name="bedrooms" type="number" min={0} defaultValue={u.bedrooms} className="input py-1" />
-                          <input name="rent" type="number" min={0} defaultValue={u.rent} className="input py-1" />
-                          <input name="listed" type="checkbox" defaultChecked={u.listed} className="h-4 w-4 accent-brand-500" disabled={u.status === "occupied"} />
-                          <Submit className="btn-ghost btn-sm">Save</Submit>
-                        </form>
-                      </td>
-                      <td>{lease ? <Link href={`${tenantsBase}/${lease.id}`} className="link">{lease.tenant.name}</Link> : <Badge>{u.status}</Badge>}</td>
-                      <td>{u.status === "vacant" && u.listed && <Link href={`/listings/${u.id}`} className="text-xs text-stone-500 hover:underline">View listing</Link>}</td>
-                    </tr>
-                  );
-                })}
-                {p.units.length === 0 && <tr><td colSpan={6} className="text-stone-500">No units yet — add them below.</td></tr>}
-              </tbody>
-            </table>
-            <form action={addUnit} className="grid gap-2 border-t border-stone-100 p-4 sm:grid-cols-6">
+      <div className="mt-3 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 space-y-6 lg:col-span-2">
+          <div className="card overflow-hidden p-0">
+            <Photo id={p.photoId} alt={p.name} className="h-36 w-full" />
+            <div className="p-4 pb-2"><div className="text-xl font-bold text-brand-950">{p.name}</div><div className="muted">{p.location} · {p.type}</div></div>
+            <div className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-stone-500">Units</div>
+            <div className="divide-y divide-stone-100">
+              {p.units.map((u) => {
+                const lease = u.leases[0];
+                return (
+                  <div key={u.id} className="px-4 py-3">
+                    <div className="mb-2 flex items-center justify-between gap-2 text-sm">
+                      {lease ? <Link href={`${tenantsBase}/${lease.id}`} className="link truncate">{lease.tenant.name}</Link> : <Badge>{u.status}</Badge>}
+                      {u.status === "vacant" && u.listed && <Link href={`/listings/${u.id}`} className="text-xs text-stone-500 hover:underline">View listing</Link>}
+                    </div>
+                    <form action={updateUnit} className="grid grid-cols-[1.3fr_0.7fr_1.2fr] items-end gap-2 sm:grid-cols-[1.3fr_0.6fr_1fr_auto_auto]">
+                      <input type="hidden" name="id" value={u.id} />
+                      <label className="min-w-0"><span className="label">Unit</span><input name="label" defaultValue={u.label} className="input py-2" /></label>
+                      <label className="min-w-0"><span className="label">Beds</span><input name="bedrooms" type="number" min={0} defaultValue={u.bedrooms} className="input py-2" /></label>
+                      <label className="min-w-0"><span className="label">Rent (UGX)</span><input name="rent" type="number" min={0} defaultValue={u.rent} className="input py-2" /></label>
+                      <label className="col-span-2 flex items-center gap-2 py-2 text-sm text-stone-600 sm:col-span-1"><input name="listed" type="checkbox" defaultChecked={u.listed} className="h-4 w-4 accent-brand-700" disabled={u.status === "occupied"} /> Listed</label>
+                      <Submit className="btn-outline btn-sm py-2">Save</Submit>
+                    </form>
+                  </div>
+                );
+              })}
+              {p.units.length === 0 && <div className="px-4 py-3 text-sm text-stone-500">No units yet — add them below.</div>}
+            </div>
+            <form action={addUnit} className="grid grid-cols-2 gap-2 border-t border-stone-100 bg-stone-50/50 p-4 sm:grid-cols-6">
+              <div className="col-span-2 text-xs font-semibold uppercase tracking-wide text-stone-500 sm:col-span-6">Add units</div>
               <input type="hidden" name="propertyId" value={p.id} />
-              <input name="label" className="input sm:col-span-2" placeholder="Unit name, e.g. Apt A1" required />
-              <input name="bedrooms" type="number" min={0} className="input" placeholder="Beds" defaultValue={1} />
-              <input name="rent" type="number" min={0} className="input" placeholder="Rent UGX" required />
-              <input name="count" type="number" min={1} max={50} className="input" placeholder="How many" defaultValue={1} title="Add several identical units at once" />
-              <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="listed" defaultChecked className="h-4 w-4 accent-brand-500" /> List</label>
-              <div className="sm:col-span-6"><Submit className="btn-outline btn-sm">Add unit(s)</Submit></div>
+              <input name="label" className="input col-span-2" placeholder="Unit name, e.g. Apt A1" required />
+              <label className="min-w-0"><span className="label">Beds</span><input name="bedrooms" type="number" min={0} className="input" defaultValue={1} /></label>
+              <label className="min-w-0"><span className="label">Rent (UGX)</span><input name="rent" type="number" min={0} className="input" placeholder="e.g. 800000" required /></label>
+              <label className="min-w-0"><span className="label">How many</span><input name="count" type="number" min={1} max={50} className="input" defaultValue={1} title="Add several identical units at once" /></label>
+              <label className="flex items-center gap-2 self-end pb-3 text-sm text-stone-600"><input type="checkbox" name="listed" defaultChecked className="h-4 w-4 accent-brand-700" /> List publicly</label>
+              <div className="col-span-2 sm:col-span-6"><Submit className="btn-primary btn-sm">Add unit(s)</Submit></div>
             </form>
           </div>
           <Documents propertyId={p.id} viewerId={viewer.id} />
@@ -182,7 +182,23 @@ export async function TenantsTable({ where, base, only }: { where: Prisma.LeaseW
   })).filter((r) => (only === "owing" ? r.owed > 0 : only === "overdue" ? r.overdue > 0 : true));
   if (!rows.length) return <Empty title={only ? "Nobody owes anything right now" : "No tenants yet"}>{only ? undefined : "Approve an application to create a lease."}</Empty>;
   return (
-    <div className="card overflow-x-auto p-0">
+    <>
+    <div className="card divide-y divide-stone-100 p-0 lg:hidden">
+      {rows.map(({ l, owed, overdue }) => (
+        <Link key={l.id} href={`${base}/${l.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-stone-50">
+          <Avatar name={l.tenant.name} />
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold text-stone-800">{l.tenant.name}</div>
+            <div className="truncate text-xs text-stone-500">{l.unit.property.name} · {l.unit.label} · {ugx(l.rent)}/mo</div>
+          </div>
+          <div className="text-right">
+            <div className={`text-sm font-semibold ${overdue > 0 ? "text-maroon-600" : owed > 0 ? "text-stone-800" : "text-brand-700"}`}>{ugx(owed)}</div>
+            {overdue > 0 ? <Badge>overdue</Badge> : <Badge>{l.status}</Badge>}
+          </div>
+        </Link>
+      ))}
+    </div>
+    <div className="card hidden overflow-x-auto p-0 lg:block">
       <table className="table">
         <thead><tr><th>Tenant</th><th>Unit</th><th>Rent</th><th>Lease</th><th className="text-right">Overdue</th><th className="text-right">Balance</th><th>Status</th></tr></thead>
         <tbody>
@@ -200,6 +216,7 @@ export async function TenantsTable({ where, base, only }: { where: Prisma.LeaseW
         </tbody>
       </table>
     </div>
+    </>
   );
 }
 
@@ -230,8 +247,8 @@ export async function LeaseDetail({ id, viewer, base }: { id: number; viewer: Us
         </div>
         <Badge>{l.status}</Badge>
       </div>
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2"><Ledger leaseId={id} recordCash={cash} /></div>
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2"><Ledger leaseId={id} recordCash={cash} /></div>
         <div className="space-y-6">
           <div className="card space-y-2 text-sm">
             <div className="flex justify-between"><span className="text-stone-500">Lease</span><span>{fmtDate(l.startDate)} – {fmtDate(l.endDate)}</span></div>

@@ -4,7 +4,8 @@ import { db } from "@/db";
 import { getUser } from "@/lib/auth";
 import { shopProducts } from "@/lib/queries";
 import { ugx } from "@/lib/format";
-import { Badge, Photo } from "@/components/ui";
+import { ArrowLeft, BadgeCheck, MapPin } from "lucide-react";
+import { Avatar, Badge, Photo } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { bookService, placeOrder } from "@/app/market-actions";
 
@@ -21,13 +22,19 @@ export default async function ProviderPage({ params }: { params: Promise<{ id: s
   const myProps = me?.role === "landlord" ? await db.property.findMany({ where: { landlordId: me.id }, orderBy: { name: "asc" } }) : [];
 
   return (
-    <main className="mx-auto max-w-5xl px-4 py-10">
-      <Link href="/services" className="link text-sm">← All providers</Link>
-      <h1 className="h1 mt-3">{p.businessName || p.name}</h1>
-      <div className="muted">{p.area || "Kampala"} · Verified by CasaVilla</div>
-      {p.bio && <p className="mt-3 max-w-2xl text-stone-700">{p.bio}</p>}
+    <main className="mx-auto max-w-5xl px-4 pt-6">
+      <Link href="/services" className="inline-flex items-center gap-1 text-sm font-medium text-brand-700"><ArrowLeft className="h-4 w-4" /> All providers</Link>
+      <div className="card mt-4 flex items-center gap-4">
+        <Avatar name={p.businessName || p.name} className="h-16 w-16 text-lg" />
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold text-brand-950">{p.businessName || p.name}</h1>
+          <span className="pill mt-1 bg-brand-50 text-brand-700"><BadgeCheck className="h-3.5 w-3.5" /> Verified by CasaVilla</span>
+          <div className="mt-1 flex items-center gap-1 text-xs text-stone-500"><MapPin className="h-3.5 w-3.5" /> {p.area || "Kampala"}</div>
+        </div>
+      </div>
+      {p.bio && <p className="mt-4 max-w-2xl text-sm leading-relaxed text-stone-600">{p.bio}</p>}
 
-      <h2 className="h2 mt-8">Services</h2>
+      <h2 className="h2 mt-7">Services</h2>
       <div className="mt-3 grid gap-4 md:grid-cols-2">
         {svcs.map((s) => (
           <div key={s.id} className="card">

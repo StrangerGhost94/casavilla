@@ -1,7 +1,16 @@
 import Link from "next/link";
+import { Banknote, Building, ChevronRight, Smartphone } from "lucide-react";
 import { db } from "@/db";
 import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { Badge } from "./ui";
+
+const methodLabel: Record<string, string> = { mtn: "MTN MoMo", airtel: "Airtel Money", cash: "Cash", bank: "Bank" };
+const MethodIcon = ({ m }: { m: string }) => {
+  if (m === "mtn") return <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-300 text-[10px] font-extrabold text-black">MTN</span>;
+  if (m === "airtel") return <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-red-600 text-white"><Smartphone className="h-4 w-4" /></span>;
+  if (m === "bank") return <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><Building className="h-4 w-4" /></span>;
+  return <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><Banknote className="h-4 w-4" /></span>;
+};
 
 /** Rent charges and payment history for one lease. */
 export async function Ledger({ leaseId, payHref, recordCash }: { leaseId: number; payHref?: (chargeId: number) => string; recordCash?: React.ReactNode }) {
@@ -12,50 +21,58 @@ export async function Ledger({ leaseId, payHref, recordCash }: { leaseId: number
   const today = kampalaToday();
   const owed = cs.reduce((s, c) => s + (c.amount - c.paid), 0);
   return (
-    <div className="space-y-6">
-      <div className="card overflow-x-auto p-0">
-        <div className="flex items-center justify-between p-5 pb-3">
+    <div className="space-y-5">
+      <div className="card p-0">
+        <div className="flex items-center justify-between px-4 pb-2 pt-4">
           <div className="h2">Rent charges</div>
-          <div className="text-sm">Balance: <span className={`font-bold ${owed > 0 ? "text-maroon-600" : "text-brand-600"}`}>{ugx(owed)}</span></div>
+          <div className="text-xs text-stone-500">Balance <span className={`ml-1 text-sm font-bold ${owed > 0 ? "text-maroon-600" : "text-brand-700"}`}>{ugx(owed)}</span></div>
         </div>
-        <table className="table">
-          <thead><tr><th>For</th><th>Due</th><th className="text-right">Amount</th><th className="text-right">Paid</th><th>Status</th><th></th></tr></thead>
-          <tbody>
-            {cs.map((c) => {
-              const overdue = c.status !== "paid" && ymd(c.dueDate) < today;
-              return (
-                <tr key={c.id}>
-                  <td>{c.description}</td>
-                  <td className="whitespace-nowrap">{fmtDate(c.dueDate)}</td>
-                  <td className="text-right">{ugx(c.amount)}</td>
-                  <td className="text-right">{ugx(c.paid)}</td>
-                  <td><Badge>{overdue ? "overdue" : c.status}</Badge></td>
-                  <td className="text-right">{c.status !== "paid" && payHref && <Link href={payHref(c.id)} className="btn-primary btn-sm">Pay</Link>}</td>
-                </tr>
-              );
-            })}
-            {cs.length === 0 && <tr><td colSpan={6} className="text-stone-500">No charges yet.</td></tr>}
-          </tbody>
-        </table>
+        <div className="divide-y divide-stone-100">
+          {cs.map((c) => {
+            const overdue = c.status !== "paid" && ymd(c.dueDate) < today;
+            return (
+              <div key={c.id} className="flex items-center gap-3 px-4 py-3">
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-medium text-stone-800">{c.description}</div>
+                  <div className="text-xs text-stone-500">Due {fmtDate(c.dueDate)}{c.paid > 0 && c.status !== "paid" && <> · paid {ugx(c.paid)}</>}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-semibold text-stone-800">{ugx(c.amount)}</div>
+                  <Badge>{overdue ? "overdue" : c.status}</Badge>
+                </div>
+                {payHref && c.status !== "paid" && <Link href={payHref(c.id)} className="btn-primary btn-sm">Pay</Link>}
+              </div>
+            );
+          })}
+          {cs.length === 0 && <div className="px-4 py-4 text-sm text-stone-500">No charges yet.</div>}
+        </div>
       </div>
       {recordCash}
-      <div className="card overflow-x-auto p-0">
-        <div className="h2 p-5 pb-3">Payments</div>
-        <table className="table">
-          <thead><tr><th>Date</th><th>Method</th><th className="text-right">Amount</th><th>Status</th><th>Receipt</th></tr></thead>
-          <tbody>
-            {ps.map((p) => (
-              <tr key={p.id}>
-                <td className="whitespace-nowrap">{fmtDate(p.paidAt || p.createdAt)}</td>
-                <td className="uppercase">{p.method}{p.phone && <span className="ml-1 normal-case text-stone-500">{p.phone}</span>}</td>
-                <td className="text-right">{ugx(p.amount)}</td>
-                <td><Badge>{p.status}</Badge></td>
-                <td>{p.status === "success" ? <Link href={`/receipts/${p.id}`} className="link">{p.receiptNo}</Link> : p.status === "pending" ? <Link href={`/pay/${p.reference}`} className="link">Check</Link> : "—"}</td>
-              </tr>
-            ))}
-            {ps.length === 0 && <tr><td colSpan={5} className="text-stone-500">No payments yet.</td></tr>}
-          </tbody>
-        </table>
+      <div className="card p-0">
+        <div className="h2 px-4 pb-2 pt-4">Payment history</div>
+        <div className="divide-y divide-stone-100">
+          {ps.map((p) => {
+            const href = p.status === "success" ? `/receipts/${p.id}` : p.status === "pending" ? `/pay/${p.reference}` : null;
+            const body = (
+              <>
+                <MethodIcon m={p.method} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium text-stone-800">{fmtDate(p.paidAt || p.createdAt)}</div>
+                  <div className="truncate text-xs text-stone-500">{methodLabel[p.method] ?? p.method}{p.receiptNo && <> · {p.receiptNo}</>}</div>
+                </div>
+                <div className="text-right">
+                  <div className="text-sm font-semibold text-stone-800">{ugx(p.amount)}</div>
+                  <Badge>{p.status === "success" ? "paid" : p.status}</Badge>
+                </div>
+                {href && <ChevronRight className="h-4 w-4 text-stone-400" />}
+              </>
+            );
+            return href
+              ? <Link key={p.id} href={href} className="flex items-center gap-3 px-4 py-3 hover:bg-stone-50">{body}</Link>
+              : <div key={p.id} className="flex items-center gap-3 px-4 py-3">{body}</div>;
+          })}
+          {ps.length === 0 && <div className="px-4 py-4 text-sm text-stone-500">No payments yet.</div>}
+        </div>
       </div>
     </div>
   );

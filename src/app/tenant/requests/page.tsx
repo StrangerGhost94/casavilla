@@ -8,7 +8,7 @@ export default async function TenantRequests() {
   return (
     <>
       <PageHeader title="Repairs & bookings" subtitle="Track every request from report to done."
-        actions={<Link href="/tenant/requests/new" className="btn-maroon">Report a repair</Link>} />
+        actions={<Link href="/tenant/requests/new" className="btn-primary">Report a repair</Link>} />
       <JobList where={jobsFor.tenant(u)} base="/tenant/requests" empty="You haven't reported any repairs" />
     </>
   );

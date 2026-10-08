@@ -27,7 +27,7 @@ export default async function PayStatus({ params }: { params: Promise<{ ref: str
 
   return (
     <main className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-4 py-10 text-center">
-      <Logo className="h-16" />
+      <Logo />
       <div className="card mt-6 w-full">
         <div className="text-sm text-stone-500">{c.description}</div>
         <div className="mt-1 text-3xl font-bold">{ugx(p.amount)}</div>
