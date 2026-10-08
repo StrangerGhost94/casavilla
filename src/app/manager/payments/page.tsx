@@ -32,18 +32,18 @@ export default async function ManagerPayments({ searchParams }: { searchParams: 
         <button className="btn-outline">Filter</button>
       </form>
       <div className="card overflow-x-auto p-0">
-        <table className="table">
+        <table className="table table-stack">
           <thead><tr><th>Date</th><th>Tenant</th><th>Unit</th><th>Method</th><th className="text-right">Amount</th><th>Status</th><th>Receipt</th></tr></thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.p.id}>
-                <td className="whitespace-nowrap">{fmtDate(r.p.paidAt || r.p.createdAt)}</td>
-                <td>{r.tenant}</td>
-                <td>{r.property} · {r.unit}</td>
-                <td className="uppercase">{r.p.method}</td>
-                <td className="text-right">{ugx(r.p.amount)}</td>
-                <td><Badge>{r.p.status}</Badge></td>
-                <td>{r.p.status === "success" ? <Link href={`/receipts/${r.p.id}`} className="link">{r.p.receiptNo}</Link> : <span className="text-xs text-stone-400">{r.p.reference}</span>}</td>
+                <td data-label="" className="whitespace-nowrap">{fmtDate(r.p.paidAt || r.p.createdAt)}</td>
+                <td data-label="Tenant">{r.tenant}</td>
+                <td data-label="Unit">{r.property} · {r.unit}</td>
+                <td data-label="Method" className="uppercase">{r.p.method}</td>
+                <td data-label="Amount" className="text-right">{ugx(r.p.amount)}</td>
+                <td data-label="Status"><Badge>{r.p.status}</Badge></td>
+                <td data-label="Receipt">{r.p.status === "success" ? <Link href={`/receipts/${r.p.id}`} className="link">{r.p.receiptNo}</Link> : <span className="text-xs text-stone-400">{r.p.reference}</span>}</td>
               </tr>
             ))}
           </tbody>

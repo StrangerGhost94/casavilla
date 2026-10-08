@@ -71,7 +71,7 @@ export async function JobDetail({ id, viewer, back }: { id: number; viewer: User
 
   return (
     <div>
-      <Link href={back} className="link text-sm">← Back</Link>
+      <Link href={back} className="link hidden text-sm lg:inline">← Back</Link>
       <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="h1">{j.title}</h1>

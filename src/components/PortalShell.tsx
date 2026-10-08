@@ -8,6 +8,7 @@ import { homeFor } from "@/lib/auth";
 import { Avatar, Logo } from "./ui";
 import { BottomNav, MobileTitle, NavLinks } from "./NavLinks";
 import { InstallPrompt } from "./InstallApp";
+import { AutoCloseDetails } from "./client";
 
 export function greetingNow() {
   const h = Number(new Date().toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: "Africa/Kampala" }));
@@ -20,7 +21,7 @@ async function Notifications({ user, tone }: { user: User; tone: "light" | "dark
     db.notification.count({ where: { userId: user.id, read: false } }),
   ]);
   return (
-    <details className="relative">
+    <AutoCloseDetails className="relative">
       <summary aria-label="Notifications"
         className={`relative flex h-10 w-10 cursor-pointer list-none items-center justify-center rounded-full ${tone === "light" ? "text-white hover:bg-white/10" : "text-brand-900 hover:bg-stone-100"}`}>
         <Bell className="h-5 w-5" />
@@ -37,7 +38,7 @@ async function Notifications({ user, tone }: { user: User; tone: "light" | "dark
         ))}
         {unread > 0 && <form action={markAllRead}><button className="btn-ghost btn-sm w-full">Mark all read</button></form>}
       </div>
-    </details>
+    </AutoCloseDetails>
   );
 }
 

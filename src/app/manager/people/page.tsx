@@ -35,17 +35,17 @@ export default async function People({ searchParams }: { searchParams: Promise<{
         </form>
       </div>
       <div className="card overflow-x-auto p-0">
-        <table className="table">
+        <table className="table table-stack">
           <thead><tr><th>Name</th><th>Role</th><th>Contact</th><th>Joined</th><th>Status</th><th></th></tr></thead>
           <tbody>
             {list.map((u) => (
               <tr key={u.id}>
-                <td className="font-medium">{u.businessName || u.name}{u.businessName && <div className="text-xs font-normal text-stone-500">{u.name}</div>}</td>
-                <td className="capitalize">{u.role}</td>
-                <td>{u.phone}<div className="text-xs text-stone-500">{u.email}</div></td>
-                <td className="whitespace-nowrap">{fmtDate(u.createdAt)}</td>
-                <td><Badge>{u.status}</Badge></td>
-                <td>{u.id !== me.id && (
+                <td data-label="" className="font-medium">{u.businessName || u.name}{u.businessName && <div className="text-xs font-normal text-stone-500">{u.name}</div>}</td>
+                <td data-label="Role" className="capitalize">{u.role}</td>
+                <td data-label="Contact">{u.phone}<div className="text-xs text-stone-500">{u.email}</div></td>
+                <td data-label="Joined" className="whitespace-nowrap">{fmtDate(u.createdAt)}</td>
+                <td data-label="Status"><Badge>{u.status}</Badge></td>
+                <td data-label="">{u.id !== me.id && (
                   <div className="flex gap-1">
                     {u.status !== "active" && <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" /><Submit className="btn-primary btn-sm">{u.status === "pending" ? "Approve" : "Reactivate"}</Submit></form>}
                     {u.status !== "suspended" && <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="suspended" /><Submit className="btn-ghost btn-sm text-maroon-600">Suspend</Submit></form>}

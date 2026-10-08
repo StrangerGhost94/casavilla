@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { saveUpload } from "@/lib/uploads";
 import { notify } from "@/lib/notify";
+import { fail } from "@/lib/flash";
 
 export async function uploadDocument(fd: FormData) {
   const u = await requireUser();
@@ -12,14 +13,14 @@ export async function uploadDocument(fd: FormData) {
   let otherParty: number | null = null;
   if (leaseId) {
     const l = await db.lease.findUnique({ where: { id: leaseId } });
-    if (!l || !(u.role === "manager" || l.tenantId === u.id || l.landlordId === u.id)) throw new Error("Not allowed");
+    if (!l || !(u.role === "manager" || l.tenantId === u.id || l.landlordId === u.id)) return fail("Not allowed");
     otherParty = u.id === l.tenantId ? l.landlordId : l.tenantId;
   } else if (propertyId) {
     const p = await db.property.findUnique({ where: { id: propertyId } });
-    if (!p || !(u.role === "manager" || p.landlordId === u.id)) throw new Error("Not allowed");
-  } else throw new Error("Choose a lease or property");
+    if (!p || !(u.role === "manager" || p.landlordId === u.id)) return fail("Not allowed");
+  } else return fail("Choose a lease or property");
   const fileId = await saveUpload(fd.get("file"), u.id, false);
-  if (!fileId) throw new Error("Choose a file");
+  if (!fileId) return fail("Choose a file");
   const title = String(fd.get("title") || "").trim() || "Document";
   await db.document.create({ data: { fileId, title, leaseId, propertyId, uploadedById: u.id } });
   if (otherParty) await notify(otherParty, `${u.name} shared a document: ${title}`);

@@ -4,7 +4,7 @@ import type { Prisma, Property } from "@prisma/client";
 import { db, type User } from "@/db";
 import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { Avatar, Badge, Empty, Field, Photo } from "./ui";
-import { Submit, ConfirmSubmit } from "./client";
+import { Submit, ConfirmSubmit, FileInput } from "./client";
 import { Documents } from "./Documents";
 import { Ledger } from "./Ledger";
 import { saveProperty, addUnit, updateUnit, decideApplication, recordCashPayment, endLease } from "@/app/landlord/actions";
@@ -28,7 +28,7 @@ export function PropertyForm({ p, landlords }: { p?: Property; landlords?: { id:
       </div>
       <Field label="Location"><input name="location" defaultValue={p?.location} className="input" required placeholder="e.g. Rubaga Road, Kampala" /></Field>
       <Field label="Description"><textarea name="description" defaultValue={p?.description ?? ""} rows={3} className="input" placeholder="Water, power, parking, security, nearby…" /></Field>
-      <Field label={p?.photoId ? "Replace photo" : "Photo"}><input type="file" name="photo" accept="image/*" className="input py-1.5" /></Field>
+      <Field label={p?.photoId ? "Replace photo" : "Photo"}><FileInput name="photo" accept="image/*" /></Field>
       <Submit>{p ? "Save changes" : "Add property"}</Submit>
     </form>
   );
@@ -73,7 +73,7 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
   const tenantsBase = base.replace("/properties", "/tenants");
   return (
     <div>
-      <Link href={base} className="link text-sm">← Properties</Link>
+      <Link href={base} className="link hidden text-sm lg:inline">← Properties</Link>
       <div className="mt-3 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">
           <div className="card overflow-hidden p-0">
@@ -239,7 +239,7 @@ export async function LeaseDetail({ id, viewer, base }: { id: number; viewer: Us
   );
   return (
     <div>
-      <Link href={base} className="link text-sm">← Tenants</Link>
+      <Link href={base} className="link hidden text-sm lg:inline">← Tenants</Link>
       <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="h1">{l.tenant.name}</h1>

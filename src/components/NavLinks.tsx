@@ -80,6 +80,14 @@ const titleOverrides: [RegExp, string][] = [
   [/^\/profile/, "Profile"],
 ];
 
+/** Where the header back arrow leads from a given screen. */
+export function parentOf(path: string, root: string) {
+  if (path.startsWith("/tenant/pay/")) return "/tenant/rent";
+  if (path === "/profile" || path.startsWith("/receipts/")) return root;
+  const segs = path.split("/").filter(Boolean);
+  return segs.length > 2 ? "/" + segs.slice(0, -1).join("/") : root;
+}
+
 /** Left side of the green phone header: greeting on the home screen, back arrow + title elsewhere. */
 export function MobileTitle({ root, items, greeting, name, avatar }: { root: string; items: NavItem[]; greeting: string; name: string; avatar: React.ReactNode }) {
   const path = usePathname();
@@ -101,7 +109,12 @@ export function MobileTitle({ root, items, greeting, name, avatar }: { root: str
     ?? "CasaVilla";
   return (
     <div className="flex min-w-0 items-center gap-2">
-      <button type="button" aria-label="Back" onClick={() => (window.history.length > 1 ? router.back() : router.push(root))}
+      <button type="button" aria-label="Back" onClick={() => {
+          // "New …" forms go back to wherever you came from; everything else goes to its parent screen,
+          // so the arrow never returns you to a form you just sent.
+          if (path.endsWith("/new") && window.history.length > 1) router.back();
+          else router.push(parentOf(path, root));
+        }}
         className="-ml-1.5 rounded-full p-1.5 hover:bg-white/10">
         <ArrowLeft className="h-5 w-5" />
       </button>

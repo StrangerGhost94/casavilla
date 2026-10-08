@@ -5,6 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { saveUpload } from "@/lib/uploads";
 import { notify } from "@/lib/notify";
 import { normalizePhone } from "@/lib/format";
+import { fail } from "@/lib/flash";
 
 const refresh = () => revalidatePath("/", "layout");
 
@@ -51,9 +52,9 @@ export async function toggleProduct(fd: FormData) {
 export async function updateOrder(fd: FormData) {
   const u = await requireUser("provider");
   const status = String(fd.get("status"));
-  if (!["confirmed", "delivered", "cancelled"].includes(status)) throw new Error("Bad status");
+  if (!["confirmed", "delivered", "cancelled"].includes(status)) return fail("Bad status");
   const o = await db.order.findFirst({ where: { id: Number(fd.get("id")), providerId: u.id } });
-  if (!o) throw new Error("Order not found");
+  if (!o) return fail("Order not found");
   await db.order.update({ where: { id: o.id }, data: { status } });
   if (status === "cancelled" && o.status !== "cancelled") {
     await db.product.update({ where: { id: o.productId }, data: { stock: { increment: o.quantity } } });

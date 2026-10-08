@@ -4,11 +4,12 @@ import { db, type Job, type User } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { notify } from "@/lib/notify";
 import { ugx } from "@/lib/format";
+import { fail } from "@/lib/flash";
 
 async function loadJob(fd: FormData) {
   const u = await requireUser();
   const job = await db.job.findUnique({ where: { id: Number(fd.get("jobId")) } });
-  if (!job) throw new Error("Job not found");
+  if (!job) return fail("Job not found");
   return { u, job };
 }
 
@@ -28,7 +29,7 @@ function refresh() { revalidatePath("/", "layout"); }
 
 export async function addNote(fd: FormData) {
   const { u, job } = await loadJob(fd);
-  if (!isParty(u, job)) throw new Error("Not allowed");
+  if (!isParty(u, job)) return fail("Not allowed");
   const body = String(fd.get("body") || "").trim();
   if (!body) return;
   await db.jobNote.create({ data: { jobId: job.id, authorId: u.id, body } });
@@ -38,10 +39,10 @@ export async function addNote(fd: FormData) {
 
 export async function assignProvider(fd: FormData) {
   const { u, job } = await loadJob(fd);
-  if (!(u.role === "manager" || (u.role === "landlord" && job.landlordId === u.id))) throw new Error("Not allowed");
+  if (!(u.role === "manager" || (u.role === "landlord" && job.landlordId === u.id))) return fail("Not allowed");
   const providerId = Number(fd.get("providerId"));
   const p = await db.user.findFirst({ where: { id: providerId, role: "provider", status: "active" } });
-  if (!p) throw new Error("Choose an approved provider");
+  if (!p) return fail("Choose an approved provider");
   await db.job.update({ where: { id: job.id }, data: { providerId, status: "assigned", quote: null } });
   await notify(providerId, `New job assigned: ${job.title}`, `/provider/jobs/${job.id}`);
   await tellParties({ ...job, providerId: null }, u, `${p.businessName || p.name} was assigned to "${job.title}"`);
@@ -50,7 +51,7 @@ export async function assignProvider(fd: FormData) {
 
 export async function providerRespond(fd: FormData) {
   const { u, job } = await loadJob(fd);
-  if (u.role !== "provider" || job.providerId !== u.id) throw new Error("Not allowed");
+  if (u.role !== "provider" || job.providerId !== u.id) return fail("Not allowed");
   const action = String(fd.get("action"));
   const who = u.businessName || u.name;
   if (action === "accept") {
@@ -73,7 +74,7 @@ export async function providerRespond(fd: FormData) {
 export async function cancelJob(fd: FormData) {
   const { u, job } = await loadJob(fd);
   const can = u.role === "manager" || job.requesterId === u.id || job.landlordId === u.id;
-  if (!can || job.status === "done") throw new Error("Not allowed");
+  if (!can || job.status === "done") return fail("Not allowed");
   await db.job.update({ where: { id: job.id }, data: { status: "cancelled" } });
   await tellParties(job, u, `"${job.title}" was cancelled`);
   refresh();
@@ -82,7 +83,7 @@ export async function cancelJob(fd: FormData) {
 export async function reopenJob(fd: FormData) {
   const { u, job } = await loadJob(fd);
   const can = u.role === "manager" || job.requesterId === u.id || job.landlordId === u.id;
-  if (!can) throw new Error("Not allowed");
+  if (!can) return fail("Not allowed");
   await db.job.update({ where: { id: job.id }, data: { status: job.providerId ? "assigned" : "open" } });
   await tellParties(job, u, `"${job.title}" was reopened`);
   refresh();

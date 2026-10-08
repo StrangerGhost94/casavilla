@@ -3,7 +3,9 @@ import "@fontsource-variable/inter";
 import "@fontsource/playfair-display/600.css";
 import "@fontsource/playfair-display/700.css";
 import "./globals.css";
+import { Suspense } from "react";
 import { RegisterSW } from "@/components/InstallApp";
+import { Flash } from "@/components/Flash";
 import { startupImages } from "@/lib/splash";
 
 export const metadata: Metadata = {
@@ -23,7 +25,7 @@ export const viewport: Viewport = { themeColor: "#0e3628", width: "device-width"
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}<RegisterSW /></body>
+      <body>{children}<Suspense fallback={null}><Flash /></Suspense><RegisterSW /></body>
     </html>
   );
 }

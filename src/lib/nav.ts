@@ -67,7 +67,7 @@ export const tabs: Record<Role | "guest", Tabs> = {
   },
   provider: {
     left: [{ href: "/provider", label: "Home", icon: "home" }, { href: "/provider/jobs", label: "Jobs", icon: "briefcase" }],
-    action: { href: "/provider/services", label: "Add service", icon: "plus" },
+    action: { href: "/provider/services#add", label: "Add service", icon: "plus" },
     right: [{ href: "/provider/orders", label: "Orders", icon: "bag" }, { href: "/profile", label: "Profile", icon: "user" }],
   },
   manager: {

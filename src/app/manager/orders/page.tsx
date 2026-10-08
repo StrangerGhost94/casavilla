@@ -15,10 +15,10 @@ export default async function ManagerOrders() {
       <PageHeader title="Shop orders" subtitle="Items bought from service providers through CasaVilla." />
       {rows.length === 0 ? <Empty title="No orders yet" /> : (
         <div className="card overflow-x-auto p-0">
-          <table className="table">
+          <table className="table table-stack">
             <thead><tr><th>#</th><th>Date</th><th>Item</th><th>Buyer</th><th>Seller</th><th>Total</th><th>Status</th></tr></thead>
             <tbody>{rows.map((r) => (
-              <tr key={r.o.id}><td>{r.o.id}</td><td>{fmtDate(r.o.createdAt)}</td><td>{r.o.quantity} × {r.product}</td><td>{r.buyer}</td><td>{r.seller || r.sellerName}</td><td>{ugx(r.o.total)}</td><td><Badge>{r.o.status}</Badge></td></tr>
+              <tr key={r.o.id}><td data-label="">Order #{r.o.id}</td><td data-label="Date">{fmtDate(r.o.createdAt)}</td><td data-label="Item">{r.o.quantity} × {r.product}</td><td data-label="Buyer">{r.buyer}</td><td data-label="Seller">{r.seller || r.sellerName}</td><td data-label="Total">{ugx(r.o.total)}</td><td data-label="Status"><Badge>{r.o.status}</Badge></td></tr>
             ))}</tbody>
           </table>
         </div>

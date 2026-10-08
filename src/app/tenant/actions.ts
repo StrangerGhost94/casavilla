@@ -9,12 +9,13 @@ import { saveUpload } from "@/lib/uploads";
 import { initiateCharge, provider } from "@/lib/momo";
 import { completePayment, failPayment } from "@/lib/billing";
 import { dateOnly, networkFor, normalizePhone, ugx } from "@/lib/format";
+import { fail } from "@/lib/flash";
 
 export async function applyForUnit(fd: FormData) {
   const u = await requireUser("tenant");
   const unitId = Number(fd.get("unitId"));
   const unit = await db.unit.findUnique({ where: { id: unitId }, include: { property: true } });
-  if (!unit || unit.status !== "vacant") throw new Error("This unit is no longer available");
+  if (!unit || unit.status !== "vacant") return fail("This unit is no longer available");
   const dupe = await db.application.findFirst({ where: { unitId, tenantId: u.id, status: { in: ["pending", "approved"] } } });
   if (!dupe) {
     const moveIn = String(fd.get("moveIn") || "");
@@ -59,10 +60,10 @@ export async function startPayment(_: { error?: string } | undefined, fd: FormDa
 /** Sandbox only: lets you approve or decline a test payment without real money. */
 export async function sandboxResolve(fd: FormData) {
   const u = await requireUser();
-  if (provider !== "sandbox") throw new Error("Not available in live mode");
+  if (provider !== "sandbox") return fail("Not available in live mode");
   const ref = String(fd.get("ref"));
   const p = await db.payment.findUnique({ where: { reference: ref } });
-  if (!p || (p.tenantId !== u.id && u.role !== "manager")) throw new Error("Not found");
+  if (!p || (p.tenantId !== u.id && u.role !== "manager")) return fail("Not found");
   if (fd.get("outcome") === "approve") await completePayment(p.id);
   else await failPayment(p.id);
   redirect(`/pay/${ref}`);
@@ -71,7 +72,7 @@ export async function sandboxResolve(fd: FormData) {
 export async function createRequest(fd: FormData) {
   const u = await requireUser("tenant");
   const lease = await db.lease.findFirst({ where: { tenantId: u.id, status: "active" }, include: { unit: true } });
-  if (!lease) throw new Error("You need an active lease to report a repair");
+  if (!lease) return fail("You need an active lease to report a repair");
   const photoId = await saveUpload(fd.get("photo"), u.id, false, true);
   const job = await db.job.create({
     data: {

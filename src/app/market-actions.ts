@@ -5,12 +5,13 @@ import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { notify } from "@/lib/notify";
 import { ugx } from "@/lib/format";
+import { fail } from "@/lib/flash";
 
 /** Any signed-in tenant, landlord or manager can book a provider's service directly. */
 export async function bookService(fd: FormData) {
   const u = await requireUser("tenant", "landlord", "manager");
   const svc = await db.service.findUnique({ where: { id: Number(fd.get("serviceId")) } });
-  if (!svc) throw new Error("Service not found");
+  if (!svc) return fail("Service not found");
   let propertyId: number | null = null, unitId: number | null = null, landlordId: number | null = null;
   if (u.role === "tenant") {
     const l = await db.lease.findFirst({ where: { tenantId: u.id, status: "active" }, include: { unit: true } });
@@ -39,7 +40,7 @@ export async function placeOrder(fd: FormData) {
   const productId = Number(fd.get("productId"));
   const qty = Math.max(1, Number(fd.get("quantity")) || 1);
   const p = await db.product.findUnique({ where: { id: productId } });
-  if (!p || !p.active) throw new Error("Product not available");
+  if (!p || !p.active) return fail("Product not available");
   // Take stock only if enough is left, so two buyers can't both get the last item.
   const took = await db.product.updateMany({ where: { id: p.id, stock: { gte: qty } }, data: { stock: { decrement: qty } } });
   if (took.count === 0) redirect(`/shop?error=${encodeURIComponent(`Only ${p.stock} of ${p.name} left`)}`);

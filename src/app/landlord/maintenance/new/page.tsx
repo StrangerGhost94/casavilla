@@ -1,7 +1,7 @@
 import { db, SERVICE_CATEGORIES } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { PageHeader, Field, Empty } from "@/components/ui";
-import { Submit } from "@/components/client";
+import { Submit, FileInput } from "@/components/client";
 import { landlordJob } from "../../actions";
 
 export default async function NewJob() {
@@ -19,7 +19,7 @@ export default async function NewJob() {
         </div>
         <Field label="Title"><input name="title" className="input" required placeholder="e.g. Repaint block B corridors" /></Field>
         <Field label="Details"><textarea name="description" rows={4} className="input" required /></Field>
-        <Field label="Photo (optional)"><input type="file" name="photo" accept="image/*" className="input py-1.5" /></Field>
+        <Field label="Photo (optional)"><FileInput name="photo" accept="image/*" /></Field>
         <Submit>Create job</Submit>
       </form>
     </div>

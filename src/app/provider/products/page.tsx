@@ -2,7 +2,7 @@ import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { ugx } from "@/lib/format";
 import { PageHeader, Field, Badge, Photo } from "@/components/ui";
-import { Submit } from "@/components/client";
+import { Submit, FileInput } from "@/components/client";
 import { saveProduct, toggleProduct } from "../actions";
 
 export default async function ProviderProducts() {
@@ -21,7 +21,7 @@ export default async function ProviderProducts() {
                 <div className="flex items-center justify-between"><div className="font-semibold">{p.name}</div><Badge color={p.active ? "green" : "gray"}>{p.active ? "listed" : "hidden"}</Badge></div>
                 <div className="text-sm">{ugx(p.price)} · {p.stock} in stock</div>
                 <details>
-                  <summary className="btn-ghost btn-sm cursor-pointer list-none">Edit</summary>
+                  <summary className="btn-outline btn-sm cursor-pointer list-none">Edit</summary>
                   <form action={saveProduct} className="mt-2 space-y-2">
                     <input type="hidden" name="id" value={p.id} />
                     <input name="name" defaultValue={p.name} className="input" required />
@@ -30,11 +30,11 @@ export default async function ProviderProducts() {
                       <input name="stock" type="number" defaultValue={p.stock} className="input" />
                     </div>
                     <textarea name="description" defaultValue={p.description ?? ""} rows={2} className="input" />
-                    <input type="file" name="photo" accept="image/*" className="input py-1.5" />
+                    <FileInput name="photo" accept="image/*" />
                     <Submit className="btn-primary btn-sm">Save</Submit>
                   </form>
                 </details>
-                <form action={toggleProduct}><input type="hidden" name="id" value={p.id} /><Submit className="btn-ghost btn-sm">{p.active ? "Hide" : "List"}</Submit></form>
+                <form action={toggleProduct}><input type="hidden" name="id" value={p.id} /><Submit className="btn-outline btn-sm">{p.active ? "Hide from shop" : "List in shop"}</Submit></form>
               </div>
             </div>
           ))}
@@ -47,7 +47,7 @@ export default async function ProviderProducts() {
             <Field label="Stock"><input name="stock" type="number" className="input" defaultValue={1} /></Field>
           </div>
           <Field label="Description"><textarea name="description" rows={2} className="input" /></Field>
-          <Field label="Photo"><input type="file" name="photo" accept="image/*" className="input py-1.5" /></Field>
+          <Field label="Photo"><FileInput name="photo" accept="image/*" /></Field>
           <Submit>Add item</Submit>
         </form>
       </div>

@@ -1,7 +1,7 @@
 import { db } from "@/db";
 import { fmtDate } from "@/lib/format";
 import { uploadDocument, deleteDocument } from "@/app/doc-actions";
-import { Submit, ConfirmSubmit } from "./client";
+import { Submit, ConfirmSubmit, FileInput } from "./client";
 
 export async function Documents({ leaseId, propertyId, viewerId, canUpload = true }: { leaseId?: number; propertyId?: number; viewerId: number; canUpload?: boolean }) {
   const docs = await db.document.findMany({
@@ -36,7 +36,7 @@ export async function Documents({ leaseId, propertyId, viewerId, canUpload = tru
           {leaseId && <input type="hidden" name="leaseId" value={leaseId} />}
           {propertyId && <input type="hidden" name="propertyId" value={propertyId} />}
           <input name="title" className="input" placeholder="Title, e.g. Signed tenancy agreement" required />
-          <input name="file" type="file" required className="input py-1.5" accept=".pdf,.doc,.docx,image/*" />
+          <FileInput name="file" required accept=".pdf,.doc,.docx,image/*" />
           <Submit className="btn-outline">Upload</Submit>
         </form>
       )}

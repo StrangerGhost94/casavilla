@@ -8,6 +8,7 @@ import { saveUpload } from "@/lib/uploads";
 import { notify } from "@/lib/notify";
 import { completePayment, ensureCharges } from "@/lib/billing";
 import { dateOnly, ugx } from "@/lib/format";
+import { fail } from "@/lib/flash";
 
 const refresh = () => revalidatePath("/", "layout");
 
@@ -17,7 +18,7 @@ const owns = (u: User, landlordId: number) => u.role === "manager" || u.id === l
 
 async function ownedProperty(u: User, id: number) {
   const p = await db.property.findUnique({ where: { id } });
-  if (!p || !owns(u, p.landlordId)) throw new Error("Property not found");
+  if (!p || !owns(u, p.landlordId)) return fail("Property not found");
   return p;
 }
 
@@ -36,7 +37,7 @@ export async function saveProperty(fd: FormData) {
     return;
   }
   const landlordId = u.role === "manager" ? Number(fd.get("landlordId")) : u.id;
-  if (!landlordId) throw new Error("Choose a landlord");
+  if (!landlordId) return fail("Choose a landlord");
   const p = await db.property.create({ data: { ...data, landlordId, photoId } });
   redirect(`/${u.role}/properties/${p.id}`);
 }
@@ -58,7 +59,7 @@ export async function addUnit(fd: FormData) {
 export async function updateUnit(fd: FormData) {
   const u = await actor();
   const unit = await db.unit.findUnique({ where: { id: Number(fd.get("id")) }, include: { property: true } });
-  if (!unit || !owns(u, unit.property.landlordId)) throw new Error("Unit not found");
+  if (!unit || !owns(u, unit.property.landlordId)) return fail("Unit not found");
   await db.unit.update({
     where: { id: unit.id },
     data: {
@@ -72,7 +73,7 @@ export async function updateUnit(fd: FormData) {
 export async function decideApplication(fd: FormData) {
   const u = await actor();
   const a = await db.application.findUnique({ where: { id: Number(fd.get("id")) }, include: { unit: { include: { property: true } } } });
-  if (!a || !owns(u, a.unit.property.landlordId) || a.status !== "pending") throw new Error("Application not found");
+  if (!a || !owns(u, a.unit.property.landlordId) || a.status !== "pending") return fail("Application not found");
   const where = `${a.unit.property.name} · ${a.unit.label}`;
 
   if (fd.get("decision") === "reject") {
@@ -81,13 +82,13 @@ export async function decideApplication(fd: FormData) {
     refresh();
     return;
   }
-  if (a.unit.status !== "vacant") throw new Error("Unit is already occupied");
+  if (a.unit.status !== "vacant") return fail("Unit is already occupied");
   const existing = await db.lease.findFirst({ where: { tenantId: a.tenantId, status: "active" } });
-  if (existing) throw new Error("This tenant already has an active lease. End it first.");
+  if (existing) return fail("This tenant already has an active lease. End it first.");
 
   const startDate = String(fd.get("startDate"));
   const endDate = String(fd.get("endDate"));
-  if (!startDate || !endDate || endDate <= startDate) throw new Error("Choose valid lease dates");
+  if (!startDate || !endDate || endDate <= startDate) return fail("Choose valid lease dates");
 
   const { lease, others } = await db.$transaction(async (tx) => {
     const lease = await tx.lease.create({
@@ -114,9 +115,9 @@ export async function decideApplication(fd: FormData) {
 export async function recordCashPayment(fd: FormData) {
   const u = await actor();
   const c = await db.charge.findUnique({ where: { id: Number(fd.get("chargeId")) }, include: { lease: true } });
-  if (!c || !owns(u, c.lease.landlordId)) throw new Error("Charge not found");
+  if (!c || !owns(u, c.lease.landlordId)) return fail("Charge not found");
   const amount = Math.round(Number(fd.get("amount")));
-  if (!amount || amount > c.amount - c.paid) throw new Error("Amount must not exceed the balance on this charge");
+  if (!amount || amount > c.amount - c.paid) return fail("Amount must not exceed the balance on this charge");
   const method = fd.get("method") === "bank" ? "bank" : "cash";
   const reference = String(fd.get("reference") || "").trim() || `${method.toUpperCase()}-${randomBytes(4).toString("hex").toUpperCase()}`;
   const p = await db.payment.create({
@@ -129,7 +130,7 @@ export async function recordCashPayment(fd: FormData) {
 export async function endLease(fd: FormData) {
   const u = await actor();
   const l = await db.lease.findUnique({ where: { id: Number(fd.get("id")) } });
-  if (!l || !owns(u, l.landlordId)) throw new Error("Lease not found");
+  if (!l || !owns(u, l.landlordId)) return fail("Lease not found");
   await db.lease.update({ where: { id: l.id }, data: { status: "ended" } });
   await db.unit.update({ where: { id: l.unitId }, data: { status: "vacant", listed: fd.get("relist") === "on" } });
   await notify(l.tenantId, "Your lease has been ended by the landlord. Contact CasaVilla with any questions.", "/tenant");

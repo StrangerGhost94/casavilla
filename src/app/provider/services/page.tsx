@@ -34,11 +34,11 @@ export default async function ProviderServices() {
                 <input type="hidden" name="active" value={s.active ? "on" : "off"} />
                 <Submit className="btn-primary btn-sm">Save</Submit>
               </form>
-              <form action={toggleService} className="mt-2"><input type="hidden" name="id" value={s.id} /><Submit className="btn-ghost btn-sm">{s.active ? "Hide from directory" : "Show in directory"}</Submit></form>
+              <form action={toggleService} className="mt-2"><input type="hidden" name="id" value={s.id} /><Submit className="btn-outline btn-sm">{s.active ? "Hide from directory" : "Show in directory"}</Submit></form>
             </details>
           ))}
         </div>
-        <form action={saveService} className="card h-fit space-y-3">
+        <form id="add" action={saveService} className="card h-fit scroll-mt-24 space-y-3">
           <div className="h2">Add a service</div>
           <Field label="Category"><select name="category" className="input">{SERVICE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
           <Field label="Title"><input name="title" className="input" required placeholder="e.g. Deep house cleaning" /></Field>

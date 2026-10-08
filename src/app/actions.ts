@@ -6,7 +6,7 @@ import { endSession, requireUser } from "@/lib/auth";
 
 export async function logout() {
   await endSession();
-  redirect("/");
+  redirect("/login");
 }
 
 export async function markAllRead() {
