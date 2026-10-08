@@ -7,6 +7,7 @@ import { menus, roleName, tabs } from "@/lib/nav";
 import { homeFor } from "@/lib/auth";
 import { Avatar, Logo } from "./ui";
 import { BottomNav, MobileTitle, NavLinks } from "./NavLinks";
+import { InstallPrompt } from "./InstallApp";
 
 export function greetingNow() {
   const h = Number(new Date().toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: "Africa/Kampala" }));
@@ -48,7 +49,7 @@ export async function PortalShell({ user, children }: { user: User; children: Re
     <div className="min-h-screen lg:flex">
       {/* Desktop sidebar */}
       <aside className="no-print hidden bg-brand-900 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col">
-        <Link href="/" className="px-6 pb-6 pt-7"><Logo tone="light" /></Link>
+        <Link href="/" className="px-5 pb-5 pt-6"><Logo tone="light" size="lg" /></Link>
         <NavLinks items={items} />
         <div className="mt-auto border-t border-white/10 p-4">
           <Link href="/profile" className="flex items-center gap-3 rounded-xl p-2 hover:bg-white/5">
@@ -85,6 +86,7 @@ export async function PortalShell({ user, children }: { user: User; children: Re
         </main>
       </div>
       <BottomNav tabs={tabs[user.role]} />
+      <InstallPrompt />
     </div>
   );
 }

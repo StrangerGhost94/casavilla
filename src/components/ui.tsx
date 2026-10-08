@@ -1,40 +1,24 @@
 import Link from "next/link";
 import { ChevronRight, Home } from "lucide-react";
 
-/** Gold house mark used in the CasaVilla logo. */
-export function LogoMark({ className = "h-10 w-10" }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 64 56" className={className} fill="none" aria-hidden>
-      <g stroke="#d2a84a" strokeWidth="3.6" strokeLinejoin="round" strokeLinecap="round">
-        <path d="M6 27 L32 5 L58 27" />
-        <path d="M44 15 V7 H50 V20" />
-        <path d="M13 22 V51 H51 V22" />
-        <path d="M26 51 V35 H38 V51" />
-        <path d="M32 35 V51" strokeWidth="2" />
-      </g>
-    </svg>
-  );
+/** The roofline from the CasaVilla logo (no lettering). Size it by height, e.g. "h-8". */
+export function LogoMark({ className = "h-8" }: { className?: string }) {
+  // eslint-disable-next-line @next/next/no-img-element
+  return <img src="/logo-mark.png" alt="" aria-hidden className={`w-auto select-none ${className}`} draggable={false} />;
 }
 
 /**
- * CasaVilla wordmark. `tone="light"` for dark-green backgrounds, `tone="dark"` for light ones.
- * `stacked` puts the house above the name (splash / login screens).
+ * The CasaVilla logo, no box behind it. `tone="light"` is for dark backgrounds and photos:
+ * same logo with the "property management" line in white so it stays readable.
  */
-export function Logo({ tone = "dark", stacked = false, size = "md", className = "" }: { tone?: "light" | "dark"; stacked?: boolean; size?: "sm" | "md" | "lg"; className?: string }) {
-  const name = tone === "light" ? "text-white" : "text-brand-900";
-  const sub = tone === "light" ? "text-white/80" : "text-brand-700";
-  const s = {
-    sm: { mark: "h-7 w-8", word: "text-xl", tag: "text-[7px] tracking-[0.22em]" },
-    md: { mark: "h-9 w-10", word: "text-2xl", tag: "text-[8px] tracking-[0.24em]" },
-    lg: { mark: "h-16 w-[4.5rem]", word: "text-[2.6rem]", tag: "text-[10px] tracking-[0.3em]" },
-  }[size];
+export function Logo({ tone = "dark", size = "md", className = "" }: { tone?: "light" | "dark"; stacked?: boolean; size?: "sm" | "md" | "lg" | "xl"; className?: string }) {
+  const h = { sm: "h-9", md: "h-12", lg: "h-20", xl: "h-32" }[size];
+  const light = tone === "light";
   return (
-    <span className={`inline-flex ${stacked ? "flex-col items-center text-center" : "items-center gap-2"} ${className}`} aria-label="CasaVilla Property Management">
-      <LogoMark className={s.mark} />
-      <span className={`flex flex-col ${stacked ? "items-center" : ""}`}>
-        <span className={`font-serif font-semibold leading-none ${s.word} ${name}`}>CasaVilla</span>
-        <span className={`mt-1 font-semibold uppercase leading-none ${s.tag} ${sub}`}>Property Management</span>
-      </span>
+    <span className={`inline-flex ${className}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={light ? "/logo-light.png" : "/logo.png"} alt="CasaVilla Property Management" draggable={false}
+        className={`${h} w-auto select-none ${light ? "drop-shadow-[0_3px_10px_rgba(0,0,0,0.45)]" : ""}`} />
     </span>
   );
 }

@@ -1,23 +1,29 @@
 import type { Metadata, Viewport } from "next";
+import "@fontsource-variable/inter";
+import "@fontsource/playfair-display/600.css";
+import "@fontsource/playfair-display/700.css";
 import "./globals.css";
+import { RegisterSW } from "@/components/InstallApp";
+import { startupImages } from "@/lib/splash";
 
 export const metadata: Metadata = {
   title: { default: "CasaVilla Property Management", template: "%s · CasaVilla" },
   description: "Connect. Manage. Grow. Rent, maintenance, leases and trusted service providers — CasaVilla Property Management, Kampala.",
-  icons: { icon: "/icon.svg", apple: "/icon.svg" },
+  applicationName: "CasaVilla",
+  icons: {
+    icon: [{ url: "/icons/favicon-48.png", sizes: "48x48", type: "image/png" }, { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" }],
+    apple: [{ url: "/icons/apple-touch-icon.png", sizes: "180x180" }],
+  },
+  appleWebApp: { capable: true, title: "CasaVilla", statusBarStyle: "black-translucent", startupImage: startupImages },
+  formatDetection: { telephone: false },
+  other: { "apple-mobile-web-app-capable": "yes" },
 };
 export const viewport: Viewport = { themeColor: "#0e3628", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet" />
-      </head>
-      <body>{children}</body>
+      <body>{children}<RegisterSW /></body>
     </html>
   );
 }

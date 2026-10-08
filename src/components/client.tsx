@@ -1,7 +1,7 @@
 "use client";
 import { useFormStatus } from "react-dom";
 import { useEffect, useState } from "react";
-import { Camera } from "lucide-react";
+import { ArrowLeft, Camera } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export function Submit({ children, className = "btn-primary", pendingText }: { children: React.ReactNode; className?: string; pendingText?: string }) {
@@ -47,5 +47,16 @@ export function PhotoPicker({ name }: { name: string }) {
         ? <img src={preview} alt="Selected photo" className="h-40 w-full object-cover" />
         : <span className="flex flex-col items-center gap-1.5 py-7 text-xs font-medium"><Camera className="h-6 w-6" /> Add photo <span className="font-normal text-stone-400">JPG or PNG, up to 5 MB</span></span>}
     </label>
+  );
+}
+
+/** Round back button for full-screen pages; falls back to `href` when there's no history. */
+export function BackButton({ href = "/", className = "" }: { href?: string; className?: string }) {
+  const router = useRouter();
+  return (
+    <button type="button" aria-label="Back" onClick={() => (window.history.length > 1 ? router.back() : router.push(href))}
+      className={`flex h-10 w-10 items-center justify-center rounded-full ${className}`}>
+      <ArrowLeft className="h-5 w-5" />
+    </button>
   );
 }

@@ -3,7 +3,7 @@ import { Building2, ChevronRight, Home as HomeIcon, Search, UserRound, Wrench } 
 import { listedUnits } from "@/lib/queries";
 import { SERVICE_CATEGORIES } from "@/db";
 import { CategoryIcon, categoryLabel } from "@/lib/icons";
-import { BuildingArt, LogoMark, SectionTitle } from "@/components/ui";
+import { BuildingArt, Logo, SectionTitle } from "@/components/ui";
 import { PropertyCard } from "@/components/PropertyCard";
 
 export const dynamic = "force-dynamic";
@@ -19,15 +19,14 @@ export default async function Home() {
   return (
     <main>
       {/* Splash / hero */}
-      <section className="relative overflow-hidden bg-brand-900 text-white">
-        <BuildingArt className="pointer-events-none absolute inset-x-0 bottom-0 h-64 w-full text-white/[0.07] md:h-80" />
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-brand-950/60" />
+      <section className="relative overflow-hidden bg-brand-950 text-white">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/launch.jpg" alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover object-[50%_60%]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-black/35 to-brand-950/90" />
         <div className="relative mx-auto max-w-3xl px-5 pb-16 pt-10 text-center md:pb-24 md:pt-16">
-          <LogoMark className="mx-auto h-16 w-[4.5rem] md:h-20 md:w-[5.5rem]" />
-          <div className="mt-3 font-serif text-4xl font-semibold md:text-5xl">CasaVilla</div>
-          <div className="mt-1.5 text-[10px] font-semibold uppercase tracking-[0.3em] text-white/75">Property Management</div>
-          <h1 className="mt-8 text-2xl font-semibold md:text-4xl">Connect. Manage. Grow.</h1>
-          <p className="mx-auto mt-2 max-w-md text-sm text-white/70 md:text-base">All your property needs in one place — rent, Mobile Money payments, leases, repairs and trusted service providers.</p>
+          <Logo tone="light" size="lg" className="animate-fade-up" />
+          <h1 className="mt-8 text-2xl font-semibold drop-shadow md:text-4xl">Connect. Manage. Grow.</h1>
+          <p className="mx-auto mt-2 max-w-md text-sm text-white/85 drop-shadow md:text-base">All your property needs in one place — rent, Mobile Money payments, leases, repairs and trusted service providers.</p>
           <form action="/listings" className="mx-auto mt-7 flex max-w-md items-center gap-2 rounded-2xl bg-white p-1.5 shadow-float">
             <Search className="ml-2.5 h-5 w-5 shrink-0 text-stone-400" />
             <input name="q" className="min-w-0 flex-1 bg-transparent px-1 py-2 text-sm text-stone-800 placeholder:text-stone-400 focus:outline-none" placeholder="Search location, e.g. Rubaga, Kira, Ntinda" />

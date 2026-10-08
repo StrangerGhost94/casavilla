@@ -60,6 +60,23 @@ Cash and bank payments are recorded by the landlord or a manager on the tenant's
 
 ---
 
+## The phone app
+
+CasaVilla installs on phones straight from the website — no app store needed.
+
+- **Android (Chrome):** open the site and tap **Install** on the "Get the CasaVilla app" card (or ⋮ → *Install app*).
+- **iPhone (Safari):** tap **Install** on the card for the steps: Share → *Add to Home Screen* → Add.
+
+The installed app has the CasaVilla icon, opens full-screen with its own splash screen, and starts at `/app`
+(first launch: role picker and three welcome slides; after that it goes straight to sign in or the dashboard).
+It also shows a branded screen when the phone is offline. Pages and payments always load fresh from the server.
+
+Files: `src/app/manifest.ts` (name, icon, colours), `public/sw.js` (offline support), `public/icons/`, and
+`public/splash/` (iPhone launch screens, generated from the `/app` splash), `public/launch.jpg` (launch photo) and `public/logo.png` (logo with transparent background). If you change the service worker,
+bump `VERSION` at the top of `sw.js` so phones pick up the new one.
+
+---
+
 ## How rent works
 
 - Approving an application creates the lease. A deposit charge (if any) and one rent charge per month are raised automatically, due on the lease's due day.

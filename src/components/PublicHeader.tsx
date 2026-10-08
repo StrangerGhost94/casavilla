@@ -9,22 +9,22 @@ export async function PublicHeader() {
   const u = await getUser();
   return (
     <>
-      <header className="no-print sticky top-0 z-30 bg-brand-900 pt-[env(safe-area-inset-top)]">
+      <header className="no-print sticky top-0 z-30 border-b border-stone-200/70 bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <Link href="/"><Logo tone="light" size="sm" /></Link>
+          <Link href="/"><Logo size="sm" /></Link>
           <nav className="hidden items-center gap-1 md:flex">
             {[["/listings", "Discover homes"], ["/services", "Services"], ["/shop", "Shop"]].map(([h, l]) => (
-              <Link key={h} href={h} className="rounded-lg px-3 py-2 text-sm font-medium text-white/75 hover:bg-white/10 hover:text-white">{l}</Link>
+              <Link key={h} href={h} className="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-brand-900">{l}</Link>
             ))}
           </nav>
           <div className="flex items-center gap-2">
             {u ? (
-              <Link href={homeFor(u.role)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-semibold text-white hover:bg-white/10">
+              <Link href={homeFor(u.role)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-semibold text-brand-900 hover:bg-stone-100">
                 <Avatar name={u.name} className="h-8 w-8 text-xs ring-2 ring-gold-400/70" /> <span className="hidden sm:inline">My dashboard</span>
               </Link>
             ) : (
               <>
-                <Link href="/login" className="rounded-lg px-3 py-2 text-sm font-semibold text-white/85 hover:bg-white/10 hover:text-white">Sign in</Link>
+                <Link href="/login" className="rounded-lg px-3 py-2 text-sm font-semibold text-brand-800 hover:bg-stone-100">Sign in</Link>
                 <Link href="/register" className="btn-gold btn-sm hidden px-4 py-2 sm:inline-flex">Get started</Link>
               </>
             )}
@@ -38,7 +38,7 @@ export async function PublicHeader() {
 
 export function PublicFooter() {
   return (
-    <footer className="no-print mt-14 bg-brand-950 pb-28 text-white/70 lg:pb-0">
+    <footer className="no-print web-only mt-14 bg-brand-950 pb-28 text-white/70 lg:pb-0">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 text-sm md:grid-cols-3">
         <div>
           <Logo tone="light" />

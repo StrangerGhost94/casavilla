@@ -14,6 +14,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@fontsource-variable/inter": "^5.2.8",
+    "@fontsource/playfair-display": "^5.2.8",
     "@prisma/client": "^6.19.0",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.12",
