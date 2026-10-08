@@ -1,0 +1,297 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  tenant
+  landlord
+  provider
+  manager
+}
+
+enum UserStatus {
+  pending
+  active
+  suspended
+}
+
+model User {
+  id           Int        @id @default(autoincrement())
+  name         String
+  email        String     @unique
+  phone        String
+  passwordHash String     @map("password_hash")
+  role         Role
+  status       UserStatus @default(active)
+  // service providers
+  businessName String?    @map("business_name")
+  bio          String?
+  area         String?
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  files           File[]
+  properties      Property[]
+  applications    Application[]
+  tenantLeases    Lease[]        @relation("LeaseTenant")
+  landlordLeases  Lease[]        @relation("LeaseLandlord")
+  payments        Payment[]      @relation("PaymentTenant")
+  recordedPayments Payment[]     @relation("PaymentRecorder")
+  services        Service[]
+  products        Product[]
+  orders          Order[]        @relation("OrderBuyer")
+  sales           Order[]        @relation("OrderSeller")
+  requestedJobs   Job[]          @relation("JobRequester")
+  landlordJobs    Job[]          @relation("JobLandlord")
+  providerJobs    Job[]          @relation("JobProvider")
+  jobNotes        JobNote[]
+  documents       Document[]
+  notifications   Notification[]
+
+  @@map("users")
+}
+
+model File {
+  id        Int      @id @default(autoincrement())
+  ownerId   Int?     @map("owner_id")
+  owner     User?    @relation(fields: [ownerId], references: [id])
+  name      String
+  mimeType  String   @map("mime_type")
+  size      Int
+  data      Bytes
+  // documents are private; listing/product photos are public
+  isPublic  Boolean  @default(false) @map("is_public")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("files")
+}
+
+model Property {
+  id          Int        @id @default(autoincrement())
+  landlordId  Int        @map("landlord_id")
+  landlord    User       @relation(fields: [landlordId], references: [id])
+  name        String
+  type        String
+  location    String
+  description String?
+  photoId     Int?       @map("photo_id")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  units       Unit[]
+  jobs        Job[]
+  documents   Document[]
+
+  @@index([landlordId])
+  @@map("properties")
+}
+
+model Unit {
+  id           Int           @id @default(autoincrement())
+  propertyId   Int           @map("property_id")
+  property     Property      @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  label        String
+  bedrooms     Int           @default(1)
+  rent         Int // UGX per month
+  status       String        @default("vacant") // vacant | occupied
+  listed       Boolean       @default(true)
+  applications Application[]
+  leases       Lease[]
+  jobs         Job[]
+
+  @@index([propertyId])
+  @@map("units")
+}
+
+model Application {
+  id        Int       @id @default(autoincrement())
+  unitId    Int       @map("unit_id")
+  unit      Unit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  tenantId  Int       @map("tenant_id")
+  tenant    User      @relation(fields: [tenantId], references: [id])
+  message   String?
+  moveIn    DateTime? @map("move_in") @db.Date
+  status    String    @default("pending") // pending | approved | rejected | withdrawn
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("applications")
+}
+
+model Lease {
+  id         Int        @id @default(autoincrement())
+  unitId     Int        @map("unit_id")
+  unit       Unit       @relation(fields: [unitId], references: [id])
+  tenantId   Int        @map("tenant_id")
+  tenant     User       @relation("LeaseTenant", fields: [tenantId], references: [id])
+  landlordId Int        @map("landlord_id")
+  landlord   User       @relation("LeaseLandlord", fields: [landlordId], references: [id])
+  startDate  DateTime   @map("start_date") @db.Date
+  endDate    DateTime   @map("end_date") @db.Date
+  rent       Int
+  deposit    Int        @default(0)
+  dueDay     Int        @default(5) @map("due_day")
+  status     String     @default("active") // active | ended
+  createdAt  DateTime   @default(now()) @map("created_at")
+  charges    Charge[]
+  payments   Payment[]
+  documents  Document[]
+
+  @@index([tenantId])
+  @@index([landlordId])
+  @@map("leases")
+}
+
+model Charge {
+  id          Int       @id @default(autoincrement())
+  leaseId     Int       @map("lease_id")
+  lease       Lease     @relation(fields: [leaseId], references: [id])
+  period      String // YYYY-MM or DEPOSIT
+  description String
+  amount      Int
+  paid        Int       @default(0)
+  dueDate     DateTime  @map("due_date") @db.Date
+  status      String    @default("unpaid") // unpaid | partial | paid
+  payments    Payment[]
+
+  @@unique([leaseId, period])
+  @@map("charges")
+}
+
+model Payment {
+  id           Int       @id @default(autoincrement())
+  chargeId     Int       @map("charge_id")
+  charge       Charge    @relation(fields: [chargeId], references: [id])
+  leaseId      Int       @map("lease_id")
+  lease        Lease     @relation(fields: [leaseId], references: [id])
+  tenantId     Int       @map("tenant_id")
+  tenant       User      @relation("PaymentTenant", fields: [tenantId], references: [id])
+  amount       Int
+  method       String // mtn | airtel | cash | bank
+  phone        String?
+  reference    String    @unique
+  status       String    @default("pending") // pending | success | failed
+  receiptNo    String?   @map("receipt_no")
+  recordedById Int?      @map("recorded_by_id")
+  recordedBy   User?     @relation("PaymentRecorder", fields: [recordedById], references: [id])
+  createdAt    DateTime  @default(now()) @map("created_at")
+  paidAt       DateTime? @map("paid_at")
+
+  @@map("payments")
+}
+
+model Service {
+  id          Int     @id @default(autoincrement())
+  providerId  Int     @map("provider_id")
+  provider    User    @relation(fields: [providerId], references: [id])
+  category    String
+  title       String
+  description String?
+  priceFrom   Int?    @map("price_from")
+  active      Boolean @default(true)
+  jobs        Job[]
+
+  @@map("services")
+}
+
+model Product {
+  id          Int     @id @default(autoincrement())
+  providerId  Int     @map("provider_id")
+  provider    User    @relation(fields: [providerId], references: [id])
+  name        String
+  description String?
+  price       Int
+  stock       Int     @default(0)
+  photoId     Int?    @map("photo_id")
+  active      Boolean @default(true)
+  orders      Order[]
+
+  @@map("products")
+}
+
+model Order {
+  id           Int      @id @default(autoincrement())
+  productId    Int      @map("product_id")
+  product      Product  @relation(fields: [productId], references: [id])
+  buyerId      Int      @map("buyer_id")
+  buyer        User     @relation("OrderBuyer", fields: [buyerId], references: [id])
+  providerId   Int      @map("provider_id")
+  provider     User     @relation("OrderSeller", fields: [providerId], references: [id])
+  quantity     Int
+  total        Int
+  deliveryNote String?  @map("delivery_note")
+  status       String   @default("placed") // placed | confirmed | delivered | cancelled
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("orders")
+}
+
+/// Maintenance requests and direct service bookings
+model Job {
+  id          Int       @id @default(autoincrement())
+  requesterId Int       @map("requester_id")
+  requester   User      @relation("JobRequester", fields: [requesterId], references: [id])
+  propertyId  Int?      @map("property_id")
+  property    Property? @relation(fields: [propertyId], references: [id])
+  unitId      Int?      @map("unit_id")
+  unit        Unit?     @relation(fields: [unitId], references: [id])
+  landlordId  Int?      @map("landlord_id")
+  landlord    User?     @relation("JobLandlord", fields: [landlordId], references: [id])
+  providerId  Int?      @map("provider_id")
+  provider    User?     @relation("JobProvider", fields: [providerId], references: [id])
+  serviceId   Int?      @map("service_id")
+  service     Service?  @relation(fields: [serviceId], references: [id])
+  category    String
+  title       String
+  description String
+  priority    String    @default("normal") // low | normal | urgent
+  photoId     Int?      @map("photo_id")
+  quote       Int?
+  status      String    @default("open") // open | assigned | accepted | in_progress | done | cancelled
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+  notes       JobNote[]
+
+  @@map("jobs")
+}
+
+model JobNote {
+  id        Int      @id @default(autoincrement())
+  jobId     Int      @map("job_id")
+  job       Job      @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  authorId  Int      @map("author_id")
+  author    User     @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("job_notes")
+}
+
+model Document {
+  id           Int       @id @default(autoincrement())
+  fileId       Int       @map("file_id")
+  title        String
+  leaseId      Int?      @map("lease_id")
+  lease        Lease?    @relation(fields: [leaseId], references: [id])
+  propertyId   Int?      @map("property_id")
+  property     Property? @relation(fields: [propertyId], references: [id])
+  uploadedById Int       @map("uploaded_by_id")
+  uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("documents")
+}
+
+model Notification {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id])
+  message   String
+  link      String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("notifications")
+}
