@@ -70,7 +70,7 @@ export async function PortalShell({ user, children }: { user: User; children: Re
 
       <div className="min-w-0 flex-1">
         {/* Phone header */}
-        <header className="no-print sticky top-0 z-30 bg-brand-900 px-4 pb-7 pt-[max(0.75rem,env(safe-area-inset-top))] text-white lg:hidden">
+        <header className="no-print sticky top-0 z-30 bg-brand-900 px-4 pb-7 pt-[calc(env(safe-area-inset-top)+1.25rem)] text-white lg:hidden">
           <div className="flex items-center justify-between gap-3">
             <MobileTitle root={homeFor(user.role)} items={[...items, { href: "/profile", label: "Profile", icon: "user" }]} greeting={greetingNow()} name={first}
               avatar={<Avatar name={user.name} className="h-11 w-11 text-sm ring-2 ring-gold-400/70" />} />

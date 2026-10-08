@@ -9,7 +9,7 @@ export async function PublicHeader() {
   const u = await getUser();
   return (
     <>
-      <header className="no-print sticky top-0 z-30 border-b border-stone-200/70 bg-white/95 pt-[env(safe-area-inset-top)] backdrop-blur">
+      <header className="no-print sticky top-0 z-30 border-b border-stone-200/70 bg-white pt-[env(safe-area-inset-top)]">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <Link href="/"><Logo size="sm" /></Link>
           <nav className="hidden items-center gap-1 md:flex">
