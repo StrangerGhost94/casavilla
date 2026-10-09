@@ -7,6 +7,7 @@ import { daysBetween } from "@/lib/billing";
 import { CHARGE_KINDS, CHARGE_KIND_LABEL, MAX_ADVANCE_MONTHS } from "@/lib/rules";
 import { addLeaseCharge, endLease, markRefundPaid, recordCashPayment, renewLease, saveSpecialTerms } from "@/app/landlord/actions";
 import { FileText } from "lucide-react";
+import { FileButton } from "./FileButton";
 import { Field } from "./ui";
 import { ConfirmSubmit, Submit } from "./client";
 
@@ -189,8 +190,8 @@ export function AgreementCard({ l, manage = true }: { l: Lease; manage?: boolean
         </div>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        <a href={`/leases/${l.id}/agreement`} className="btn-primary btn-sm">Download PDF</a>
-        <a href={`/leases/${l.id}/agreement?view=1`} target="_blank" rel="noreferrer" className="btn-outline btn-sm">Preview</a>
+        <FileButton href={`/leases/${l.id}/agreement`} name="Tenancy-agreement.pdf" className="btn-primary btn-sm w-full">Download PDF</FileButton>
+        <FileButton href={`/leases/${l.id}/agreement`} name="Tenancy-agreement.pdf" className="btn-outline btn-sm w-full">Share / print</FileButton>
       </div>
       {manage && (
         <details>

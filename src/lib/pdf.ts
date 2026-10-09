@@ -155,7 +155,7 @@ export async function embedLogo(w: PdfWriter, fileId?: number | null): Promise<P
       if (f?.mimeType === "image/png") return await w.doc.embedPng(f.data);
       if (f?.mimeType === "image/jpeg") return await w.doc.embedJpg(f.data);
     }
-    return await w.doc.embedPng(await readFile(path.join(process.cwd(), "public", "logo.png")));
+    return await w.doc.embedPng(await readFile(path.join(process.cwd(), "public", "logo-pdf.png")));
   } catch {
     return null;
   }

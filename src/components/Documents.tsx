@@ -1,3 +1,4 @@
+import { FileButton } from "./FileButton";
 import { db } from "@/db";
 import { fmtDate } from "@/lib/format";
 import { uploadDocument, deleteDocument } from "@/app/doc-actions";
@@ -21,7 +22,7 @@ export async function Documents({ leaseId, propertyId, viewerId, canUpload = tru
           return (
             <li key={d.id} className="flex items-center justify-between gap-3 py-2 text-sm">
               <div>
-                <a href={`/api/files/${d.fileId}`} target="_blank" className="link">{d.title}</a>
+                <FileButton href={`/api/files/${d.fileId}`} name={f?.name ?? "document"} className="link text-left">{d.title}</FileButton>
                 <div className="text-xs text-stone-500">{f?.name} · {((f?.size ?? 0) / 1024).toFixed(0)} KB · {d.uploadedBy.name} · {fmtDate(d.createdAt)}</div>
               </div>
               {d.uploadedById === viewerId && (

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Download, Mail } from "lucide-react";
+import { Mail } from "lucide-react";
+import { FileButton } from "@/components/FileButton";
 import { homeFor, requireUser } from "@/lib/auth";
 import { fmtDate, ugx } from "@/lib/format";
 import { receiptData } from "@/lib/receipts";
@@ -21,7 +22,7 @@ export default async function Receipt({ params }: { params: Promise<{ id: string
       <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2">
         <Link href={homeFor(me.role)} className="btn-ghost">← Dashboard</Link>
         <div className="flex flex-wrap gap-2">
-          <a href={`/receipts/${r.p.id}/pdf`} className="btn-primary"><Download className="h-4 w-4" /> Download PDF</a>
+          <FileButton href={`/receipts/${r.p.id}/pdf`} name={`CasaVilla-receipt-${r.p.receiptNo}.pdf`} className="btn-primary">Download PDF</FileButton>
           <PrintButton />
         </div>
       </div>

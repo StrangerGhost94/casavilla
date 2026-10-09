@@ -1,4 +1,5 @@
 import { db } from "@/db";
+import { PhotoZoom } from "./FileButton";
 
 /** Swipeable listing photos (cover first): the property's shared photos plus the ones taken for this unit. */
 export async function Gallery({ propertyId, unitId }: { propertyId: number; unitId?: number }) {
@@ -12,11 +13,11 @@ export async function Gallery({ propertyId, unitId }: { propertyId: number; unit
       <h2 className="h2">Photos <span className="text-xs font-normal text-stone-500">({photos.length})</span></h2>
       <div className="-mx-4 mt-2 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
         {photos.map((p) => (
-          <a key={p.id} href={`/api/files/${p.fileId}`} target="_blank" rel="noreferrer" className="relative w-64 shrink-0 snap-start overflow-hidden rounded-2xl bg-stone-100">
+          <PhotoZoom key={p.id} src={`/api/files/${p.fileId}`} alt={p.label} className="relative w-64 shrink-0 snap-start overflow-hidden rounded-2xl bg-stone-100 text-left">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={`/api/files/${p.fileId}`} alt={p.label} loading="lazy" className="h-44 w-full object-cover" />
             <span className="absolute bottom-2 left-2 rounded-full bg-black/55 px-2 py-0.5 text-[11px] font-medium text-white">{p.label}</span>
-          </a>
+          </PhotoZoom>
         ))}
       </div>
     </section>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Download } from "lucide-react";
+import { FileButton } from "@/components/FileButton";
 import { homeFor, requireUser } from "@/lib/auth";
 import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { bookingData, nightsBetween } from "@/lib/stays";
@@ -39,7 +39,7 @@ export default async function BookingPage({ params }: { params: Promise<{ id: st
           {p.landmark && <div className="text-xs text-stone-600">Landmark: {p.landmark}</div>}
           {b.note && <div className="rounded-lg bg-gold-50 p-2 text-xs text-gold-800">{b.note}</div>}
           <div className="grid grid-cols-2 gap-2">
-            {["confirmed", "completed"].includes(b.status) && <a href={`/stays/bookings/${b.id}/pdf`} className="btn-primary btn-sm"><Download className="h-4 w-4" /> Receipt PDF</a>}
+            {["confirmed", "completed"].includes(b.status) && <FileButton href={`/stays/bookings/${b.id}/pdf`} name={`Booking-${b.receiptNo ?? b.reference}.pdf`} className="btn-primary btn-sm w-full">Receipt PDF</FileButton>}
             <a href={map} target="_blank" rel="noreferrer" className="btn-outline btn-sm">Directions</a>
           </div>
           {["pending", "confirmed"].includes(b.status) && ymd(b.checkIn) > today && (

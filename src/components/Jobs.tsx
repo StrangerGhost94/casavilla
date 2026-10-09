@@ -7,6 +7,7 @@ import { ChevronRight, Sparkles, Star } from "lucide-react";
 import { CategoryIcon } from "@/lib/icons";
 import { Badge, Empty, Photo } from "./ui";
 import { ConfirmSubmit, Submit } from "./client";
+import { PhotoZoom } from "./FileButton";
 import { addNote, assignProvider, providerRespond, cancelJob, reopenJob, decideQuote, rateJob } from "@/app/job-actions";
 import { JOB_LABEL, payerOf } from "@/lib/rules";
 import { providerStats, rankProviders } from "@/lib/insights";
@@ -90,7 +91,7 @@ export async function JobDetail({ id, viewer, back }: { id: number; viewer: User
           <div className="card">
             <div className="h2">Details</div>
             <p className="mt-2 whitespace-pre-line text-stone-700">{j.description}</p>
-            {j.photoId && <a href={`/api/files/${j.photoId}`} target="_blank"><Photo id={j.photoId} alt="Job photo" className="mt-4 max-h-80 rounded-lg" /></a>}
+            {j.photoId && <PhotoZoom src={`/api/files/${j.photoId}`} alt="Repair photo" className="block"><Photo id={j.photoId} alt="Job photo" className="mt-4 max-h-80 rounded-lg" /></PhotoZoom>}
           </div>
 
           <div className="card">

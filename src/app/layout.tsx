@@ -6,6 +6,7 @@ import "./globals.css";
 import { Suspense } from "react";
 import { RegisterSW } from "@/components/InstallApp";
 import { Flash } from "@/components/Flash";
+import { StandaloneFileLinks } from "@/components/FileButton";
 import { startupImages } from "@/lib/splash";
 
 export const metadata: Metadata = {
@@ -25,7 +26,7 @@ export const viewport: Viewport = { themeColor: "#0e3628", width: "device-width"
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}<Suspense fallback={null}><Flash /></Suspense><RegisterSW /></body>
+      <body>{children}<Suspense fallback={null}><Flash /></Suspense><RegisterSW /><StandaloneFileLinks /></body>
     </html>
   );
 }

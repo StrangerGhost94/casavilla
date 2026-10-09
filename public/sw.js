@@ -1,7 +1,7 @@
 // CasaVilla service worker: makes the app installable, keeps app assets on the phone
 // so it opens fast, and shows a branded offline screen when there's no connection.
 // Pages and data always come fresh from the server (rent and payments must never be stale).
-const VERSION = "cv-v5";
+const VERSION = "cv-v6";
 const SHELL = ["/offline", "/launch.jpg", "/logo.png", "/logo-light.png", "/icons/icon-192.png", "/icons/apple-touch-icon.png"];
 
 self.addEventListener("install", (event) => {
