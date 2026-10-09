@@ -144,6 +144,33 @@ const CHECKS: { id: string; title: string; why: string; sql: string; fix?: strin
           AND NOT EXISTS (SELECT 1 FROM provider_areas a WHERE a.provider_id = u.id)`,
   },
   {
+    id: "booking-overlap",
+    title: "Short-stay bookings that overlap on the same unit",
+    why: "Two guests would arrive for the same nights. Cancel one of them.",
+    sql: `SELECT a.id, 'bookings ' || a.reference || ' and ' || b.reference AS label FROM bookings a JOIN bookings b ON a.unit_id = b.unit_id AND a.id < b.id
+          AND a.check_in < b.check_out AND b.check_in < a.check_out
+          WHERE a.status IN ('confirmed','blocked') AND b.status IN ('confirmed','blocked')`,
+  },
+  {
+    id: "booking-stale-hold",
+    title: "Short-stay holds still pending after the payment window",
+    why: "They block nights nobody has paid for.",
+    sql: `SELECT id, reference AS label FROM bookings WHERE status = 'pending' AND created_at < NOW() - INTERVAL '35 minutes'`,
+    fix: `UPDATE bookings SET status = 'expired', note = 'Payment window ended' WHERE status = 'pending' AND created_at < NOW() - INTERVAL '35 minutes'`,
+  },
+  {
+    id: "lease-deposit-cap",
+    title: "Active leases with a deposit above one month's rent",
+    why: "The Landlord and Tenant Act, 2022 (s.30) allows at most one month's rent as a security deposit. Refund the excess or record it as advance rent.",
+    sql: `SELECT id, 'lease ' || id || ': deposit ' || deposit || ' vs rent ' || rent AS label FROM leases WHERE status = 'active' AND deposit > rent`,
+  },
+  {
+    id: "email-failed",
+    title: "Emails that could not be delivered",
+    why: "Check the email address, or the RESEND_API_KEY / MAIL_FROM settings.",
+    sql: `SELECT id, to_email || ' — ' || COALESCE(error, '') AS label FROM email_outbox WHERE status = 'failed'`,
+  },
+  {
     id: "negative-credit",
     title: "Leases with credit while charges are still open",
     why: "Credit should be used up against what the tenant owes.",

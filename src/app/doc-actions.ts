@@ -44,3 +44,49 @@ export async function deleteDocument(fd: FormData) {
   await audit(u.id, "document.deleted", "document", d.id, d.title);
   revalidatePath("/", "layout");
 }
+
+/** Tenant asks for an emailed copy of a receipt (queued until email is configured). */
+export async function emailMyReceipt(fd: FormData) {
+  const u = await requireUser();
+  const { receiptData } = await import("@/lib/receipts");
+  const { emailHtml, queueEmail, sendQueuedEmails } = await import("@/lib/mail");
+  const r = await receiptData(id(fd), u);
+  if (!r || r.tenant.id !== u.id) return fail("Receipt not found");
+  const app = process.env.APP_URL || "https://casavilla-production.up.railway.app";
+  await queueEmail({
+    to: u.email, subject: `Your receipt ${r.p.receiptNo}`, attachKind: "receipt", attachId: r.p.id,
+    html: emailHtml({ accent: r.brand.accentColor, title: `Receipt ${r.p.receiptNo}`, lines: [`Here is your receipt for ${r.property} · ${r.unit}.`], button: { label: "View online", href: `${app}/receipts/${r.p.id}` }, footer: r.brand.displayName }),
+  });
+  await sendQueuedEmails(3).catch(() => 0);
+}
+
+/** Landlord (own documents) or manager (CasaVilla default, or a landlord's): customise receipts & agreements. */
+export async function saveBrand(fd: FormData) {
+  const u = await requireUser("landlord", "manager");
+  const ownerId = u.role === "manager" ? (id(fd, "ownerId") || null) : u.id;
+  const color = String(fd.get("accentColor") || "#124331");
+  if (!/^#[0-9a-fA-F]{6}$/.test(color)) return fail("Pick a valid colour");
+  const logoFileId = await saveUpload(fd.get("logo"), u.id, true, true);
+  if (logoFileId) {
+    const f = await db.file.findUnique({ where: { id: logoFileId }, select: { mimeType: true } });
+    if (!["image/png", "image/jpeg"].includes(f?.mimeType ?? "")) return fail("The logo must be a PNG or JPG image");
+  }
+  const data = {
+    displayName: (await text(fd, "displayName", "the name on documents", { max: 120 })) as string,
+    address: await text(fd, "address", "the address", { optional: true, max: 200 }),
+    phone: await text(fd, "phone", "the phone", { optional: true, max: 80 }),
+    email: await text(fd, "email", "the email", { optional: true, max: 120 }),
+    tin: await text(fd, "tin", "the TIN", { optional: true, max: 30 }),
+    footerNote: await text(fd, "footerNote", "the footer note", { optional: true, max: 300 }),
+    signatory: await text(fd, "signatory", "the signatory", { optional: true, max: 100 }),
+    signatoryTitle: await text(fd, "signatoryTitle", "the signatory title", { optional: true, max: 100 }),
+    showCasaVilla: fd.get("showCasaVilla") === "on",
+    accentColor: color,
+    ...(logoFileId ? { logoFileId } : fd.get("removeLogo") === "on" ? { logoFileId: null } : {}),
+  };
+  const existing = await db.brandProfile.findFirst({ where: { ownerId } });
+  if (existing) await db.brandProfile.update({ where: { id: existing.id }, data });
+  else await db.brandProfile.create({ data: { ...data, ownerId } });
+  await audit(u.id, "brand.saved", "brand", ownerId, data.displayName);
+  revalidatePath("/", "layout");
+}

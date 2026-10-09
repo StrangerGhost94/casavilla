@@ -58,6 +58,10 @@ model User {
   linkRequests    TenantLink[]   @relation("LinkTenant")
   linkInvites     TenantLink[]   @relation("LinkLandlord")
   serviceAreas    ProviderArea[]
+  brand           BrandProfile?
+  bookings        Booking[]      @relation("BookingGuest")
+  /// Send receipts and booking confirmations by email (once an email provider is configured).
+  emailReceipts   Boolean        @default(true) @map("email_receipts")
 
   @@map("users")
 }
@@ -99,6 +103,7 @@ model Property {
   coordAccuracyM Int?    @map("coord_accuracy_m")
   coordSource String?    @map("coord_source") // gps | map
   description String?
+  photos      PropertyPhoto[]
   photoId     Int?       @map("photo_id")
   createdAt   DateTime   @default(now()) @map("created_at")
   units       Unit[]
@@ -119,6 +124,22 @@ model Unit {
   rent         Int // UGX per month
   status       String        @default("vacant") // vacant | occupied
   listed       Boolean       @default(true)
+  bathrooms    Int           @default(1)
+  selfContained Boolean      @default(true) @map("self_contained")
+  furnished    Boolean       @default(false)
+  sizeSqm      Int?          @map("size_sqm")
+  amenities    String[]      @default([])
+  /// long = monthly tenancy; short = nightly stays (Airbnb-style)
+  mode         String        @default("long")
+  nightlyRate  Int?          @map("nightly_rate")
+  cleaningFee  Int           @default(0) @map("cleaning_fee")
+  minNights    Int           @default(1) @map("min_nights")
+  maxGuests    Int           @default(2) @map("max_guests")
+  checkInFrom  String        @default("14:00") @map("check_in_from")
+  checkOutBy   String        @default("10:00") @map("check_out_by")
+  houseRules   String?       @map("house_rules")
+  photos       PropertyPhoto[]
+  bookings     Booking[]
   applications Application[]
   leases       Lease[]
   jobs         Job[]
@@ -165,6 +186,11 @@ model Lease {
   endedAt    DateTime?  @map("ended_at") @db.Date
   /// Move-out settlement: positive = refund owed to the tenant, negative = tenant still owes.
   settlement Int?
+  /// A rent change agreed at renewal and when it takes effect (the Act needs 60 days' notice, at most yearly).
+  nextRent     Int?       @map("next_rent")
+  nextRentFrom DateTime?  @map("next_rent_from") @db.Date
+  /// Extra clauses agreed between landlord and tenant, printed in the tenancy agreement.
+  specialTerms String?    @map("special_terms")
   createdAt  DateTime   @default(now()) @map("created_at")
   charges    Charge[]
   payments   Payment[]
@@ -356,6 +382,8 @@ model Document {
   property     Property? @relation(fields: [propertyId], references: [id])
   uploadedById Int       @map("uploaded_by_id")
   uploadedBy   User      @relation(fields: [uploadedById], references: [id])
+  /// upload | agreement (auto-drafted tenancy agreement)
+  kind         String    @default("upload")
   createdAt    DateTime  @default(now()) @map("created_at")
 
   @@map("documents")
@@ -489,4 +517,100 @@ model ProviderArea {
   @@id([providerId, locationId])
   @@index([locationId])
   @@map("provider_areas")
+}
+
+/// How receipts, agreements and booking confirmations look for one landlord (ownerId) — or CasaVilla's
+/// default when ownerId is null.
+model BrandProfile {
+  id             Int     @id @default(autoincrement())
+  ownerId        Int?    @unique @map("owner_id")
+  owner          User?   @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  displayName    String  @map("display_name")
+  address        String?
+  phone          String?
+  email          String?
+  tin            String?
+  accentColor    String  @default("#124331") @map("accent_color")
+  footerNote     String? @map("footer_note")
+  signatory      String?
+  signatoryTitle String? @map("signatory_title")
+  showCasaVilla  Boolean @default(true) @map("show_casavilla")
+  logoFileId     Int?    @map("logo_file_id")
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("brand_profiles")
+}
+
+/// Listing photos, taken through the guided shot list.
+model PropertyPhoto {
+  id         Int      @id @default(autoincrement())
+  propertyId Int      @map("property_id")
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  unitId     Int?     @map("unit_id")
+  unit       Unit?    @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  fileId     Int      @map("file_id")
+  /// exterior | compound | living | kitchen | bedroom | bathroom | dining | balcony | view | other
+  room       String
+  label      String
+  sort       Int      @default(0)
+  isCover    Boolean  @default(false) @map("is_cover")
+  width      Int?
+  height     Int?
+  /// 0–100 from the on-device checks (light, sharpness, orientation, size).
+  quality    Int?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([propertyId])
+  @@index([unitId])
+  @@map("property_photos")
+}
+
+/// A short stay in a short-stay unit. Dates are nights [checkIn, checkOut). Overlaps are refused by the database.
+model Booking {
+  id          Int       @id @default(autoincrement())
+  unitId      Int       @map("unit_id")
+  unit        Unit      @relation(fields: [unitId], references: [id])
+  guestId     Int       @map("guest_id")
+  guest       User      @relation("BookingGuest", fields: [guestId], references: [id])
+  checkIn     DateTime  @map("check_in") @db.Date
+  checkOut    DateTime  @map("check_out") @db.Date
+  nights      Int
+  guests      Int       @default(1)
+  nightly     Int
+  cleaningFee Int       @default(0) @map("cleaning_fee")
+  total       Int
+  /// pending (held while paying) | confirmed | cancelled | completed | expired | blocked (host's own dates)
+  status      String    @default("pending")
+  reference   String    @unique
+  method      String?
+  phone       String?
+  receiptNo   String?   @map("receipt_no")
+  paidAt      DateTime? @map("paid_at")
+  note        String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@index([unitId, checkIn])
+  @@index([guestId])
+  @@index([status])
+  @@map("bookings")
+}
+
+/// Emails waiting to go out. Sent by housekeeping once an email provider is configured; until then they wait.
+model EmailOutbox {
+  id        Int       @id @default(autoincrement())
+  toEmail   String    @map("to_email")
+  subject   String
+  html      String
+  /// receipt | booking — attaches that document as a PDF when sending
+  attachKind String?  @map("attach_kind")
+  attachId  Int?      @map("attach_id")
+  status    String    @default("queued") // queued | sent | failed
+  error     String?
+  attempts  Int       @default(0)
+  createdAt DateTime  @default(now()) @map("created_at")
+  sentAt    DateTime? @map("sent_at")
+
+  @@index([status, createdAt])
+  @@map("email_outbox")
 }

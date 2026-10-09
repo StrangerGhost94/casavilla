@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/auth";
 import { PageHeader, Empty } from "@/components/ui";
 import { Documents } from "@/components/Documents";
-import { LeaseFacts } from "@/components/LeaseTools";
+import { AgreementCard, LeaseFacts } from "@/components/LeaseTools";
 import { activeLease } from "../lib";
 
 export default async function TenantLease() {
@@ -15,6 +15,7 @@ export default async function TenantLease() {
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="space-y-3">
           <LeaseFacts l={l} manage={false} />
+          <AgreementCard l={l} manage={false} />
           <div className="card text-sm">
             <div className="text-stone-500">Landlord</div>
             <div className="font-semibold text-stone-800">{lease.landlord}</div>

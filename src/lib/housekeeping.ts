@@ -3,6 +3,8 @@ import { db } from "@/db";
 import { ensureChargesFor, expireStalePayments, daysBetween } from "./billing";
 import { managerIds, notifyOnce } from "./notify";
 import { fmtDate, kampalaToday, ugx, ymd } from "./format";
+import { sendQueuedEmails } from "./mail";
+import { expireStaleBookings } from "./stays";
 
 /**
  * Background routine that keeps the system moving without anyone pressing a button:
@@ -21,6 +23,8 @@ export async function runHousekeeping(force = false) {
     out.expired = await expireStalePayments();
     out.reminders = await rentReminders() + await leaseReminders();
     out.escalations = await jobEscalations() + await stockAlerts();
+    await expireStaleBookings().catch((e) => console.error("bookings sweep", e));
+    await sendQueuedEmails().catch((e) => console.error("email sweep", e));
     await db.marker.deleteMany({ where: { key: { startsWith: "sweep:" }, createdAt: { lt: new Date(Date.now() - 7 * 86400000) } } });
   } catch (e) {
     console.error("housekeeping failed", e);

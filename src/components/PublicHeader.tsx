@@ -13,7 +13,7 @@ export async function PublicHeader() {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <Link href="/"><Logo size="sm" /></Link>
           <nav className="hidden items-center gap-1 md:flex">
-            {[["/listings", "Discover homes"], ["/services", "Services"], ["/shop", "Shop"]].map(([h, l]) => (
+            {[["/listings", "Discover homes"], ["/stays", "Short stays"], ["/services", "Services"], ["/shop", "Shop"]].map(([h, l]) => (
               <Link key={h} href={h} className="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-brand-900">{l}</Link>
             ))}
           </nav>

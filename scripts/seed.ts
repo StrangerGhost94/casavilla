@@ -37,6 +37,8 @@ async function main() {
   const rubN = await place("Rubaga Division North", "county"), rubS = await place("Rubaga Division South", "county");
   const areas = [[fixit.id, rubN], [fixit.id, rubS], [sparkle.id, kampala]] as const;
   for (const [providerId, loc] of areas) if (loc) await prisma.providerArea.create({ data: { providerId, locationId: loc.id } });
+  // A furnished studio let by the night (short stays).
+  await prisma.unit.create({ data: { propertyId: court.id, label: "Studio S1", bedrooms: 1, bathrooms: 1, rent: 0, status: "vacant", listed: true, furnished: true, amenities: ["Wi-Fi", "Hot shower", "Parking", "Security / askari"], mode: "short", nightlyRate: 120_000, cleaningFee: 30_000, minNights: 2, maxGuests: 2, houseRules: "No parties. No smoking indoors. Quiet after 10pm." } });
 
   const unitData = [
     { propertyId: court.id, label: "Apt A1", bedrooms: 2, rent: 1_200_000, status: "occupied", listed: false },

@@ -22,7 +22,7 @@ export async function listedUnits(f: { q?: string; max?: number; beds?: number; 
   const inside = await insideFilter(f.in);
   const rows = await db.unit.findMany({
     where: {
-      listed: true, status: "vacant",
+      listed: true, status: "vacant", mode: "long",
       rent: f.max ? { lte: f.max } : undefined,
       bedrooms: f.beds ? { gte: f.beds } : undefined,
       property: {

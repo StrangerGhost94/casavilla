@@ -7,6 +7,8 @@ import { audit } from "./audit";
 import { dateOnly, kampalaToday, periodLabel, ugx, ymd } from "./format";
 import { LATE_FEE_GRACE_DAYS, PAYMENT_TIMEOUT_MIN } from "./rules";
 import { verifyCharge, provider } from "./momo";
+import { brandFor } from "./brand";
+import { emailHtml, queueEmail } from "./mail";
 
 type Tx = Prisma.TransactionClient;
 
@@ -82,17 +84,24 @@ export async function ensureCharges(lease: Lease) {
   }
   const start = ymd(lease.startDate);
   if (start <= today) {
+    // An agreed rent change applies from its month onwards (earlier months keep the old rent).
+    const changeFrom = lease.nextRent && lease.nextRentFrom ? ymd(lease.nextRentFrom).slice(0, 7) : null;
     for (const p of monthsBetween(start, today)) {
       const day = Math.min(lease.dueDay, 28);
       const holdover = p > ymd(lease.endDate).slice(0, 7);
       rows.push({
-        leaseId: lease.id, period: p, kind: "rent", amount: lease.rent,
+        leaseId: lease.id, period: p, kind: "rent", amount: changeFrom && p >= changeFrom ? lease.nextRent! : lease.rent,
         description: `Rent — ${periodLabel(p)}${holdover ? " (month-to-month)" : ""}`,
         dueDate: dateOnly(`${p}-${String(day).padStart(2, "0")}`),
       });
     }
   }
   if (rows.length) await db.charge.createMany({ data: rows, skipDuplicates: true });
+  if (lease.nextRent && lease.nextRentFrom && ymd(lease.nextRentFrom) <= today) {
+    // The change has taken effect: it becomes the lease's rent.
+    const done = await db.lease.updateMany({ where: { id: lease.id, nextRent: lease.nextRent }, data: { rent: lease.nextRent, nextRent: null, nextRentFrom: null } });
+    if (done.count) await audit(null, "lease.rent_rise_effective", "lease", lease.id, `${ugx(lease.rent)} → ${ugx(lease.nextRent)}`);
+  }
 
   if (lease.lateFeePct > 0) {
     const cutoff = dateOnly(addDays(today, -LATE_FEE_GRACE_DAYS));
@@ -154,6 +163,15 @@ export async function completePayment(paymentId: number) {
   const extra = left > 0 ? ` ${ugx(left)} kept as credit for your next rent.` : balance > 0 ? ` Remaining balance ${ugx(balance)}.` : " You're fully paid up.";
   await notify(p.tenantId, `Payment of ${ugx(p.amount)} received. Receipt ${receiptNo}.${extra}`, `/receipts/${p.id}`);
   await notify(lease.landlordId, `${lease.tenant.name} paid ${ugx(p.amount)} for ${lease.unit.property.name} · ${lease.unit.label}.`, `/receipts/${p.id}`);
+  // Email the receipt (queued; delivered once an email provider is set up).
+  if (lease.tenant.emailReceipts) {
+    const brand = await brandFor(lease.landlordId);
+    const app = process.env.APP_URL || "https://casavilla-production.up.railway.app";
+    await queueEmail({
+      to: lease.tenant.email, subject: `Receipt ${receiptNo} — ${ugx(p.amount)} received`, attachKind: "receipt", attachId: p.id,
+      html: emailHtml({ accent: brand.accentColor, title: `Payment received — ${ugx(p.amount)}`, lines: [`Hello ${lease.tenant.name.split(" ")[0]},`, `We received ${ugx(p.amount)} for ${lease.unit.property.name} · ${lease.unit.label}. Your receipt ${receiptNo} is attached.`, extra.trim()], button: { label: "View receipt", href: `${app}/receipts/${p.id}` }, footer: brand.displayName }),
+    });
+  }
   await audit(p.recordedById ?? p.tenantId, "payment.received", "payment", p.id, `${ugx(p.amount)} via ${p.method}${left ? `, ${ugx(left)} to credit` : ""}`);
 }
 

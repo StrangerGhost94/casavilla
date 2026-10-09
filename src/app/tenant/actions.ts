@@ -23,6 +23,7 @@ export async function applyForUnit(fd: FormData) {
   const unitId = id(fd, "unitId");
   const unit = await db.unit.findUnique({ where: { id: unitId }, include: { property: { include: { landlord: { select: { status: true } } } } } });
   if (!unit || unit.status !== "vacant" || !unit.listed || unit.property.landlord.status !== "active") return fail("This home is no longer available");
+  if (unit.mode === "short") return fail("This is a short-stay home — book nights instead of applying");
   const current = await db.lease.findFirst({ where: { tenantId: u.id, unitId, status: "active" } });
   if (current) return fail("You already live here");
   const dupe = await db.application.findFirst({ where: { unitId, tenantId: u.id, status: "pending" } });

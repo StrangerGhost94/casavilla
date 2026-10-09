@@ -57,6 +57,7 @@ export async function confirmLink(fd: FormData) {
   if (!unit || (u.role !== "manager" && unit.property.landlordId !== u.id)) return fail("Choose one of your units");
   if (u.role === "manager" && l.landlordId && unit.property.landlordId !== l.landlordId) return fail("Choose a unit that belongs to this tenant's landlord");
   if (unit.property.landlord.status !== "active") return fail("The landlord's account must be approved by CasaVilla first");
+  if (unit.mode === "short") return fail("That unit is set up for short stays — choose a monthly unit");
 
   const today = kampalaToday();
   const startDate = (await date(fd, "startDate", "the date rent billing starts"))!;
@@ -66,7 +67,7 @@ export async function confirmLink(fd: FormData) {
   const rent = await int(fd, "rent", "the monthly rent", { min: 1000, max: 500_000_000, fallback: unit.rent });
   const dueDay = await int(fd, "dueDay", "the due day", { min: 1, max: 28, fallback: 5 });
   const lateFeePct = await int(fd, "lateFeePct", "the late fee %", { min: 0, max: 50, fallback: 0 });
-  const depositHeld = await int(fd, "depositHeld", "the deposit you hold", { min: 0, max: rent * 12, fallback: 0 });
+  const depositHeld = await int(fd, "depositHeld", "the deposit you hold (at most one month's rent — Landlord and Tenant Act s.30)", { min: 0, max: rent, fallback: 0 });
 
   let lease;
   try {
@@ -108,6 +109,8 @@ export async function confirmLink(fd: FormData) {
   }
   const where = `${unit.property.name} · ${unit.label}`;
   await notify(l.tenantId, `You're connected! Your lease for ${where} is now on CasaVilla — rent ${ugx(rent)}/month from ${fmtDate(startDate)}. Pay with Mobile Money in the app.`, "/tenant");
+  const { saveAgreementSnapshot } = await import("@/lib/agreement");
+  await saveAgreementSnapshot(created.id, u.id, "connected tenant");
   await audit(u.id, "link.confirmed", "lease", created.id, `${l.tenant.name} → ${where}, ${ugx(rent)}/mo from ${startDate}${depositHeld ? `, deposit held ${ugx(depositHeld)}` : ""}`);
   redirect(`/${u.role}/tenants/${created.id}`);
 }

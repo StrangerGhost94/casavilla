@@ -11,10 +11,11 @@ import { dateOnly, fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
 import { date, id, int, isUniqueViolation, oneOf, reqText, text } from "@/lib/validate";
-import { CHARGE_KINDS, CHARGE_KIND_LABEL, MAX_ADVANCE_MONTHS } from "@/lib/rules";
+import { AMENITIES, CHARGE_KINDS, CHARGE_KIND_LABEL, MAX_ADVANCE_MONTHS } from "@/lib/rules";
 import { triage } from "@/lib/insights";
 import { PROPERTY_TYPES } from "@/lib/property-types";
 import { placeLine, readPlace } from "@/lib/geo-form";
+import { saveAgreementSnapshot } from "@/lib/agreement";
 
 const refresh = () => revalidatePath("/", "layout");
 
@@ -69,17 +70,40 @@ export async function saveProperty(fd: FormData) {
   redirect(`/${u.role}/properties/${p.id}`);
 }
 
+
+/** Unit features + short-stay settings, shared by add and edit. */
+async function readUnitDetails(fd: FormData, current?: { mode: string; bathrooms: number }) {
+  const mode = await oneOf(fd, "mode", ["long", "short"] as const, "letting type", (current?.mode as "long" | "short") ?? "long");
+  const amenities = fd.getAll("amenities").map(String).filter((a) => (AMENITIES as readonly string[]).includes(a));
+  const nightlyRate = mode === "short" ? await int(fd, "nightlyRate", "the price per night", { min: 5000, max: 20_000_000 }) : null;
+  const time = (k: string, d: string) => { const v = String(fd.get(k) || d); return /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : d; };
+  return {
+    mode, amenities,
+    bathrooms: await int(fd, "bathrooms", "bathrooms", { min: 0, max: 20, fallback: current?.bathrooms ?? 1 }),
+    selfContained: fd.get("selfContained") === "on",
+    furnished: fd.get("furnished") === "on",
+    sizeSqm: (await int(fd, "sizeSqm", "the size", { min: 5, max: 100000, optional: true })) || null,
+    nightlyRate,
+    cleaningFee: mode === "short" ? await int(fd, "cleaningFee", "the cleaning fee", { min: 0, max: 5_000_000, fallback: 0 }) : 0,
+    minNights: mode === "short" ? await int(fd, "minNights", "minimum nights", { min: 1, max: 90, fallback: 1 }) : 1,
+    maxGuests: mode === "short" ? await int(fd, "maxGuests", "maximum guests", { min: 1, max: 30, fallback: 2 }) : 2,
+    checkInFrom: time("checkInFrom", "14:00"), checkOutBy: time("checkOutBy", "10:00"),
+    houseRules: mode === "short" ? await text(fd, "houseRules", "the house rules", { optional: true, max: 2000 }) : null,
+  };
+}
+
 export async function addUnit(fd: FormData) {
   const u = await actor();
   const p = await ownedProperty(u, id(fd, "propertyId"));
   const count = await int(fd, "count", "how many units", { min: 1, max: 50, fallback: 1 });
   const label = await reqText(fd, "label", "a unit name", { max: 40 });
-  const rent = await int(fd, "rent", "the rent", { min: 1000, max: MAX_RENT });
+  const details = await readUnitDetails(fd);
+  const rent = details.mode === "short" ? await int(fd, "rent", "the rent", { min: 0, max: MAX_RENT, fallback: details.nightlyRate! * 30 }) : await int(fd, "rent", "the rent", { min: 1000, max: MAX_RENT });
   const bedrooms = await int(fd, "bedrooms", "bedrooms", { min: 0, max: 20, fallback: 1 });
   const labels = Array.from({ length: count }, (_, i) => (count > 1 ? `${label} ${i + 1}` : label));
   const clash = await db.unit.findFirst({ where: { propertyId: p.id, label: { in: labels, mode: "insensitive" } }, select: { label: true } });
   if (clash) return fail(`${p.name} already has a unit called "${clash.label}"`);
-  await db.unit.createMany({ data: labels.map((l) => ({ propertyId: p.id, label: l, bedrooms, rent, listed: fd.get("listed") === "on" })) });
+  await db.unit.createMany({ data: labels.map((l) => ({ propertyId: p.id, label: l, bedrooms, rent, listed: fd.get("listed") === "on", ...details })) });
   await audit(u.id, "unit.created", "property", p.id, `${count} × ${label} at ${ugx(rent)}`);
   refresh();
 }
@@ -89,14 +113,21 @@ export async function updateUnit(fd: FormData) {
   const unit = await db.unit.findUnique({ where: { id: id(fd) }, include: { property: true } });
   if (!unit || !owns(u, unit.property.landlordId)) return fail("Unit not found");
   const label = await reqText(fd, "label", "a unit name", { max: 40 });
-  const rent = await int(fd, "rent", "the rent", { min: 1000, max: MAX_RENT });
+  const details = await readUnitDetails(fd, unit);
+  const rent = details.mode === "short" ? await int(fd, "rent", "the rent", { min: 0, max: MAX_RENT, fallback: unit.rent }) : await int(fd, "rent", "the rent", { min: 1000, max: MAX_RENT });
   const bedrooms = await int(fd, "bedrooms", "bedrooms", { min: 0, max: 20, fallback: unit.bedrooms });
+  if (details.mode !== unit.mode) {
+    // Switching between monthly and nightly letting must not strand a tenant or a guest.
+    if (details.mode === "short" && unit.status === "occupied") return fail("This unit has a tenant — end the lease before offering it for short stays");
+    if (details.mode === "long" && await db.booking.count({ where: { unitId: unit.id, status: { in: ["pending", "confirmed"] }, checkOut: { gt: new Date() } } })) return fail("This unit has upcoming short-stay bookings — finish or cancel them first");
+    if (details.mode === "short") await db.application.updateMany({ where: { unitId: unit.id, status: "pending" }, data: { status: "rejected" } });
+  }
   const clash = await db.unit.findFirst({ where: { propertyId: unit.propertyId, id: { not: unit.id }, label: { equals: label, mode: "insensitive" } } });
   if (clash) return fail(`${unit.property.name} already has a unit called "${label}"`);
   await db.unit.update({
     where: { id: unit.id },
     // An occupied unit can never be listed; its lease rent is changed through a renewal, not here.
-    data: { label, rent, bedrooms, listed: unit.status === "occupied" ? false : fd.get("listed") === "on" },
+    data: { label, rent, bedrooms, listed: unit.status === "occupied" ? false : fd.get("listed") === "on", ...details },
   });
   if (rent !== unit.rent) await audit(u.id, "unit.rent_changed", "unit", unit.id, `${unit.label}: ${ugx(unit.rent)} → ${ugx(rent)}`);
   refresh();
@@ -130,7 +161,9 @@ export async function decideApplication(fd: FormData) {
   if (months < 1) return fail("A lease must be at least one month long");
   if (months > 121) return fail("A lease can't be longer than 10 years");
   const rent = await int(fd, "rent", "the monthly rent", { min: 1000, max: MAX_RENT, fallback: a.unit.rent });
-  const deposit = await int(fd, "deposit", "the deposit", { min: 0, max: rent * 12, fallback: 0 });
+  // Landlord and Tenant Act 2022, s.30(2): one deposit, at most one month's rent.
+  const deposit = await int(fd, "deposit", "the deposit (at most one month's rent — Landlord and Tenant Act s.30)", { min: 0, max: rent, fallback: 0 });
+  const specialTerms = await text(fd, "specialTerms", "the special terms", { optional: true, max: 3000 });
   const dueDay = await int(fd, "dueDay", "the due day", { min: 1, max: 28, fallback: 5 });
   const lateFeePct = await int(fd, "lateFeePct", "the late fee %", { min: 0, max: 50, fallback: 0 });
 
@@ -145,7 +178,7 @@ export async function decideApplication(fd: FormData) {
       const lease = await tx.lease.create({
         data: {
           unitId: a.unit.id, tenantId: a.tenantId, landlordId: a.unit.property.landlordId,
-          startDate: dateOnly(startDate), endDate: dateOnly(endDate), rent, deposit, dueDay, lateFeePct,
+          startDate: dateOnly(startDate), endDate: dateOnly(endDate), rent, deposit, dueDay, lateFeePct, specialTerms,
         },
       });
       // Everyone else who applied for this unit is told it's taken; the new tenant's other applications close too.
@@ -169,6 +202,7 @@ export async function decideApplication(fd: FormData) {
   const firstDue = await leaseBalance(lease.id);
   await notify(a.tenantId, `Approved! Your lease for ${where} starts ${fmtDate(startDate)}. Rent ${ugx(rent)}/month${firstDue ? ` — ${ugx(firstDue)} is due now` : ""}.`, "/tenant");
   await audit(u.id, "lease.created", "lease", lease.id, `${a.tenant.name} → ${where}, ${ugx(rent)}/mo, ${startDate} to ${endDate}`);
+  await saveAgreementSnapshot(lease.id, u.id, "new lease");
   redirect(`/${u.role}/tenants/${lease.id}`);
 }
 
@@ -222,6 +256,11 @@ export async function waiveLeaseCharge(fd: FormData) {
   refresh();
 }
 
+/**
+ * Renewal under the Landlord and Tenant Act, 2022 (s.26): a rise needs at least 60 days' written notice, can't take
+ * effect during the current fixed term, can't come within 12 months of the last rise, and is capped at 10% a year
+ * unless the tenant has agreed otherwise. A reduction applies from next month.
+ */
 export async function renewLease(fd: FormData) {
   const u = await actor();
   const l = await ownedLease(u, id(fd, "id"));
@@ -229,14 +268,41 @@ export async function renewLease(fd: FormData) {
   const endDate = (await date(fd, "endDate", "the new end date"))!;
   const today = kampalaToday();
   if (endDate <= ymd(l.endDate) || endDate <= today) return fail("The new end date must be after the current end date and after today");
-  const rent = await int(fd, "rent", "the new rent", { min: 1000, max: MAX_RENT, fallback: l.rent });
-  if (rent > l.rent * 1.5) return fail("That's more than a 50% increase — check the amount");
-  await db.lease.update({ where: { id: l.id }, data: { endDate: dateOnly(endDate), rent } });
-  const change = rent !== l.rent ? ` New rent ${ugx(rent)}/month from next month (was ${ugx(l.rent)}).` : "";
-  await notify(l.tenantId, `Your lease has been renewed until ${fmtDate(endDate)}.${change}`, "/tenant/lease");
-  await audit(u.id, "lease.renewed", "lease", l.id, `to ${endDate}${change ? `, ${ugx(l.rent)} → ${ugx(rent)}` : ""}`);
+  const rent = await int(fd, "rent", "the new rent", { min: 1000, max: MAX_RENT, fallback: l.nextRent ?? l.rent });
+  const agreed = fd.get("tenantAgreed") === "on";
+  let rentChange: { nextRent: number; nextRentFrom: Date } | null = null;
+  let note = "";
+  if (rent > l.rent) {
+    if (rent > Math.round(l.rent * 1.1) && !agreed) return fail(`A rise above 10% (${ugx(Math.round(l.rent * 1.1))}) needs the tenant's written agreement — tick the box if they have agreed`);
+    const lastRise = await db.auditLog.findFirst({ where: { entity: "lease", entityId: l.id, action: "lease.rent_rise_effective" }, orderBy: { createdAt: "desc" } });
+    const earliest = [ymd(new Date(Date.parse(ymd(l.endDate)) + 86400000)), addDaysStr(today, 60), addMonthsStr(lastRise ? lastRise.createdAt.toISOString().slice(0, 10) : ymd(l.startDate), 12)].sort().pop()!;
+    const from = firstOfMonthOnOrAfter(earliest);
+    rentChange = { nextRent: rent, nextRentFrom: dateOnly(from) };
+    note = ` New rent ${ugx(rent)}/month from ${fmtDate(from)} (was ${ugx(l.rent)}) — this is your written notice of the change.`;
+  } else if (rent < l.rent) {
+    rentChange = { nextRent: rent, nextRentFrom: dateOnly(firstOfMonthOnOrAfter(addDaysStr(today, 1))) };
+    note = ` Your rent goes down to ${ugx(rent)}/month from ${fmtDate(rentChange.nextRentFrom)}.`;
+  }
+  await db.lease.update({ where: { id: l.id }, data: { endDate: dateOnly(endDate), ...(rentChange ?? { nextRent: null, nextRentFrom: null }) } });
+  await notify(l.tenantId, `Your lease has been renewed until ${fmtDate(endDate)}.${note}`, "/tenant/lease");
+  await audit(u.id, "lease.renewed", "lease", l.id, `to ${endDate}${rentChange ? `, ${ugx(l.rent)} → ${ugx(rent)} from ${ymd(rentChange.nextRentFrom)}${agreed ? " (tenant agreed above 10%)" : ""}` : ""}`);
+  await saveAgreementSnapshot(l.id, u.id, "renewal");
   refresh();
 }
+
+/** Extra clauses printed in the tenancy agreement. */
+export async function saveSpecialTerms(fd: FormData) {
+  const u = await actor();
+  const l = await ownedLease(u, id(fd, "id"));
+  const specialTerms = await text(fd, "specialTerms", "the special terms", { optional: true, max: 3000 });
+  await db.lease.update({ where: { id: l.id }, data: { specialTerms } });
+  await audit(u.id, "lease.terms", "lease", l.id, specialTerms ? `${specialTerms.length} characters` : "cleared");
+  refresh();
+}
+
+const addDaysStr = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
+const addMonthsStr = (d: string, n: number) => { const x = new Date(`${d}T00:00:00Z`); x.setUTCMonth(x.getUTCMonth() + n); return x.toISOString().slice(0, 10); };
+const firstOfMonthOnOrAfter = (d: string) => (d.endsWith("-01") ? d : addMonthsStr(`${d.slice(0, 7)}-01`, 1));
 
 export async function endLease(fd: FormData) {
   const u = await actor();

@@ -38,3 +38,6 @@ export const LATE_FEE_GRACE_DAYS = 7;
 export const PAYMENT_TIMEOUT_MIN = 30;
 /** Tenants can pay ahead by up to this many months of rent. */
 export const MAX_ADVANCE_MONTHS = 6;
+
+/** Features a landlord can tick for a unit (shown on listings and in the tenancy agreement). */
+export const AMENITIES = ["Water (NWSC)", "Water tank", "Yaka power", "Solar backup", "Parking", "Security / askari", "CCTV", "Wi-Fi", "Balcony", "Garden", "Tiled floors", "Fitted kitchen", "Wardrobes", "Hot shower", "Gated", "Pet friendly"] as const;

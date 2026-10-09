@@ -5,7 +5,8 @@ import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { tenantScore, marketRent, type TenantScore } from "@/lib/insights";
 import { daysBetween } from "@/lib/billing";
 import { CHARGE_KINDS, CHARGE_KIND_LABEL, MAX_ADVANCE_MONTHS } from "@/lib/rules";
-import { addLeaseCharge, endLease, markRefundPaid, recordCashPayment, renewLease } from "@/app/landlord/actions";
+import { addLeaseCharge, endLease, markRefundPaid, recordCashPayment, renewLease, saveSpecialTerms } from "@/app/landlord/actions";
+import { FileText } from "lucide-react";
 import { Field } from "./ui";
 import { ConfirmSubmit, Submit } from "./client";
 
@@ -59,6 +60,7 @@ export function LeaseFacts({ l, manage = true }: { l: Lease; manage?: boolean })
         <Row k="Time left" v={left < 0 ? <span className="font-semibold text-maroon-600">Expired {-left} days ago · month-to-month</span> : left <= 60 ? <span className="font-semibold text-gold-700">{left} days</span> : `${left} days`} />
       )}
       <Row k="Rent" v={`${ugx(l.rent)} / month`} />
+      {l.nextRent && l.nextRentFrom && <Row k="Agreed change" v={<span className="font-semibold text-gold-700">{ugx(l.nextRent)} from {fmtDate(l.nextRentFrom)}</span>} />}
       <Row k="Due day" v={`${l.dueDay} of each month`} />
       <Row k="Deposit" v={ugx(l.deposit)} />
       <Row k="Late fee" v={l.lateFeePct ? `${l.lateFeePct}% after 7 days` : "Off"} />
@@ -150,7 +152,9 @@ export async function RenewForm({ l, location, bedrooms }: { l: Lease; location:
       <form action={renewLease} className="mt-3 space-y-2">
         <input type="hidden" name="id" value={l.id} />
         <Field label="New end date"><input name="endDate" type="date" className="input" defaultValue={nextEnd} required /></Field>
-        <Field label="Rent from next month (UGX)" hint={why}><input name="rent" type="number" inputMode="numeric" className="input" defaultValue={suggested} /></Field>
+        <Field label="Rent for the new term (UGX)" hint={why}><input name="rent" type="number" inputMode="numeric" className="input" defaultValue={l.nextRent ?? suggested} /></Field>
+        <label className="flex items-start gap-2 text-xs text-stone-600"><input type="checkbox" name="tenantAgreed" className="mt-0.5 accent-brand-700" /> The tenant has agreed in writing to a rise above 10%</label>
+        <p className="text-[11px] text-stone-500">Uganda&apos;s Landlord and Tenant Act (s.26): a rise needs 60 days&apos; notice, starts after the current term, at most once a year and up to 10% unless the tenant agrees. CasaVilla works out the earliest legal start date and tells the tenant.</p>
         <Submit className="btn-primary btn-sm w-full">Renew & notify tenant</Submit>
       </form>
     </details>
@@ -170,5 +174,34 @@ export function MoveOutForm({ l }: { l: Lease }) {
         <ConfirmSubmit message="End this lease and settle the account? The tenant will be notified." className="btn-outline btn-sm w-full text-maroon-600">End lease & settle</ConfirmSubmit>
       </form>
     </details>
+  );
+}
+
+/** The drafted tenancy agreement: download/preview, and (for the landlord) the special terms printed in it. */
+export function AgreementCard({ l, manage = true }: { l: Lease; manage?: boolean }) {
+  return (
+    <div className="card space-y-3">
+      <div className="flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><FileText className="h-5 w-5" /></span>
+        <div>
+          <div className="font-semibold text-brand-950">Tenancy agreement</div>
+          <p className="text-xs text-stone-500">Drafted automatically from this lease under Uganda&apos;s Landlord and Tenant Act, 2022. Print it, sign it with witnesses, then upload the signed copy below.</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <a href={`/leases/${l.id}/agreement`} className="btn-primary btn-sm">Download PDF</a>
+        <a href={`/leases/${l.id}/agreement?view=1`} target="_blank" rel="noreferrer" className="btn-outline btn-sm">Preview</a>
+      </div>
+      {manage && (
+        <details>
+          <summary className="cursor-pointer list-none text-xs font-semibold text-brand-700">Special terms{l.specialTerms ? " (set)" : ""}…</summary>
+          <form action={saveSpecialTerms} className="mt-2 space-y-2">
+            <input type="hidden" name="id" value={l.id} />
+            <textarea name="specialTerms" rows={4} maxLength={3000} defaultValue={l.specialTerms ?? ""} className="input" placeholder="One term per line, e.g. No pets. Tenant maintains the garden." />
+            <Submit className="btn-outline btn-sm">Save terms</Submit>
+          </form>
+        </details>
+      )}
+    </div>
   );
 }

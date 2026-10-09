@@ -76,7 +76,7 @@ export async function LinkRequests({ where, manager }: { where: Prisma.TenantLin
   if (!rows.length) return null;
   const landlordIds = [...new Set(rows.map((r) => r.landlordId).filter((x): x is number => !!x))];
   const units = await db.unit.findMany({
-    where: { status: "vacant", property: { landlordId: { in: landlordIds } } },
+    where: { status: "vacant", mode: "long", property: { landlordId: { in: landlordIds } } },
     orderBy: [{ property: { name: "asc" } }, { label: "asc" }],
     select: { id: true, label: true, rent: true, property: { select: { name: true, landlordId: true } } },
   });

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { Features, Gallery } from "@/components/Gallery";
 import { ArrowLeft, BadgeCheck, BedDouble, Building2, DoorOpen, MapPin, MessageCircle, Phone } from "lucide-react";
 import { db } from "@/db";
 import { getUser } from "@/lib/auth";
@@ -19,6 +20,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     include: { property: { include: { landlord: { select: { id: true, name: true, phone: true, status: true } } } } },
   });
   if (!row || row.property.landlord.status !== "active") notFound();
+  if (row.mode === "short") redirect(`/stays/${row.id}`);
   const { property, ...unit } = row;
   const landlord = property.landlord;
   const others = await db.unit.findMany({ where: { propertyId: property.id, listed: true, status: "vacant" }, orderBy: { label: "asc" } });
@@ -60,6 +62,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             </div>
             <span className="pill mt-4 bg-brand-50 text-brand-700"><BadgeCheck className="h-3.5 w-3.5" /> Verified listing · managed with CasaVilla</span>
 
+            <Gallery propertyId={property.id} unitId={unit.id} />
+            <Features u={unit} />
             {property.description && (
               <section className="mt-6">
                 <h2 className="h2">Overview</h2>

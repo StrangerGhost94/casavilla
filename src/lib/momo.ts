@@ -11,7 +11,7 @@ const FLW = "https://api.flutterwave.com/v3";
 export type InitResult = { ok: true; redirect?: string } | { ok: false; error: string };
 
 export async function initiateCharge(opts: {
-  reference: string; amount: number; phone: string; network: "mtn" | "airtel"; email: string; name: string;
+  reference: string; amount: number; phone: string; network: "mtn" | "airtel"; email: string; name: string; returnPath?: string;
 }): Promise<InitResult> {
   if (provider === "sandbox") return { ok: true };
   const appUrl = process.env.APP_URL || "http://localhost:3000";
@@ -22,7 +22,7 @@ export async function initiateCharge(opts: {
       body: JSON.stringify({
         tx_ref: opts.reference, amount: opts.amount, currency: "UGX", email: opts.email,
         phone_number: opts.phone.replace("+", ""), fullname: opts.name, network: opts.network.toUpperCase(),
-        redirect_url: `${appUrl}/pay/${opts.reference}`,
+        redirect_url: `${appUrl}${opts.returnPath ?? `/pay/${opts.reference}`}`,
       }),
     });
     const json = await res.json();

@@ -7,9 +7,11 @@ import { Avatar, Badge, Empty, Field, Photo } from "./ui";
 import { Submit, ConfirmSubmit, FileInput } from "./client";
 import { Documents } from "./Documents";
 import { PlaceFields } from "./PlaceFields";
+import { UnitFields } from "./UnitFields";
+import { PhotoWizard } from "./PhotoWizard";
 import { Ledger } from "./Ledger";
 import { saveProperty, addUnit, updateUnit, decideApplication } from "@/app/landlord/actions";
-import { CashForm, ChargeForm, LeaseFacts, MoveOutForm, RenewForm, ScorePill, TenantScoreCard } from "./LeaseTools";
+import { AgreementCard, CashForm, ChargeForm, LeaseFacts, MoveOutForm, RenewForm, ScorePill, TenantScoreCard } from "./LeaseTools";
 import { ensureCharges } from "@/lib/billing";
 import { crumbText, trailFor } from "@/lib/geo";
 import { marketRent, tenantScore } from "@/lib/insights";
@@ -79,7 +81,8 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
   if (!p || (viewer.role !== "manager" && p.landlordId !== viewer.id)) notFound();
   const tenantsBase = base.replace("/properties", "/tenants");
   const trail = await trailFor(p.locationId);
-  const markets = new Map(await Promise.all(p.units.filter((u) => u.status === "vacant").map(async (u) => [u.id, await marketRent(p, u.bedrooms, u.id)] as const)));
+  const photos = await db.propertyPhoto.findMany({ where: { propertyId: p.id }, orderBy: [{ sort: "asc" }] });
+  const markets = new Map(await Promise.all(p.units.filter((u) => u.status === "vacant" && u.mode === "long").map(async (u) => [u.id, await marketRent(p, u.bedrooms, u.id)] as const)));
   return (
     <div>
       <Link href={base} className="link hidden text-sm lg:inline">← Properties</Link>
@@ -109,6 +112,10 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
                       <label className="min-w-0"><span className="label">Rent (UGX)</span><input name="rent" type="number" min={0} defaultValue={u.rent} className="input py-2" /></label>
                       <label className="col-span-2 flex items-center gap-2 py-2 text-sm text-stone-600 sm:col-span-1"><input name="listed" type="checkbox" defaultChecked={u.listed} className="h-4 w-4 accent-brand-700" disabled={u.status === "occupied"} /> Listed</label>
                       <Submit className="btn-outline btn-sm py-2">Save</Submit>
+                      <details className="col-span-full">
+                        <summary className="cursor-pointer list-none text-xs font-semibold text-brand-700">{u.mode === "short" ? `Short stay · ${ugx(u.nightlyRate ?? 0)}/night` : `${u.bathrooms} bath${u.selfContained ? " · self-contained" : ""}${u.furnished ? " · furnished" : ""}`}{u.amenities.length ? ` · ${u.amenities.length} features` : ""} — edit details…</summary>
+                        <div className="mt-2"><UnitFields u={u} /></div>
+                      </details>
                     </form>
                     {(() => {
                       const m = markets.get(u.id);
@@ -130,9 +137,12 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
               <label className="min-w-0"><span className="label">Rent (UGX)</span><input name="rent" type="number" min={0} className="input" placeholder="e.g. 800000" required /></label>
               <label className="min-w-0"><span className="label">How many</span><input name="count" type="number" min={1} max={50} className="input" defaultValue={1} title="Add several identical units at once" /></label>
               <label className="flex items-center gap-2 self-end pb-3 text-sm text-stone-600"><input type="checkbox" name="listed" defaultChecked className="h-4 w-4 accent-brand-700" /> List publicly</label>
+              <UnitFields />
               <div className="col-span-2 sm:col-span-6"><Submit className="btn-primary btn-sm">Add unit(s)</Submit></div>
             </form>
           </div>
+          <PhotoWizard propertyId={p.id} units={p.units.map((u) => ({ id: u.id, label: u.label, bedrooms: u.bedrooms, bathrooms: u.bathrooms }))}
+            photos={photos.map((x) => ({ id: x.id, fileId: x.fileId, room: x.room, label: x.label, unitId: x.unitId, isCover: x.isCover, quality: x.quality }))} />
           <Documents propertyId={p.id} viewerId={viewer.id} />
         </div>
         <div><PropertyForm p={p} /></div>
@@ -190,9 +200,10 @@ export async function ApplicationsTable({ where }: { where: Prisma.ApplicationWh
                 <div className="col-span-2 sm:col-span-1"><Field label="Start"><input type="date" name="startDate" defaultValue={a.moveIn ? ymd(a.moveIn) : today} className="input" required /></Field></div>
                 <div className="col-span-2 sm:col-span-1"><Field label="End"><input type="date" name="endDate" defaultValue={nextYear} className="input" required /></Field></div>
                 <Field label="Rent / month"><input type="number" name="rent" defaultValue={a.unit.rent} className="input" /></Field>
-                <Field label="Deposit"><input type="number" name="deposit" defaultValue={a.unit.rent} className="input" /></Field>
+                <Field label="Deposit (max 1 month)"><input type="number" name="deposit" defaultValue={a.unit.rent} max={a.unit.rent} className="input" /></Field>
                 <Field label="Due day"><input type="number" name="dueDay" min={1} max={28} defaultValue={5} className="input" /></Field>
                 <Field label="Late fee %"><input type="number" name="lateFeePct" min={0} max={50} defaultValue={0} className="input" title="Added once rent is 7+ days late. 0 = off" /></Field>
+                <div className="col-span-2 sm:col-span-7"><Field label="Special terms for the tenancy agreement (optional)"><textarea name="specialTerms" rows={2} maxLength={3000} className="input" placeholder="e.g. No pets. Parking for one car included. Tenant maintains the garden." /></Field></div>
                 <div className="flex items-end"><Submit className="btn-primary w-full">Approve & create lease</Submit></div>
               </form>
               <form action={decideApplication}>
@@ -287,6 +298,7 @@ export async function LeaseDetail({ id, viewer, base }: { id: number; viewer: Us
         </div>
         <div className="space-y-5">
           <LeaseFacts l={l} />
+          <AgreementCard l={l} />
           <TenantScoreCard tenantId={l.tenantId} />
           {active && <RenewForm l={l} location={l.unit.property} bedrooms={l.unit.bedrooms} />}
           {active && <MoveOutForm l={l} />}
