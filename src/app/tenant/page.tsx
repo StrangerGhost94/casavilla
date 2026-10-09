@@ -7,6 +7,7 @@ import { Badge, Photo, SectionTitle } from "@/components/ui";
 import { chargesSummary } from "@/components/Ledger";
 import { CategoryIcon } from "@/lib/icons";
 import { activeLease } from "./lib";
+import { ConnectLandlordCard } from "@/components/Links";
 
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
@@ -50,6 +51,7 @@ export default async function TenantHome() {
             <Link href="/tenant/applications" className="btn-outline">Applications</Link>
           </div>
         </div>
+        <ConnectLandlordCard tenantId={u.id} />
         <FindHome />
       </div>
     );

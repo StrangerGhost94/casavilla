@@ -91,6 +91,24 @@ const CHECKS: { id: string; title: string; why: string; sql: string; fix?: strin
           WHERE u.id = l.unit_id AND l.status = 'active' AND l.landlord_id <> p.landlord_id`,
   },
   {
+    id: "link-already-housed",
+    title: "Connect requests from tenants who already have a lease",
+    why: "The tenant is already connected, so the request is stale.",
+    sql: `SELECT t.id, 'request ' || t.id || ' (tenant ' || t.tenant_id || ')' AS label FROM tenant_links t
+          WHERE t.status = 'pending' AND EXISTS (SELECT 1 FROM leases l WHERE l.tenant_id = t.tenant_id AND l.status = 'active')`,
+    fix: `UPDATE tenant_links t SET status = 'cancelled', decided_at = NOW() WHERE t.status = 'pending'
+          AND EXISTS (SELECT 1 FROM leases l WHERE l.tenant_id = t.tenant_id AND l.status = 'active')`,
+  },
+  {
+    id: "link-landlord-joined",
+    title: "Connect requests waiting for a landlord who has since joined",
+    why: "The landlord is on CasaVilla now but hasn't been shown the request.",
+    sql: `SELECT t.id, 'request ' || t.id || ' → ' || u.name AS label FROM tenant_links t JOIN users u ON u.phone = t.landlord_phone AND u.role = 'landlord'
+          WHERE t.status = 'pending' AND t.landlord_id IS NULL`,
+    fix: `UPDATE tenant_links t SET landlord_id = (SELECT MIN(u.id) FROM users u WHERE u.phone = t.landlord_phone AND u.role = 'landlord')
+          WHERE t.status = 'pending' AND t.landlord_id IS NULL AND EXISTS (SELECT 1 FROM users u WHERE u.phone = t.landlord_phone AND u.role = 'landlord')`,
+  },
+  {
     id: "negative-credit",
     title: "Leases with credit while charges are still open",
     why: "Credit should be used up against what the tenant owes.",

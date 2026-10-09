@@ -16,7 +16,7 @@ export default async function ManagerHome() {
   const today = kampalaToday();
   const [pending, pendingApps, unassigned, overdueLeases, recentRaw] = await Promise.all([
     db.user.count({ where: { status: "pending" } }),
-    db.application.count({ where: { status: "pending" } }),
+    db.application.count({ where: { status: "pending" } }).then(async (n) => n + await db.tenantLink.count({ where: { status: "pending" } })),
     db.job.count({ where: { providerId: null, status: { notIn: ["done", "cancelled"] } } }),
     db.charge.findMany({ where: { status: { not: "paid" }, dueDate: { lt: new Date(`${today}T00:00:00Z`) } }, distinct: ["leaseId"], select: { leaseId: true } }),
     db.payment.findMany({ where: { status: "success" }, orderBy: { paidAt: "desc" }, take: 6, include: { tenant: { select: { name: true } } } }),
@@ -50,7 +50,7 @@ export default async function ManagerHome() {
             { href: "/manager/tenants", count: overdueLeases.length, label: "Overdue rents", tone: "red" },
             { href: "/manager/jobs", count: unassigned, label: "Repairs with no provider", tone: "gold" },
             { href: "/manager/people?status=pending", count: pending, label: "Landlords & providers to approve", tone: "blue" },
-            { href: "/manager/applications", count: pendingApps, label: "Tenant applications", tone: "blue" },
+            { href: "/manager/applications", count: pendingApps, label: "Applications & tenants to connect", tone: "blue" },
             { href: "/manager/properties", count: vacant, label: "Vacant units", tone: "green" },
             { href: "/manager/health", count: dataIssues, label: "Data checks needing attention", tone: "gold" },
           ]} />

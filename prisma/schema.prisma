@@ -52,6 +52,8 @@ model User {
   documents       Document[]
   notifications   Notification[]
   audits          AuditLog[]
+  linkRequests    TenantLink[]   @relation("LinkTenant")
+  linkInvites     TenantLink[]   @relation("LinkLandlord")
 
   @@map("users")
 }
@@ -148,6 +150,7 @@ model Lease {
   charges    Charge[]
   payments   Payment[]
   documents  Document[]
+  links      TenantLink[]
 
   @@index([tenantId])
   @@index([landlordId])
@@ -348,6 +351,29 @@ model Notification {
 
   @@index([userId, read])
   @@map("notifications")
+}
+
+/// An existing tenant asking to be connected to their landlord (found by the landlord's phone number).
+/// If the landlord isn't on CasaVilla yet, the request waits and attaches itself when they sign up.
+model TenantLink {
+  id            Int       @id @default(autoincrement())
+  tenantId      Int       @map("tenant_id")
+  tenant        User      @relation("LinkTenant", fields: [tenantId], references: [id])
+  landlordId    Int?      @map("landlord_id")
+  landlord      User?     @relation("LinkLandlord", fields: [landlordId], references: [id])
+  landlordPhone String    @map("landlord_phone")
+  /// What the tenant says they rent, e.g. "Rubaga Court, Apt A2".
+  unitNote      String?   @map("unit_note")
+  status        String    @default("pending") // pending | linked | declined | cancelled
+  leaseId       Int?      @map("lease_id")
+  lease         Lease?    @relation(fields: [leaseId], references: [id])
+  createdAt     DateTime  @default(now()) @map("created_at")
+  decidedAt     DateTime? @map("decided_at")
+
+  @@index([landlordId, status])
+  @@index([landlordPhone, status])
+  @@index([tenantId])
+  @@map("tenant_links")
 }
 
 /// Who did what, for accountability and dispute resolution.

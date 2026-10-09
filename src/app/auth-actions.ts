@@ -6,6 +6,7 @@ import { db } from "@/db";
 import { homeFor, startSession } from "@/lib/auth";
 import { normalizePhone } from "@/lib/format";
 import { notify } from "@/lib/notify";
+import { attachWaitingTenants, requestLink } from "@/lib/links";
 
 export type FormState = { error?: string } | undefined;
 
@@ -32,6 +33,8 @@ const schema = z.object({
   role: z.enum(["tenant", "landlord", "provider"]),
   businessName: z.string().trim().optional(),
   area: z.string().trim().optional(),
+  landlordPhone: z.string().trim().optional(),
+  unitNote: z.string().trim().max(120, "Keep the house / unit description short").optional(),
 });
 
 export async function register(_: FormState, fd: FormData): Promise<FormState> {
@@ -40,6 +43,12 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
   const d = parsed.data;
   if (!/^\+256\d{9}$/.test(normalizePhone(d.phone))) return { error: "Enter a valid Ugandan phone number, e.g. 0772 123 456" };
   if (d.role === "provider" && !d.businessName) return { error: "Enter your business name" };
+  const linking = d.role === "tenant" && fd.get("existing") === "on";
+  if (linking) {
+    const lp = normalizePhone(d.landlordPhone || "");
+    if (!/^\+256\d{9}$/.test(lp)) return { error: "Enter your landlord's phone number, e.g. 0772 123 456" };
+    if (lp === normalizePhone(d.phone)) return { error: "Enter your landlord's number, not your own" };
+  }
   const exists = await db.user.findUnique({ where: { email: d.email }, select: { id: true } });
   if (exists) return { error: "An account with this email already exists. Sign in instead." };
   const u = await db.user.create({ data: {
@@ -52,6 +61,9 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
     const managers = await db.user.findMany({ where: { role: "manager" }, select: { id: true } });
     for (const m of managers) await notify(m.id, `New ${d.role} sign-up awaiting approval: ${d.businessName || d.name}`, "/manager/people");
   }
+  // Existing tenants are connected to their landlord; new landlords pick up tenants already waiting for them.
+  if (linking) await requestLink(u, d.landlordPhone!, d.unitNote || null);
+  if (d.role === "landlord") await attachWaitingTenants(u);
   await startSession(u);
   redirect(safeNext(fd.get("next")) || homeFor(u.role));
 }

@@ -1,7 +1,7 @@
 "use client";
 import { useActionState, useState } from "react";
 import Link from "next/link";
-import { Building, Check, Eye, EyeOff, Home, Lock, Mail, Phone, User, UserRound, Wrench } from "lucide-react";
+import { Building, Check, Eye, EyeOff, Home, KeyRound, Lock, Mail, Phone, User, UserRound, Wrench } from "lucide-react";
 import { login, register } from "@/app/auth-actions";
 
 function IconInput({ icon: I, children }: { icon: typeof Mail; children: React.ReactNode }) {
@@ -86,10 +86,34 @@ export function RegisterForm({ role: initial, next }: { role?: string; next?: st
       <IconInput icon={Phone}><input name="phone" required className="input pl-11" placeholder="Phone (Mobile Money), e.g. 0772 123456" autoComplete="tel" /></IconInput>
       <IconInput icon={Mail}><input name="email" type="email" required className="input pl-11" placeholder="Email address" autoComplete="email" /></IconInput>
       <PasswordInput autoComplete="new-password" minLength={8} />
+      {role === "tenant" && <ExistingTenant />}
       {role !== "tenant" && <p className="text-xs text-stone-500">CasaVilla reviews new {role === "landlord" ? "landlords" : "providers"} before they appear publicly. You can set up your account straight away.</p>}
       {state?.error && <div className="rounded-xl bg-maroon-50 p-3 text-sm text-maroon-600">{state.error}</div>}
       <button className="btn-primary btn-lg w-full" disabled={pending}>{pending ? "Creating account…" : "Get started"}</button>
       <p className="pt-1 text-center text-sm text-stone-500">Already registered? <Link href="/login" className="font-semibold text-brand-700 hover:underline">Sign in</Link></p>
     </form>
+  );
+}
+
+/** "Already renting?" — links a new tenant to their landlord by the landlord's phone number. */
+export function ExistingTenant() {
+  const [on, setOn] = useState(false);
+  return (
+    <div className={`rounded-2xl border p-3.5 transition ${on ? "border-brand-700 bg-brand-50/60" : "border-stone-200 bg-white"}`}>
+      <label className="flex cursor-pointer items-start gap-3">
+        <input type="checkbox" name="existing" checked={on} onChange={(e) => setOn(e.target.checked)} className="mt-0.5 h-5 w-5 shrink-0 rounded accent-brand-700" />
+        <span>
+          <span className="block text-sm font-semibold text-brand-950">I already rent a home</span>
+          <span className="block text-xs text-stone-500">Enter your landlord&apos;s phone number and we&apos;ll connect you, so you can pay rent and report repairs in the app.</span>
+        </span>
+      </label>
+      {on && (
+        <div className="mt-3 space-y-2.5">
+          <IconInput icon={KeyRound}><input name="landlordPhone" required inputMode="tel" className="input pl-11" placeholder="Landlord's phone, e.g. 0772 123456" /></IconInput>
+          <input name="unitNote" className="input" maxLength={120} placeholder="Your house / unit (optional), e.g. Rubaga Court Apt A2" />
+          <p className="text-[11px] text-stone-500">Your landlord confirms before anything is linked. If they&apos;re not on CasaVilla yet, we&apos;ll invite them and connect you when they join.</p>
+        </div>
+      )}
+    </div>
   );
 }

@@ -14,7 +14,8 @@ export default async function LandlordHome() {
   const s = await portfolioStats(u.id);
   const today = kampalaToday();
   const [pendingApps, openJobs, vacant, overdueLeases, rentRoll] = await Promise.all([
-    db.application.count({ where: { status: "pending", unit: { property: { landlordId: u.id } } } }),
+    db.application.count({ where: { status: "pending", unit: { property: { landlordId: u.id } } } })
+      .then(async (n) => n + await db.tenantLink.count({ where: { status: "pending", landlordId: u.id } })),
     db.job.count({ where: { landlordId: u.id, status: { notIn: ["done", "cancelled"] } } }),
     db.unit.count({ where: { status: "vacant", property: { landlordId: u.id } } }),
     db.charge.findMany({ where: { status: { not: "paid" }, dueDate: { lt: new Date(`${today}T00:00:00Z`) }, lease: { landlordId: u.id } }, distinct: ["leaseId"], select: { leaseId: true } }),
@@ -50,7 +51,7 @@ export default async function LandlordHome() {
           <AttentionList rows={[
             { href: "/landlord/tenants", count: overdueLeases.length, label: "Tenants with overdue rent", tone: "red" },
             { href: "/landlord/maintenance", count: openJobs, label: "Open maintenance requests", tone: "gold" },
-            { href: "/landlord/applications", count: pendingApps, label: "Applications to review", tone: "blue" },
+            { href: "/landlord/applications", count: pendingApps, label: "Applications & tenants to confirm", tone: "blue" },
             { href: "/landlord/properties", count: vacant, label: "Vacant units", tone: "green" },
           ]} />
         </div>

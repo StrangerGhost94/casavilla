@@ -141,6 +141,7 @@ export async function decideApplication(fd: FormData) {
       // Everyone else who applied for this unit is told it's taken; the new tenant's other applications close too.
       const others = await tx.application.findMany({ where: { status: "pending", OR: [{ unitId: a.unit.id }, { tenantId: a.tenantId }], id: { not: a.id } } });
       await tx.application.updateMany({ where: { id: { in: others.map((o) => o.id) } }, data: { status: "rejected" } });
+      await tx.tenantLink.updateMany({ where: { tenantId: a.tenantId, status: "pending" }, data: { status: "cancelled", decidedAt: new Date() } });
       return { lease, others };
     });
   } catch (e) {
