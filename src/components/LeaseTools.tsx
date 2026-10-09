@@ -129,7 +129,7 @@ export function ChargeForm({ leaseId }: { leaseId: number }) {
   );
 }
 
-export async function RenewForm({ l, location, bedrooms }: { l: Lease; location: string; bedrooms: number }) {
+export async function RenewForm({ l, location, bedrooms }: { l: Lease; location: { location: string; locationId: string | null }; bedrooms: number }) {
   const market = await marketRent(location, bedrooms);
   const s = await tenantScore(l.tenantId);
   const end = ymd(l.endDate);

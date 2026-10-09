@@ -2,6 +2,7 @@ import "server-only";
 import { db, type Job } from "@/db";
 import { kampalaToday, ugx, ymd } from "./format";
 import { daysBetween } from "./billing";
+import { trailFor, within } from "./geo";
 
 // ── Tenant payment reliability ────────────────────────────────────────────────
 
@@ -81,21 +82,30 @@ export async function providerStats(ids?: number[]): Promise<Map<number, Provide
 export type RankedProvider = { id: number; name: string; score: number; reasons: string[]; category: boolean; rating: number | null };
 
 /** Best providers for a job: does this kind of work, works in the area, rated well, finishes jobs, isn't overloaded. */
-export async function rankProviders(job: Pick<Job, "category" | "propertyId" | "providerId">): Promise<RankedProvider[]> {
-  const [providers, property] = await Promise.all([
-    db.user.findMany({ where: { role: "provider", status: "active" }, include: { services: { where: { active: true }, select: { category: true, priceFrom: true } } } }),
-    job.propertyId ? db.property.findUnique({ where: { id: job.propertyId }, select: { location: true } }) : null,
+export async function rankProviders(job: Pick<Job, "category" | "propertyId" | "providerId"> & { locationId?: string | null }): Promise<RankedProvider[]> {
+  const [providers, property, jobPlace] = await Promise.all([
+    db.user.findMany({
+      where: { role: "provider", status: "active" },
+      include: { services: { where: { active: true }, select: { category: true, priceFrom: true } }, serviceAreas: { select: { location: { select: { path: true, name: true, depth: true } } } } },
+    }),
+    job.propertyId ? db.property.findUnique({ where: { id: job.propertyId }, select: { location: true, place: { select: { path: true } } } }) : null,
+    job.locationId ? db.location.findUnique({ where: { id: job.locationId }, select: { path: true } }) : null,
   ]);
   const stats = await providerStats(providers.map((p) => p.id));
   const here = placeWords(property?.location);
+  const path = property?.place?.path ?? jobPlace?.path ?? null;
   return providers.map((p) => {
     const s = stats.get(p.id);
     const reasons: string[] = [];
     let score = 0;
     const category = p.services.some((x) => x.category === job.category);
     if (category) { score += 50; reasons.push(`Does ${job.category.toLowerCase()}`); }
-    const area = [...placeWords(p.area)].some((w) => here.has(w));
-    if (area) { score += 20; reasons.push(`Works in ${p.area}`); }
+    // Service coverage comes from the canonical location tree: a provider covering Wakiso covers every place inside it.
+    // The closer the covering area is to the property (village beats district), the stronger the match.
+    const cover = path ? p.serviceAreas.map((a) => a.location).filter((a) => within(path, a.path)).sort((a, b) => b.depth - a.depth)[0] : undefined;
+    if (cover) { score += 15 + Math.min(10, cover.depth * 2); reasons.push(`Covers ${cover.name}`); }
+    else if (!p.serviceAreas.length && [...placeWords(p.area)].some((w) => here.has(w))) { score += 10; reasons.push(`Works in ${p.area}`); }
+    else if (path && p.serviceAreas.length) { score -= 10; reasons.push("Outside their service area"); }
     if (s?.rating) { score += s.rating * 5; reasons.push(`★ ${s.rating} (${s.ratings})`); }
     if (s && s.jobs >= 2) {
       const rate = s.done / Math.max(1, s.done + s.cancelled);
@@ -117,16 +127,30 @@ const median = (xs: number[]) => {
   return s.length % 2 ? s[m] : Math.round((s[m - 1] + s[m]) / 2);
 };
 
-/** Typical rent for units like this one: same bedrooms in the same area, otherwise same bedrooms anywhere. */
-export async function marketRent(location: string, bedrooms: number, excludeUnitId?: number) {
+/**
+ * Typical rent for units like this one (same bedrooms). Uses the location tree: the smallest area around the
+ * property — parish, then sub-county, county, district — that has at least two comparable units. Properties
+ * not yet placed on the tree fall back to matching words in their old address.
+ */
+export async function marketRent(where: string | { locationId?: string | null; location?: string | null }, bedrooms: number, excludeUnitId?: number) {
+  const w = typeof where === "string" ? { location: where, locationId: null } : where;
   const units = await db.unit.findMany({
     where: { bedrooms, id: excludeUnitId ? { not: excludeUnitId } : undefined, rent: { gt: 0 } },
-    select: { rent: true, property: { select: { location: true } } },
+    select: { rent: true, property: { select: { location: true, place: { select: { path: true } } } } },
   });
-  const here = placeWords(location);
-  const near = units.filter((u) => [...placeWords(u.property.location)].some((w) => here.has(w))).map((u) => u.rent);
-  if (near.length >= 2) return { median: median(near)!, n: near.length, scope: "nearby" as const };
-  if (units.length >= 2) return { median: median(units.map((u) => u.rent))!, n: units.length, scope: "across CasaVilla" as const };
+  if (w.locationId) {
+    const trail = await trailFor(w.locationId);
+    for (const area of [...trail].reverse().filter((c) => ["parish", "subcounty", "county", "district"].includes(c.level))) {
+      const prefix = `/${trail.slice(0, trail.findIndex((c) => c.id === area.id) + 1).map((c) => c.id).join("/")}/`;
+      const near = units.filter((u) => u.property.place && within(u.property.place.path, prefix)).map((u) => u.rent);
+      if (near.length >= 2) return { median: median(near)!, n: near.length, scope: `in ${area.name}` };
+    }
+  } else if (w.location) {
+    const here = placeWords(w.location);
+    const near = units.filter((u) => [...placeWords(u.property.location)].some((x) => here.has(x))).map((u) => u.rent);
+    if (near.length >= 2) return { median: median(near)!, n: near.length, scope: "nearby" };
+  }
+  if (units.length >= 2) return { median: median(units.map((u) => u.rent))!, n: units.length, scope: "across CasaVilla" };
   return null;
 }
 
@@ -168,7 +192,7 @@ export async function portfolioInsights(landlordId: number | undefined, base: "/
     }),
     db.unit.findMany({
       where: { status: "vacant", ...(landlordId ? { property: { landlordId } } : {}) },
-      select: { id: true, label: true, rent: true, bedrooms: true, listed: true, createdAt: true, propertyId: true, property: { select: { name: true, location: true } }, leases: { where: { status: "ended" }, orderBy: { endedAt: "desc" }, take: 1, select: { endedAt: true, endDate: true } } },
+      select: { id: true, label: true, rent: true, bedrooms: true, listed: true, createdAt: true, propertyId: true, property: { select: { name: true, location: true, locationId: true } }, leases: { where: { status: "ended" }, orderBy: { endedAt: "desc" }, take: 1, select: { endedAt: true, endDate: true } } },
     }),
     db.job.aggregate({
       _sum: { quote: true }, _count: true,
@@ -187,7 +211,7 @@ export async function portfolioInsights(landlordId: number | undefined, base: "/
   const expiring = leases.map((l) => ({ ...l, days: daysBetween(today, ymd(l.endDate)) })).filter((l) => l.days <= 60).sort((a, b) => a.days - b.days);
   const vacant = await Promise.all(vacantUnits.map(async (u) => {
     const since = u.leases[0]?.endedAt ?? u.leases[0]?.endDate ?? u.createdAt;
-    const market = await marketRent(u.property.location, u.bedrooms, u.id);
+    const market = await marketRent(u.property, u.bedrooms, u.id);
     return { ...u, days: Math.max(0, daysBetween(since.toISOString().slice(0, 10), today)), market };
   }));
   vacant.sort((a, b) => b.days - a.days);

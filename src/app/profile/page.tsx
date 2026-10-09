@@ -5,6 +5,10 @@ import { logout } from "@/app/actions";
 import { PortalShell } from "@/components/PortalShell";
 import { NavIcon } from "@/components/NavLinks";
 import { Avatar, ListRow } from "@/components/ui";
+import { Submit } from "@/components/client";
+import { LocationPicker } from "@/components/LocationPicker";
+import { setMyLocation } from "@/app/place-actions";
+import { trailFor } from "@/lib/geo";
 
 export const metadata = { title: "Profile" };
 
@@ -12,6 +16,7 @@ export default async function Profile() {
   const u = await requireUser();
   const reviewed = u.role === "landlord" || u.role === "provider";
   const items = menus[u.role].slice(1);
+  const myPlace = await trailFor(u.locationId);
   return (
     <PortalShell user={u}>
       <div className="mx-auto max-w-xl">
@@ -25,6 +30,13 @@ export default async function Profile() {
             <div className="truncate text-xs text-stone-500">{u.email}</div>
           </div>
         </div>
+
+        {u.role !== "manager" && (
+          <form action={setMyLocation} className="card mt-4 space-y-2">
+            <LocationPicker initial={myPlace} label={u.role === "provider" ? "Where your business is based" : "Where you live"} hint="Used for nearby homes, services and reports. Pick as far down as you like." />
+            <Submit className="btn-outline btn-sm">Save area</Submit>
+          </form>
+        )}
 
         <div className="card mt-4 divide-y divide-stone-100 p-0">
           {items.map((i) => (

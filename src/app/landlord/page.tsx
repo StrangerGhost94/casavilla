@@ -7,6 +7,7 @@ import { kampalaToday, ugx } from "@/lib/format";
 import { AttentionList, KeyRow, SectionTitle, Stat } from "@/components/ui";
 import { portfolioStats, TenantsTable } from "@/components/Portfolio";
 import { SmartPanel } from "@/components/Insights";
+import { AreaReport } from "@/components/AreaReport";
 
 export default async function LandlordHome() {
   const u = await requireUser("landlord");
@@ -58,6 +59,9 @@ export default async function LandlordHome() {
       </div>
 
       <SmartPanel landlordId={u.id} base="/landlord" />
+
+      <SectionTitle title="By district" href="/landlord/areas" cta="All areas" />
+      <AreaReport landlordId={u.id} by="district" base="/landlord/areas" limit={5} />
 
       <SectionTitle title="Tenants with balances" href="/landlord/tenants" />
       <TenantsTable where={{ landlordId: u.id, status: "active" }} only="owing" base="/landlord/tenants" />

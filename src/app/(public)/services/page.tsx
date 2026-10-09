@@ -5,13 +5,16 @@ import { activeProviders } from "@/lib/queries";
 import { ugx } from "@/lib/format";
 import { CategoryIcon, categoryLabel } from "@/lib/icons";
 import { Avatar, Empty } from "@/components/ui";
+import { LocationPicker } from "@/components/LocationPicker";
+import { crumbText, trailFor } from "@/lib/geo";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Services" };
 
-export default async function Services({ searchParams }: { searchParams: Promise<{ category?: string; q?: string }> }) {
-  const { category, q } = await searchParams;
-  const all = await activeProviders(category);
+export default async function Services({ searchParams }: { searchParams: Promise<{ category?: string; q?: string; in?: string }> }) {
+  const { category, q, in: inId } = await searchParams;
+  const area = await trailFor(inId);
+  const all = await activeProviders(category, area.length > 1 ? inId : undefined);
   const needle = q?.trim().toLowerCase();
   const list = needle ? all.filter((p) => [p.name, p.area, p.bio, ...p.categories].some((s) => s?.toLowerCase().includes(needle))) : all;
   return (
@@ -22,6 +25,14 @@ export default async function Services({ searchParams }: { searchParams: Promise
         {category && <input type="hidden" name="category" value={category} />}
         <Search className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-400" />
         <input name="q" defaultValue={q} className="input pl-11" placeholder="Search services near you" />
+      </form>
+      <form className="mt-3">
+        {category && <input type="hidden" name="category" value={category} />}
+        <details className="rounded-2xl border border-stone-200 bg-white p-3" open={area.length > 1}>
+          <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold text-brand-900"><MapPin className="h-4 w-4" /> Who covers my area?{area.length > 1 && <span className="font-normal text-stone-500"> · {crumbText(area, true)}</span>}</summary>
+          <div className="mt-3"><LocationPicker name="in" initial={area} label="" compact /></div>
+          <div className="mt-3 flex gap-2"><button className="btn-primary btn-sm flex-1">Show providers</button>{area.length > 1 && <Link href={category ? `/services?category=${encodeURIComponent(category)}` : "/services"} className="btn-outline btn-sm">Clear</Link>}</div>
+        </details>
       </form>
 
       <div className="mt-4 grid grid-cols-4 gap-2.5 sm:grid-cols-6 lg:grid-cols-11">
@@ -55,7 +66,7 @@ export default async function Services({ searchParams }: { searchParams: Promise
           </div>
         ))}
       </div>
-      {list.length === 0 && <Empty title="No providers found">Try another category or search.</Empty>}
+      {list.length === 0 && <Empty title="No providers found">{area.length > 1 ? "Nobody has listed this area yet — try the district instead." : "Try another category or search."}</Empty>}
     </main>
   );
 }

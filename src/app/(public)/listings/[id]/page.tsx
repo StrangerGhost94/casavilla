@@ -7,6 +7,7 @@ import { ugx } from "@/lib/format";
 import { Avatar, Badge, Field, Photo } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { applyForUnit } from "@/app/tenant/actions";
+import { crumbText, trailFor } from "@/lib/geo";
 
 export const dynamic = "force-dynamic";
 
@@ -26,7 +27,12 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     ? await db.application.findFirst({ where: { unitId: unit.id, tenantId: user.id }, orderBy: { createdAt: "desc" } })
     : null;
   const wa = `https://wa.me/256776593482?text=${encodeURIComponent(`Hello CasaVilla, I'm interested in ${property.name} ${unit.label} (${property.location}).`)}`;
-  const maps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.location + ", Uganda")}`;
+  const trail = await trailFor(property.locationId);
+  // A real pin opens the exact spot; otherwise the map searches the address (never a made-up point).
+  const maps = property.lat != null && property.lng != null
+    ? `https://www.google.com/maps/search/?api=1&query=${property.lat},${property.lng}`
+    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.location + ", Uganda")}`;
+  const area = [...trail].reverse().find((c) => ["subcounty", "county", "district"].includes(c.level));
 
   return (
     <main className="mx-auto max-w-6xl md:px-4 md:pt-6">
@@ -41,7 +47,10 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
           <div className="relative -mt-6 rounded-t-3xl bg-cream px-4 pt-5 md:mt-0 md:bg-transparent md:px-0">
             <span className="pill bg-brand-800 uppercase tracking-wide text-white">For rent</span>
             <h1 className="mt-3 text-2xl font-bold text-brand-950">{unit.bedrooms} Bedroom · {property.name}</h1>
-            <div className="mt-1 flex items-center gap-1 text-sm text-stone-500"><MapPin className="h-4 w-4" /> {property.location}</div>
+            <div className="mt-1 flex items-center gap-1 text-sm text-stone-500"><MapPin className="h-4 w-4 shrink-0" /> {property.location}</div>
+            {trail.length > 1 && <div className="mt-1 text-xs text-brand-800">{crumbText(trail, true)}</div>}
+            {property.landmark && <div className="mt-1 text-xs text-stone-500">Landmark: {property.landmark}</div>}
+            {area && <Link href={`/listings?in=${area.id}`} className="link mt-1 inline-block text-xs">More homes in {area.name} →</Link>}
             <div className="mt-3 text-2xl font-bold text-brand-900">{ugx(unit.rent)} <span className="text-sm font-normal text-stone-500">/ month</span></div>
             <div className="mt-4 grid grid-cols-3 gap-2">
               {[[BedDouble, `${unit.bedrooms} bed${unit.bedrooms > 1 ? "s" : ""}`], [Building2, property.type], [DoorOpen, `Unit ${unit.label}`]].map(([I, t], i) => {

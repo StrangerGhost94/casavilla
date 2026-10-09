@@ -7,6 +7,7 @@ import { AttentionList, Avatar, SectionTitle } from "@/components/ui";
 import { portfolioStats, TenantsTable } from "@/components/Portfolio";
 import { JobList } from "@/components/Jobs";
 import { SmartPanel } from "@/components/Insights";
+import { AreaReport } from "@/components/AreaReport";
 import { runChecks } from "@/lib/integrity";
 
 export default async function ManagerHome() {
@@ -71,6 +72,9 @@ export default async function ManagerHome() {
       </div>
 
       <SmartPanel base="/manager" />
+
+      <SectionTitle title="By district" href="/manager/areas" cta="All areas" />
+      <AreaReport by="district" base="/manager/areas" limit={6} />
 
       <SectionTitle title="Repairs with no provider yet" href="/manager/jobs" />
       <JobList where={{ providerId: null, status: { notIn: ["done", "cancelled"] } }} base="/manager/jobs" empty="Every open job has a provider" />

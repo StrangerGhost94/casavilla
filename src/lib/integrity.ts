@@ -109,6 +109,41 @@ const CHECKS: { id: string; title: string; why: string; sql: string; fix?: strin
           WHERE t.status = 'pending' AND t.landlord_id IS NULL AND EXISTS (SELECT 1 FROM users u WHERE u.phone = t.landlord_phone AND u.role = 'landlord')`,
   },
   {
+    id: "locations-loaded",
+    title: "Uganda location list not loaded",
+    why: "Location pickers, area search and reports need the official list. It loads automatically on start — check the deploy logs.",
+    sql: `SELECT 0 AS id, 'locations table is empty' AS label WHERE NOT EXISTS (SELECT 1 FROM locations)`,
+  },
+  {
+    id: "location-tree",
+    title: "Locations whose path doesn't match their parent",
+    why: "Area filters use the path; a wrong one would put places in the wrong district.",
+    sql: `SELECT 0 AS id, c.id || ' under ' || COALESCE(c.parent_id, '-') AS label FROM locations c LEFT JOIN locations p ON p.id = c.parent_id
+          WHERE (c.parent_id IS NULL AND c.path <> '/' || c.id || '/') OR (c.parent_id IS NOT NULL AND (p.id IS NULL OR c.path <> p.path || c.id || '/'))`,
+  },
+  {
+    id: "property-unlocated",
+    title: "Properties not yet placed on the location list",
+    why: "They only have an old text address, so area search, reports and provider matching can't use them. Open the property and confirm its suggested location.",
+    sql: `SELECT id, name || ' — "' || location || '"' AS label FROM properties WHERE location_id IS NULL`,
+  },
+  {
+    id: "job-location-drift",
+    title: "Open repair jobs whose location differs from their property's",
+    why: "A job must travel with its property so providers go to the right place.",
+    sql: `SELECT j.id, '"' || j.title || '" — ' || p.name AS label FROM jobs j JOIN properties p ON p.id = j.property_id
+          WHERE j.status NOT IN ('done','cancelled') AND p.location_id IS NOT NULL AND j.location_id IS DISTINCT FROM p.location_id`,
+    fix: `UPDATE jobs j SET location_id = p.location_id FROM properties p WHERE p.id = j.property_id
+          AND j.status NOT IN ('done','cancelled') AND p.location_id IS NOT NULL AND j.location_id IS DISTINCT FROM p.location_id`,
+  },
+  {
+    id: "provider-no-area",
+    title: "Approved providers with no service area",
+    why: "They can't be matched to jobs by location. Ask them to add their areas under Business profile.",
+    sql: `SELECT u.id, COALESCE(u.business_name, u.name) AS label FROM users u WHERE u.role = 'provider' AND u.status = 'active'
+          AND NOT EXISTS (SELECT 1 FROM provider_areas a WHERE a.provider_id = u.id)`,
+  },
+  {
     id: "negative-credit",
     title: "Leases with credit while charges are still open",
     why: "Credit should be used up against what the tenant owes.",

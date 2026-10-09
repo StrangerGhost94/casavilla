@@ -14,6 +14,7 @@ import { date, id, int, isUniqueViolation, oneOf, reqText, text } from "@/lib/va
 import { CHARGE_KINDS, CHARGE_KIND_LABEL, MAX_ADVANCE_MONTHS } from "@/lib/rules";
 import { triage } from "@/lib/insights";
 import { PROPERTY_TYPES } from "@/lib/property-types";
+import { placeLine, readPlace } from "@/lib/geo-form";
 
 const refresh = () => revalidatePath("/", "layout");
 
@@ -36,17 +37,26 @@ async function ownedLease(u: User, lid: number) {
 export async function saveProperty(fd: FormData) {
   const u = await actor();
   const pid = id(fd) || null;
-  const data = {
-    name: await reqText(fd, "name", "the property name", { max: 120 }),
-    type: await oneOf(fd, "type", PROPERTY_TYPES, "property type"),
-    location: await reqText(fd, "location", "the location", { max: 200 }),
-    description: await text(fd, "description", "the description", { optional: true, max: 3000 }),
-  };
-  if (pid) await ownedProperty(u, pid);
+  const existing = pid ? await ownedProperty(u, pid) : null;
+  // New properties must be placed in the canonical location list; older ones can be saved until they're verified.
+  const place = await readPlace(fd, { required: !existing || !!existing.locationId });
+  const name = await reqText(fd, "name", "the property name", { max: 120 });
+  const type = await oneOf(fd, "type", PROPERTY_TYPES, "property type");
+  const description = await text(fd, "description", "the description", { optional: true, max: 3000 });
+  // The readable address follows the structured one. When an old text-only address is verified, the old text
+  // is kept as the landmark (unless one was given) so nothing the landlord typed is lost.
+  const location = place.locationId ? await placeLine(place) : existing?.location ?? (await reqText(fd, "location", "the address", { max: 200 }));
+  if (existing && !existing.locationId && place.locationId && !place.landmark) place.landmark = existing.location;
+  const data = { name, type, description, location: location || existing?.location || name, ...place };
   const photoId = await saveUpload(fd.get("photo"), u.id, true, true);
-  if (pid) {
-    await db.property.update({ where: { id: pid }, data: { ...data, ...(photoId ? { photoId } : {}) } });
-    await audit(u.id, "property.updated", "property", pid, data.name);
+  if (existing) {
+    await db.property.update({ where: { id: existing.id }, data: { ...data, ...(photoId ? { photoId } : {}) } });
+    if (place.locationId !== existing.locationId) {
+      // Open repair jobs travel with the property.
+      await db.job.updateMany({ where: { propertyId: existing.id, status: { notIn: ["done", "cancelled"] } }, data: { locationId: place.locationId } });
+      await audit(u.id, "property.located", "property", existing.id, `${existing.locationId ?? existing.location} → ${place.locationId}`);
+    }
+    await audit(u.id, "property.updated", "property", existing.id, name);
     refresh();
     return;
   }
@@ -54,7 +64,7 @@ export async function saveProperty(fd: FormData) {
   const landlord = await db.user.findFirst({ where: { id: landlordId, role: "landlord" } });
   if (!landlord) return fail("Choose a landlord");
   const p = await db.property.create({ data: { ...data, landlordId, photoId } });
-  await audit(u.id, "property.created", "property", p.id, data.name);
+  await audit(u.id, "property.created", "property", p.id, `${name} — ${location}`);
   if (landlord.status === "pending") await notifyManagers(`${landlord.name} added a property (${p.name}) — approve them so it can be listed.`, "/manager/people?status=pending");
   redirect(`/${u.role}/properties/${p.id}`);
 }
@@ -256,7 +266,7 @@ export async function landlordJob(fd: FormData) {
   const photoId = await saveUpload(fd.get("photo"), u.id, false, true);
   const job = await db.job.create({
     data: {
-      requesterId: u.id, landlordId: u.id, propertyId: p.id, unitId, photoId, title, description, priority,
+      requesterId: u.id, landlordId: u.id, propertyId: p.id, unitId, photoId, title, description, priority, locationId: p.locationId,
       category: String(fd.get("category") || t.category || "Other"),
     },
   });

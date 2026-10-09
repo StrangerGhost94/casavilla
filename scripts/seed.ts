@@ -28,7 +28,15 @@ async function main() {
 
   const court = await prisma.property.create({ data: { landlordId: nakato.id, name: "Rubaga Court", type: "Apartments", location: "Rubaga Road, Kampala", description: "Secure gated apartments 5 minutes from Rubaga Cathedral. NWSC water with reserve tank, Yaka power per unit, parking and 24-hour askari." } });
   const rows = await prisma.property.create({ data: { landlordId: nakato.id, name: "Mengo Rentals", type: "Rentals (row houses)", location: "Mengo, Kampala", description: "Self-contained double rooms near Mengo Hospital. Tiled floors, shared compound." } });
-  await prisma.property.create({ data: { landlordId: ssemwanga.id, name: "Kira Heights", type: "Standalone house", location: "Kira, Wakiso", description: "3-bedroom standalone with garden." } });
+  // Locations come from the imported Uganda dataset (run scripts/import-locations.mjs first). Rubaga Court and Mengo Rentals
+  // are left with only their old text address, to exercise the "confirm suggested location" flow.
+  const place = (name: string, level: string) => prisma.location.findFirst({ where: { name, level }, select: { id: true } });
+  const kira = await place("Kira Division", "subcounty");
+  await prisma.property.create({ data: { landlordId: ssemwanga.id, name: "Kira Heights", type: "Standalone house", location: "Kira, Wakiso", locationId: kira?.id, description: "3-bedroom standalone with garden." } });
+  const kampala = await place("Kampala", "district");
+  const rubN = await place("Rubaga Division North", "county"), rubS = await place("Rubaga Division South", "county");
+  const areas = [[fixit.id, rubN], [fixit.id, rubS], [sparkle.id, kampala]] as const;
+  for (const [providerId, loc] of areas) if (loc) await prisma.providerArea.create({ data: { providerId, locationId: loc.id } });
 
   const unitData = [
     { propertyId: court.id, label: "Apt A1", bedrooms: 2, rent: 1_200_000, status: "occupied", listed: false },

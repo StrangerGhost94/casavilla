@@ -3,13 +3,18 @@ import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { fmtDate, ugx } from "@/lib/format";
 import { PageHeader, Badge } from "@/components/ui";
+import { LocationPicker } from "@/components/LocationPicker";
+import { crumbText, insideFilter, trailFor } from "@/lib/geo";
 
-export default async function ManagerPayments({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; status?: string }> }) {
+export default async function ManagerPayments({ searchParams }: { searchParams: Promise<{ from?: string; to?: string; status?: string; in?: string }> }) {
   await requireUser("manager");
   const sp = await searchParams;
+  const area = await trailFor(sp.in);
+  const inside = area.length > 1 ? await insideFilter(sp.in) : null;
   const rows = (await db.payment.findMany({
     where: {
       status: sp.status || undefined,
+      ...(inside ? { lease: { unit: { property: { place: inside } } } } : {}),
       createdAt: {
         gte: sp.from ? new Date(`${sp.from}T00:00:00+03:00`) : undefined,
         lte: sp.to ? new Date(`${sp.to}T23:59:59+03:00`) : undefined,
@@ -30,6 +35,10 @@ export default async function ManagerPayments({ searchParams }: { searchParams: 
           <select name="status" defaultValue={sp.status} className="input"><option value="">All</option><option value="success">Success</option><option value="pending">Pending</option><option value="failed">Failed</option></select>
         </label>
         <button className="btn-outline">Filter</button>
+        <details className="w-full rounded-2xl border border-stone-200 bg-white p-3" open={area.length > 1}>
+          <summary className="cursor-pointer list-none text-sm font-semibold text-brand-900">Area{area.length > 1 && <span className="font-normal text-stone-500"> · {crumbText(area, true)}</span>}</summary>
+          <div className="mt-3"><LocationPicker name="in" initial={area} label="" compact /></div>
+        </details>
       </form>
       <div className="card overflow-x-auto p-0">
         <table className="table table-stack">

@@ -6,16 +6,18 @@ import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { Avatar, Badge, Empty, Field, Photo } from "./ui";
 import { Submit, ConfirmSubmit, FileInput } from "./client";
 import { Documents } from "./Documents";
+import { PlaceFields } from "./PlaceFields";
 import { Ledger } from "./Ledger";
 import { saveProperty, addUnit, updateUnit, decideApplication } from "@/app/landlord/actions";
 import { CashForm, ChargeForm, LeaseFacts, MoveOutForm, RenewForm, ScorePill, TenantScoreCard } from "./LeaseTools";
 import { ensureCharges } from "@/lib/billing";
+import { crumbText, trailFor } from "@/lib/geo";
 import { marketRent, tenantScore } from "@/lib/insights";
 
 import { PROPERTY_TYPES } from "@/lib/property-types";
 export { PROPERTY_TYPES };
 
-export function PropertyForm({ p, landlords }: { p?: Property; landlords?: { id: number; name: string }[] }) {
+export async function PropertyForm({ p, landlords }: { p?: Property; landlords?: { id: number; name: string }[] }) {
   return (
     <form action={saveProperty} className="card space-y-4">
       {p && <input type="hidden" name="id" value={p.id} />}
@@ -30,7 +32,7 @@ export function PropertyForm({ p, landlords }: { p?: Property; landlords?: { id:
           <select name="type" defaultValue={p?.type} className="input">{PROPERTY_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
         </Field>
       </div>
-      <Field label="Location"><input name="location" defaultValue={p?.location} className="input" required placeholder="e.g. Rubaga Road, Kampala" /></Field>
+      <PlaceFields p={p} />
       <Field label="Description"><textarea name="description" defaultValue={p?.description ?? ""} rows={3} className="input" placeholder="Water, power, parking, security, nearby…" /></Field>
       <Field label={p?.photoId ? "Replace photo" : "Photo"}><FileInput name="photo" accept="image/*" /></Field>
       <Submit>{p ? "Save changes" : "Add property"}</Submit>
@@ -55,6 +57,7 @@ export async function PropertyList({ where, base }: { where: Prisma.PropertyWher
             <div className="p-4">
               <div className="font-semibold text-stone-900">{p.name}</div>
               <div className="muted">{p.location} · {p.type}</div>
+              {!p.locationId && <div className="mt-1 text-[11px] font-semibold text-gold-700">Location not verified</div>}
               <div className="mt-2 flex items-center justify-between text-sm">
                 <span>{occupied}/{total} units occupied</span>
                 <span className="text-xs text-stone-500">{p.landlord.name}</span>
@@ -75,7 +78,8 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
   });
   if (!p || (viewer.role !== "manager" && p.landlordId !== viewer.id)) notFound();
   const tenantsBase = base.replace("/properties", "/tenants");
-  const markets = new Map(await Promise.all(p.units.filter((u) => u.status === "vacant").map(async (u) => [u.id, await marketRent(p.location, u.bedrooms, u.id)] as const)));
+  const trail = await trailFor(p.locationId);
+  const markets = new Map(await Promise.all(p.units.filter((u) => u.status === "vacant").map(async (u) => [u.id, await marketRent(p, u.bedrooms, u.id)] as const)));
   return (
     <div>
       <Link href={base} className="link hidden text-sm lg:inline">← Properties</Link>
@@ -83,7 +87,11 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
         <div className="min-w-0 space-y-6 lg:col-span-2">
           <div className="card overflow-hidden p-0">
             <Photo id={p.photoId} alt={p.name} className="h-36 w-full" />
-            <div className="p-4 pb-2"><div className="text-xl font-bold text-brand-950">{p.name}</div><div className="muted">{p.location} · {p.type}</div></div>
+            <div className="p-4 pb-2">
+              <div className="text-xl font-bold text-brand-950">{p.name}</div><div className="muted">{p.location} · {p.type}</div>
+              {trail.length > 1 ? <div className="mt-1 text-xs text-brand-800">{crumbText(trail, true)}{p.lat != null ? " · exact pin saved" : ""}</div>
+                : <div className="mt-1 inline-block rounded-lg bg-gold-50 px-2 py-1 text-[11px] font-semibold text-gold-700">Location not verified — confirm it in the form →</div>}
+            </div>
             <div className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-stone-500">Units</div>
             <div className="divide-y divide-stone-100">
               {p.units.map((u) => {
@@ -258,7 +266,7 @@ export async function TenantsTable({ where, base, only }: { where: Prisma.LeaseW
 export async function LeaseDetail({ id, viewer, base }: { id: number; viewer: User; base: string }) {
   const l = await db.lease.findUnique({
     where: { id },
-    include: { tenant: { select: { name: true, phone: true, email: true } }, unit: { select: { label: true, bedrooms: true, property: { select: { name: true, location: true } } } } },
+    include: { tenant: { select: { name: true, phone: true, email: true } }, unit: { select: { label: true, bedrooms: true, property: { select: { name: true, location: true, locationId: true } } } } },
   });
   if (!l || (viewer.role !== "manager" && l.landlordId !== viewer.id)) notFound();
   if (l.status === "active") await ensureCharges(l);
@@ -280,7 +288,7 @@ export async function LeaseDetail({ id, viewer, base }: { id: number; viewer: Us
         <div className="space-y-5">
           <LeaseFacts l={l} />
           <TenantScoreCard tenantId={l.tenantId} />
-          {active && <RenewForm l={l} location={l.unit.property.location} bedrooms={l.unit.bedrooms} />}
+          {active && <RenewForm l={l} location={l.unit.property} bedrooms={l.unit.bedrooms} />}
           {active && <MoveOutForm l={l} />}
           <Documents leaseId={id} viewerId={viewer.id} />
         </div>

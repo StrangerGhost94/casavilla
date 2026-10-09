@@ -17,15 +17,17 @@ export async function bookService(fd: FormData) {
   if (svc.providerId === u.id) return fail("You can't book your own service");
   const description = (await text(fd, "description", "what you need", { optional: true, max: 2000 })) || svc.title;
   let propertyId: number | null = null, unitId: number | null = null, landlordId: number | null = null;
+  // The job carries a canonical location: the property's, or else where the person said they are.
+  let locationId: string | null = u.locationId ?? null;
   if (u.role === "tenant") {
-    const l = await db.lease.findFirst({ where: { tenantId: u.id, status: "active" }, include: { unit: true } });
-    if (l) { unitId = l.unitId; landlordId = l.landlordId; propertyId = l.unit.propertyId; }
+    const l = await db.lease.findFirst({ where: { tenantId: u.id, status: "active" }, include: { unit: { include: { property: { select: { locationId: true } } } } } });
+    if (l) { unitId = l.unitId; landlordId = l.landlordId; propertyId = l.unit.propertyId; locationId = l.unit.property.locationId ?? locationId; }
   } else if (u.role === "landlord") {
     const pid = id(fd, "propertyId");
     if (pid) {
       const p = await db.property.findFirst({ where: { id: pid, landlordId: u.id } });
       if (!p) return fail("Choose one of your properties");
-      propertyId = p.id; landlordId = u.id;
+      propertyId = p.id; landlordId = u.id; locationId = p.locationId ?? locationId;
     }
   }
   const recent = await db.job.findFirst({ where: { requesterId: u.id, serviceId: svc.id, status: { in: ["assigned", "quoted", "accepted", "in_progress"] }, createdAt: { gt: new Date(Date.now() - 86400000) } } });
@@ -34,7 +36,7 @@ export async function bookService(fd: FormData) {
   const job = await db.job.create({
     data: {
       requesterId: u.id, providerId: svc.providerId, serviceId: svc.id, category: svc.category,
-      title: svc.title, description, propertyId, unitId, landlordId, status: "assigned", assignedAt: new Date(),
+      title: svc.title, description, propertyId, unitId, landlordId, locationId, status: "assigned", assignedAt: new Date(),
       notes: { create: { authorId: u.id, body: `${u.name} booked ${svc.title}${svc.priceFrom ? ` (from ${ugx(svc.priceFrom)})` : ""}`, system: true } },
     },
   });

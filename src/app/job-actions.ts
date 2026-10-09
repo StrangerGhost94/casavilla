@@ -8,6 +8,7 @@ import { ugx } from "@/lib/format";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
 import { canMove, JOB_FLOW, JOB_LABEL, payerOf } from "@/lib/rules";
+import { trailFor } from "@/lib/geo";
 import { id, int, optInt, reqText, text } from "@/lib/validate";
 
 async function loadJob(fd: FormData) {
@@ -65,7 +66,8 @@ export async function assignProvider(fd: FormData) {
   if (p.id === job.providerId && ["assigned", "quoted", "accepted", "in_progress"].includes(job.status)) return fail(`${who(p)} is already on this job`);
   const previous = job.providerId;
   await move(job, "assigned", u, `${who(u)} assigned ${who(p)}`, { providerId, quote: null, assignedAt: new Date() });
-  await notify(providerId, `New job${job.priority === "urgent" ? " (URGENT)" : ""}: ${job.title}. Please accept or decline.`, `/provider/jobs/${job.id}`);
+  const place = job.locationId ? (await trailFor(job.locationId)).filter((c) => !["country", "region"].includes(c.level)).slice(-2).map((c) => c.name).reverse().join(", ") : "";
+  await notify(providerId, `New job${job.priority === "urgent" ? " (URGENT)" : ""}: ${job.title}${place ? ` in ${place}` : ""}. Please accept or decline.`, `/provider/jobs/${job.id}`);
   if (previous && previous !== providerId) await notify(previous, `You've been taken off "${job.title}".`, `/provider/jobs`);
   await tellParties({ ...job, providerId: null }, u, `${who(p)} was assigned to "${job.title}"`);
   refresh();

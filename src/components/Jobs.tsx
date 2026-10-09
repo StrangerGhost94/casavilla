@@ -10,11 +10,12 @@ import { ConfirmSubmit, Submit } from "./client";
 import { addNote, assignProvider, providerRespond, cancelJob, reopenJob, decideQuote, rateJob } from "@/app/job-actions";
 import { JOB_LABEL, payerOf } from "@/lib/rules";
 import { providerStats, rankProviders } from "@/lib/insights";
+import { coverage, crumbText, trailFor } from "@/lib/geo";
 
 const jobInclude = {
   requester: { select: { name: true, phone: true } },
   provider: { select: { name: true, businessName: true, phone: true } },
-  property: { select: { name: true, location: true } },
+  property: { select: { name: true, location: true, landmark: true, lat: true, lng: true } },
   unit: { select: { label: true } },
   service: { select: { title: true } },
 } satisfies Prisma.JobInclude;
@@ -58,6 +59,8 @@ export async function JobDetail({ id, viewer, back }: { id: number; viewer: User
     provider: j.provider?.businessName, providerName: j.provider?.name, providerPhone: j.provider?.phone,
   };
 
+  const trail = await trailFor(j.locationId);
+  const cover = viewer.role === "provider" && j.providerId === viewer.id && trail.length ? await coverage(viewer.id, `/${trail.map((c) => c.id).join("/")}/`) : undefined;
   const notes = (await db.jobNote.findMany({ where: { jobId: j.id }, include: { author: { select: { name: true, businessName: true, role: true } } }, orderBy: { createdAt: "asc" } }))
     .map((n) => ({ n, author: n.author.name, business: n.author.businessName, role: n.author.role }));
   const canAssign = (viewer.role === "manager" || (viewer.role === "landlord" && j.landlordId === viewer.id)) && !["done", "cancelled"].includes(j.status);
@@ -116,7 +119,16 @@ export async function JobDetail({ id, viewer, back }: { id: number; viewer: User
 
         <aside className="space-y-4">
           <div className="card space-y-3 text-sm">
-            <div><div className="label">Location</div>{r.property ? <>{r.property}{r.unit && ` · ${r.unit}`}<div className="text-stone-500">{r.location}</div></> : "Not linked to a property"}</div>
+            <div>
+              <div className="label">Location</div>
+              {r.property ? <>{r.property}{r.unit && ` · ${r.unit}`}<div className="text-stone-500">{r.location}</div></> : trail.length ? null : "Not linked to a property"}
+              {trail.length > 0 && <div className="mt-1 text-xs text-brand-800">{crumbText(trail, true)}</div>}
+              {j.property?.landmark && <div className="mt-1 text-xs text-stone-500">Landmark: {j.property.landmark}</div>}
+              {j.property?.lat != null && j.property?.lng != null && (
+                <a className="link mt-1 inline-block text-xs" target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${j.property.lat}&mlon=${j.property.lng}#map=18/${j.property.lat}/${j.property.lng}`}>Open exact spot on map ↗</a>
+              )}
+              {cover === null && <div className="mt-1 rounded-lg bg-gold-50 px-2 py-1 text-[11px] text-gold-700">Outside your listed service areas</div>}
+            </div>
             <div><div className="label">Requested by</div>{r.requester}<div className="text-stone-500">{r.requesterPhone}</div></div>
             <div><div className="label">Provider</div>{r.provider || r.providerName ? <>{r.provider || r.providerName}<div className="text-stone-500">{r.providerPhone}</div></> : <span className="text-stone-400">Not assigned yet</span>}</div>
             {r.service && <div><div className="label">Service booked</div>{r.service}</div>}

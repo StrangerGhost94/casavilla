@@ -16,6 +16,7 @@ export default async function SystemHealth() {
     db.marker.findFirst({ where: { key: { startsWith: "sweep:" } }, orderBy: { createdAt: "desc" } }),
     db.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 40, include: { actor: { select: { name: true } } } }),
   ]);
+  const ds = await db.locationDataset.findFirst();
   const problems = checks.filter((c) => c.count > 0);
   return (
     <div className="mx-auto max-w-4xl">
@@ -45,6 +46,18 @@ export default async function SystemHealth() {
             {c.count > 0 && !c.fixable && <span className="text-[11px] text-stone-400">Review by hand</span>}
           </div>
         ))}
+      </div>
+
+      <SectionTitle title="Location dataset" />
+      <div className="card text-sm">
+        {ds ? (
+          <div className="space-y-1">
+            <div className="font-semibold text-brand-950">Uganda administrative areas · v{ds.version} <span className="font-mono text-[11px] font-normal text-stone-400">{ds.checksum}</span></div>
+            <div className="text-xs text-stone-600">{ds.source}</div>
+            <div className="text-xs text-stone-500">Licence: {ds.licence} · source updated {ds.sourceUpdated} · loaded {fmtDateTime(ds.importedAt)}</div>
+            <div className="text-xs text-stone-500">{Object.entries(ds.counts as Record<string, number>).map(([k, v]) => `${v.toLocaleString("en-UG")} ${k}`).join(" · ")}</div>
+          </div>
+        ) : <div className="text-maroon-600">Not loaded yet.</div>}
       </div>
 
       <SectionTitle title="Activity log" />

@@ -117,7 +117,7 @@ export async function createRequest(fd: FormData) {
   const photoId = await saveUpload(fd.get("photo"), u.id, false, true);
   const job = await db.job.create({
     data: {
-      requesterId: u.id, landlordId: lease.landlordId, propertyId: lease.unit.propertyId, unitId: lease.unitId,
+      requesterId: u.id, landlordId: lease.landlordId, propertyId: lease.unit.propertyId, unitId: lease.unitId, locationId: lease.unit.property.locationId,
       category, title, description, priority, photoId,
       notes: notes.length ? { create: notes.map((body) => ({ authorId: u.id, body, system: true })) } : undefined,
     },
