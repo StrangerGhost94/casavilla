@@ -1,4 +1,5 @@
 import { RegisterForm } from "@/components/AuthForms";
+import { messagingConfigured } from "@/lib/messaging";
 import { LogoMark } from "@/components/ui";
 import { BackButton } from "@/components/client";
 
@@ -15,7 +16,7 @@ export default async function Register({ searchParams }: { searchParams: Promise
       </div>
       <h1 className="mt-4 text-[1.6rem] font-bold leading-tight text-brand-950">Create your account</h1>
       <p className="muted mb-5 mt-1">Choose how you&apos;ll use CasaVilla, then add your details.</p>
-      <RegisterForm role={role} next={next} />
+      <RegisterForm role={role} next={next} messaging={messagingConfigured()} />
     </main>
   );
 }

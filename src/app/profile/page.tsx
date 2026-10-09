@@ -3,7 +3,7 @@ import { requireUser } from "@/lib/auth";
 import { menus, roleName } from "@/lib/nav";
 import { logout, saveMessagePrefs } from "@/app/actions";
 import { PhoneCheck } from "@/components/AuthForms";
-import { otpMode } from "@/lib/messaging";
+import { messagingConfigured, otpMode } from "@/lib/messaging";
 import { PortalShell } from "@/components/PortalShell";
 import { NavIcon } from "@/components/NavLinks";
 import { Avatar, ListRow } from "@/components/ui";
@@ -51,7 +51,7 @@ export default async function Profile() {
               </form>
             </details>
           )}
-          <details className="group">
+          {messagingConfigured() && <details className="group">
             <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition hover:bg-stone-50">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#25D366]/10 text-[#128C7E]"><BellRing className="h-[18px] w-[18px]" /></span>
               <span className="min-w-0 flex-1">
@@ -76,7 +76,7 @@ export default async function Profile() {
               </form>
               {!u.phoneVerifiedAt && otpMode() !== "off" && <div className="border-t border-stone-100 pt-3"><PhoneCheck /></div>}
             </div>
-          </details>
+          </details>}
           {items.map((i) => (
             <ListRow key={i.href} href={i.href} title={i.label}
               icon={<span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><NavIcon name={i.icon} className="h-[18px] w-[18px]" /></span>} />

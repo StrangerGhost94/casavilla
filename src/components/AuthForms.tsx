@@ -62,7 +62,7 @@ const roles = [
   { id: "provider", title: "Service provider", body: "Offer your services, get hired", icon: Wrench, tone: "bg-brand-800 text-gold-300" },
 ] as const;
 
-export function RegisterForm({ role: initial, next }: { role?: string; next?: string }) {
+export function RegisterForm({ role: initial, next, messaging = false }: { role?: string; next?: string; messaging?: boolean }) {
   const [state, action, pending] = useActionState(register, undefined);
   const [role, setRole] = useState<string>(roles.some((r) => r.id === initial) ? initial! : "tenant");
   const [editing, setEditing] = useState(false);
@@ -98,14 +98,14 @@ export function RegisterForm({ role: initial, next }: { role?: string; next?: st
             <input name="area" className="input" placeholder="Area you serve, e.g. Rubaga" />
           </div>
         )}
-        <IconInput icon={Phone}><input name="phone" required inputMode="tel" className="input pl-11" placeholder="WhatsApp / Mobile Money number, e.g. 0772 123456" autoComplete="tel" /></IconInput>
+        <IconInput icon={Phone}><input name="phone" required inputMode="tel" className="input pl-11" placeholder="Phone (Mobile Money), e.g. 0772 123456" autoComplete="tel" /></IconInput>
         <IconInput icon={Mail}><input name="email" type="email" required className="input pl-11" placeholder="Email address" autoComplete="email" /></IconInput>
         <PasswordInput autoComplete="new-password" minLength={8} />
         {role === "tenant" && <ExistingTenant />}
-        <label className="flex items-start gap-2.5 text-xs text-stone-600">
+        {messaging && <label className="flex items-start gap-2.5 text-xs text-stone-600">
           <input type="checkbox" defaultChecked onChange={(e) => { const h = e.currentTarget.form?.elements.namedItem("optIn") as HTMLInputElement | null; if (h) h.value = e.currentTarget.checked ? "on" : "off"; }} className="mt-0.5 h-4 w-4 shrink-0 rounded accent-brand-700" />
           <span>Send me rent reminders, receipts and updates on WhatsApp or SMS</span>
-        </label>
+        </label>}
         <input type="hidden" name="optIn" defaultValue="on" />
         {role !== "tenant" && <p className="text-xs text-stone-500">CasaVilla reviews new {role === "landlord" ? "landlords" : "providers"} before they appear publicly. You can set up your account straight away.</p>}
       </div>

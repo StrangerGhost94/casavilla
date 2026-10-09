@@ -29,11 +29,10 @@ export async function CaretakerAdmin({ landlordId }: { landlordId: number }) {
                   <div className="font-semibold text-brand-950">{c.name}</div>
                   <a href={`tel:${c.phone}`} className="text-xs text-stone-500 hover:underline">{c.phone}</a>
                 </div>
-                {c.phoneVerifiedAt ? <Badge color="green">active</Badge> : <Badge color="gold">hasn&apos;t signed in yet</Badge>}
               </div>
-              {!c.phoneVerifiedAt && (
-                <a className="link text-xs" href={`https://wa.me/${c.phone.replace("+", "")}?text=${encodeURIComponent(`Hello ${c.name.split(" ")[0]}, I've added you as caretaker on CasaVilla. Set your password with your phone number here: ${process.env.APP_URL || "https://casavilla-production.up.railway.app"}/forgot — then sign in with your phone number.`)}`}>
-                  Send them the sign-in link on WhatsApp →
+              {(
+                <a className="link text-xs" href={`https://wa.me/${c.phone.replace("+", "")}?text=${encodeURIComponent(`Hello ${c.name.split(" ")[0]}, I've added you as caretaker on CasaVilla. Sign in at ${process.env.APP_URL || "https://casavilla-production.up.railway.app"}/login with your phone number and the password I gave you.`)}`}>
+                  Send them how to sign in (opens WhatsApp) →
                 </a>
               )}
               {rows.filter((r) => r.caretakerId === cid).map((r) => (
@@ -61,7 +60,7 @@ export async function CaretakerAdmin({ landlordId }: { landlordId: number }) {
           <div className="flex items-center gap-2 font-semibold text-brand-950"><UserCog className="h-4 w-4 text-brand-700" /> Add a caretaker</div>
           <div className="grid gap-2 sm:grid-cols-2">
             <Field label="Name"><input name="name" required maxLength={80} className="input" placeholder="e.g. Ssemakula John" /></Field>
-            <Field label="Phone (WhatsApp)"><input name="phone" required inputMode="tel" className="input" placeholder="0772 123 456" /></Field>
+            <Field label="Phone"><input name="phone" required inputMode="tel" className="input" placeholder="0772 123 456" /></Field>
           </div>
           <div>
             <div className="label">Looks after</div>
@@ -77,11 +76,8 @@ export async function CaretakerAdmin({ landlordId }: { landlordId: number }) {
             <label className="flex items-center gap-2"><input type="checkbox" name="canCollect" defaultChecked className="h-4 w-4 accent-brand-700" /> May record cash rent</label>
             <label className="flex items-center gap-2"><input type="checkbox" name="canSeeBalances" defaultChecked className="h-4 w-4 accent-brand-700" /> May see who owes</label>
           </div>
-          <details className="text-sm">
-            <summary className="cursor-pointer list-none text-xs font-semibold text-brand-700">Or give them a first password yourself…</summary>
-            <input name="tempPassword" type="text" minLength={8} maxLength={60} autoComplete="off" className="input mt-2" placeholder="At least 8 characters — they can change it later" />
-          </details>
-          <p className="text-[11px] text-stone-500">They get a WhatsApp/SMS message to set their own password with a code, then sign in with their phone number. Every payment they record is sent to you straight away.</p>
+          <Field label="First password for them"><input name="tempPassword" type="text" required minLength={8} maxLength={60} autoComplete="off" className="input" placeholder="At least 8 characters" /></Field>
+          <p className="text-[11px] text-stone-500">Give them this password; they sign in with their phone number and it. Every payment they record is sent to you straight away.</p>
           <Submit className="btn-primary btn-sm">Add caretaker</Submit>
         </form>
       ) : <p className="mt-6 text-sm text-stone-500">Add a property first.</p>}

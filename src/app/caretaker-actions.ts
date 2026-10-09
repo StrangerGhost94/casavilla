@@ -9,7 +9,7 @@ import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
 import { notify, notifyManagers } from "@/lib/notify";
 import { normalizePhone } from "@/lib/format";
-import { appUrl, queueMessage, sendQueuedMessages } from "@/lib/messaging";
+import { appUrl, messagingConfigured, queueMessage, sendQueuedMessages } from "@/lib/messaging";
 import { workableProperty } from "@/lib/access";
 import { triage } from "@/lib/insights";
 import { saveUpload } from "@/lib/uploads";
@@ -41,6 +41,8 @@ export async function addCaretaker(fd: FormData) {
 
   const temp = String(fd.get("tempPassword") || "");
   if (temp && temp.length < 8) return fail("The first password must be at least 8 characters");
+  // Without WhatsApp/SMS the caretaker can't set a password with a code, so the landlord gives them one.
+  if (!temp && !messagingConfigured()) return fail("Give the caretaker a first password (at least 8 characters)");
   let c = await db.user.findFirst({ where: { phone, role: "caretaker" } });
   const isNew = !c;
   if (!c) {

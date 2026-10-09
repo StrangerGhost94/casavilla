@@ -61,7 +61,6 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/manager/statements", label: "Statements & expenses", icon: "chart" },
     { href: "/manager/inspections", label: "Inspections", icon: "clipboardCheck" },
     { href: "/manager/utilities", label: "Utilities & meters", icon: "zap" },
-    { href: "/manager/messages", label: "WhatsApp & SMS", icon: "message" },
     { href: "/manager/jobs", label: "Maintenance jobs", icon: "wrench" },
     { href: "/manager/areas", label: "By area", icon: "map" },
     { href: "/manager/orders", label: "Shop orders", icon: "bag" },

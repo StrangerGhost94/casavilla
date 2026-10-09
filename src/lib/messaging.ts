@@ -20,7 +20,7 @@ export const smsConfigured = () => !!process.env.AT_USERNAME && !!process.env.AT
 export const messagingConfigured = () => waConfigured() || smsConfigured();
 /** live = a provider is set up; test = codes are shown on screen (development, or OTP_TEST_MODE=1); off = skip phone codes. */
 export const otpMode = (): "live" | "test" | "off" =>
-  messagingConfigured() ? "live" : process.env.NODE_ENV !== "production" || process.env.OTP_TEST_MODE === "1" ? "test" : "off";
+  messagingConfigured() ? "live" : process.env.OTP_TEST_MODE === "1" ? "test" : "off";
 
 const TEMPLATES = {
   otp: () => process.env.WHATSAPP_OTP_TEMPLATE || "casavilla_code",
@@ -102,6 +102,8 @@ export async function sendCode(phone: string, code: string, userId?: number | nu
  * Reminders use the rent_reminder template: [name, amount, what, when, link]; notices: [name, message].
  */
 export async function queueMessage(o: { userId: number; kind: "reminder" | "notice"; params: string[]; text: string; dedupeKey?: string }) {
+  // Switched off until a WhatsApp or SMS provider is connected — nothing is queued or stored.
+  if (!messagingConfigured()) return null;
   // "Hello Brian, Your bill…" → "Hello Brian, your bill…" (but leave "UGX", "CasaVilla" etc. alone).
   const lower = (t: string) => t.replace(/^([A-Z])(?=[a-z])/, (c) => c.toLowerCase());
   if (o.kind === "notice" && o.params[1]) o = { ...o, params: [o.params[0], lower(o.params[1]), ...o.params.slice(2)], text: o.text.replace(/^(Hello [^,]+, )(.*)$/s, (_, a, b) => a + lower(b)) };
