@@ -18,7 +18,7 @@ export default async function Shop({ searchParams }: { searchParams: Promise<{ e
       <h1 className="h1">Shop</h1>
       <p className="muted mt-1">Materials, fittings and supplies sold by CasaVilla service providers. Pay the seller on delivery.</p>
       {error && <div className="mt-4 rounded-lg bg-maroon-50 p-3 text-sm text-maroon-600">{error}</div>}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {items.map((p) => (
           <div key={p.id} className="card flex flex-col overflow-hidden p-0">
             <Photo id={p.photoId} alt={p.name} className="h-40 w-full" />

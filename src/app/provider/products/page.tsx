@@ -11,8 +11,8 @@ export default async function ProviderProducts() {
   return (
     <>
       <PageHeader title="Items for sale" subtitle="Sell materials and supplies — paint, fittings, cleaning products, pest treatments…" />
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="grid gap-4 sm:grid-cols-2 lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:col-span-2">
           {list.length === 0 && <div className="muted">Nothing listed yet.</div>}
           {list.map((p) => (
             <div key={p.id} className="card h-fit overflow-hidden p-0">

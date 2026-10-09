@@ -33,7 +33,7 @@ export async function Documents({ leaseId, propertyId, viewerId, canUpload = tru
         })}
       </ul>
       {canUpload && (
-        <form action={uploadDocument} className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto]">
+        <form action={uploadDocument} className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_1fr_auto]">
           {leaseId && <input type="hidden" name="leaseId" value={leaseId} />}
           {propertyId && <input type="hidden" name="propertyId" value={propertyId} />}
           <input name="title" className="input" placeholder="Title, e.g. Signed tenancy agreement" required />

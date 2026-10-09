@@ -43,7 +43,7 @@ export default async function Home() {
         {/* Role picker */}
         <h2 className="text-xl font-bold text-brand-950 md:text-2xl">How do you want to use CasaVilla?</h2>
         <p className="muted mt-1">Each person gets their own dashboard, and everything links together.</p>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-3">
           {roles.map((r) => (
             <Link key={r.id} href={`/register?role=${r.id}`} className="card flex items-center gap-4 p-4 transition hover:-translate-y-0.5 hover:border-brand-200">
               <span className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${r.tone}`}><r.icon className="h-6 w-6" /></span>
@@ -61,7 +61,7 @@ export default async function Home() {
         {homes.length === 0 ? (
           <div className="card text-center text-sm text-stone-500">New listings coming soon.</div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {homes.map((h) => <PropertyCard key={h.id} h={h} />)}
           </div>
         )}

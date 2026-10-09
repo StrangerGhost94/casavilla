@@ -14,7 +14,7 @@ export default async function TenantLease() {
   return (
     <>
       <PageHeader title="My lease" subtitle={`${lease.property} · ${lease.unit}`} />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-3">
           <LeaseFacts l={l} manage={false} />
           <AgreementCard l={l} manage={false} />

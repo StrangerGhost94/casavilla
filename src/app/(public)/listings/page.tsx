@@ -64,7 +64,7 @@ export default async function Listings({ searchParams }: { searchParams: Promise
         <h2 className="h2">{near ? `Within ${fmtKm(km)} of you` : area.length > 1 ? `Homes in ${area[area.length - 1].name}` : sp.q ? `Homes in “${sp.q}”` : "Featured properties"}</h2>
         <span className="text-xs text-stone-500">{homes.length} available</span>
       </div>
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {homes.map((h) => <PropertyCard key={h.id} h={h} wide />)}
       </div>
       {(near || area.length > 1) && (

@@ -58,7 +58,7 @@ export async function CaretakerAdmin({ landlordId }: { landlordId: number }) {
       {props.length > 0 ? (
         <form action={addCaretaker} className="card mt-6 space-y-3">
           <div className="flex items-center gap-2 font-semibold text-brand-950"><UserCog className="h-4 w-4 text-brand-700" /> Add a caretaker</div>
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             <Field label="Name"><input name="name" required maxLength={80} className="input" placeholder="e.g. Ssemakula John" /></Field>
             <Field label="Phone"><input name="phone" required inputMode="tel" className="input" placeholder="0772 123 456" /></Field>
           </div>

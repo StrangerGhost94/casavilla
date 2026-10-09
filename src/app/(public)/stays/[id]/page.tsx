@@ -26,8 +26,8 @@ export default async function StayPage({ params, searchParams }: { params: Promi
   const p = u.property;
   return (
     <main className="mx-auto max-w-6xl md:px-4 md:pt-6">
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
           <div className="relative">
             <Photo id={p.photoId} alt={p.name} className="h-72 w-full md:h-96 md:rounded-3xl" />
             <Link href="/stays" aria-label="Back" className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-brand-900 shadow-card"><ArrowLeft className="h-5 w-5" /></Link>
@@ -46,12 +46,12 @@ export default async function StayPage({ params, searchParams }: { params: Promi
             </div>
             <Gallery propertyId={p.id} unitId={u.id} />
             <Features u={u} />
-            {p.description && <section className="mt-6"><h2 className="h2">About</h2><p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-stone-600">{p.description}</p></section>}
-            {u.houseRules && <section className="mt-6"><h2 className="h2">House rules</h2><p className="mt-2 whitespace-pre-line text-sm text-stone-600">{u.houseRules}</p></section>}
+            {p.description && <section className="mt-6"><h2 className="h2">About</h2><p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-stone-600">{p.description}</p></section>}
+            {u.houseRules && <section className="mt-6"><h2 className="h2">House rules</h2><p className="mt-2 whitespace-pre-line break-words text-sm text-stone-600">{u.houseRules}</p></section>}
             <section className="mt-6"><h2 className="h2">Availability</h2><div className="mt-2"><StayCalendar booked={booked} today={today} /></div></section>
           </div>
         </div>
-        <aside className="px-4 pb-6 md:px-0">
+        <aside className="min-w-0 px-4 pb-6 md:px-0">
           <div className="card lg:sticky lg:top-24">
             <div className="h2 mb-3">Book your stay</div>
             {user ? (

@@ -17,7 +17,7 @@ export default async function ProviderProfile() {
     <div className="max-w-2xl">
       <PageHeader title="Business profile" actions={u.status === "active" ? <Link href={`/services/${u.id}`} className="btn-outline">View public page</Link> : undefined} />
       <form action={saveProfile} className="card space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label="Your name"><input name="name" defaultValue={u.name} className="input" required /></Field>
           <Field label="Business name"><input name="businessName" defaultValue={u.businessName ?? ""} className="input" /></Field>
           <Field label="Phone"><input name="phone" defaultValue={u.phone} className="input" required /></Field>

@@ -36,7 +36,7 @@ export async function SmartPanel({ landlordId, base }: { landlordId?: number; ba
         })}
       </div>
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div className="card">
           <div className="flex items-center gap-2 text-sm font-semibold text-brand-950"><TrendingUp className="h-4 w-4 text-brand-700" /> Expected this month</div>
           <div className="mt-2 text-2xl font-bold text-brand-950">{ugx(f.expected)}</div>

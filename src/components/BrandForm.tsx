@@ -20,7 +20,7 @@ export async function BrandForm({ ownerId, sampleReceiptId }: { ownerId?: number
         <div className="h2">Receipts &amp; agreements</div>
         <p className="muted">How your receipts, tenancy agreements and booking confirmations look — on screen, in PDFs and in emails.</p>
       </div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Field label="Name on documents"><input name="displayName" defaultValue={b.displayName} className="input" required maxLength={120} /></Field>
         <Field label="TIN (optional)"><input name="tin" defaultValue={b.tin ?? ""} className="input" maxLength={30} placeholder="URA TIN" /></Field>
         <Field label="Address"><input name="address" defaultValue={b.address ?? ""} className="input" maxLength={200} /></Field>

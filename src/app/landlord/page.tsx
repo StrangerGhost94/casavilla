@@ -36,7 +36,7 @@ export default async function LandlordHome() {
         <Stat label="Collected this month" value={ugx(s.collected)} icon={<Wallet className="h-[18px] w-[18px]" />} href="/landlord/tenants" />
       </div>
 
-      <div className="grid gap-x-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         <div>
           <SectionTitle title="Income overview" />
           <div className="card divide-y divide-stone-100 p-0">

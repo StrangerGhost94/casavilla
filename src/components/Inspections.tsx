@@ -60,7 +60,7 @@ export async function InspectionPage({ id, viewer }: { id: number; viewer: User 
           <label className="min-w-0"><span className="label">General notes</span><input name="notes" defaultValue={ins.notes ?? ""} disabled={!editable} maxLength={3000} className="input" placeholder="e.g. Freshly painted, 2 remotes" /></label>
         </div>
         {ins.unit.meters.length > 0 && (
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
             {ins.unit.meters.map((m) => (
               <label key={m.id} className="min-w-0"><span className="label">{m.kind === "water" ? "Water meter" : "Yaka / electricity"}{m.number ? ` · ${m.number}` : ""}</span>
                 <input name={`meter_${m.id}`} inputMode="decimal" defaultValue={reading.get(m.id) ?? ""} disabled={!editable} className="input" placeholder={m.kind === "water" ? "m³" : "units"} /></label>

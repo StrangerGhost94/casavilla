@@ -97,7 +97,7 @@ export async function CashForm({ l }: { l: Lease }) {
   const owed = open.reduce((s, c) => s + c.amount - c.paid, 0);
   if (l.status !== "active" && owed <= 0) return null;
   return (
-    <form action={recordCashPayment} className="card grid gap-2 sm:grid-cols-5">
+    <form action={recordCashPayment} className="card grid grid-cols-1 gap-2 sm:grid-cols-5">
       <input type="hidden" name="leaseId" value={l.id} />
       <div className="sm:col-span-5">
         <div className="h2">Record a cash or bank payment</div>
@@ -120,7 +120,7 @@ export function ChargeForm({ leaseId }: { leaseId: number }) {
   return (
     <details className="card group">
       <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-brand-950"><ReceiptText className="h-4 w-4 text-brand-700" /> Add a bill or charge</summary>
-      <form action={addLeaseCharge} className="mt-3 grid gap-2 sm:grid-cols-2">
+      <form action={addLeaseCharge} className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
         <input type="hidden" name="leaseId" value={leaseId} />
         <Field label="Type"><select name="kind" className="input">{CHARGE_KINDS.map((k) => <option key={k} value={k}>{CHARGE_KIND_LABEL[k]}</option>)}</select></Field>
         <Field label="Amount (UGX)"><input name="amount" type="number" min={500} inputMode="numeric" className="input" required /></Field>

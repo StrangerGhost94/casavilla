@@ -24,7 +24,7 @@ export default async function Messages() {
   return (
     <div className="mx-auto max-w-4xl">
       <PageHeader title="WhatsApp & SMS" subtitle="Sign-up codes, password resets, rent reminders and receipts sent to people's phones." />
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Provider on={wa} icon={<MessageCircle className="h-5 w-5" />} title="WhatsApp (Meta)" hint={wa ? "Connected — tried first for every message" : "Add WHATSAPP_TOKEN and WHATSAPP_PHONE_ID in Railway"} />
         <Provider on={sms} icon={<Smartphone className="h-5 w-5" />} title="SMS (Africa's Talking)" hint={sms ? "Connected — used when WhatsApp can't deliver" : "Add AT_USERNAME and AT_API_KEY in Railway"} />
       </div>

@@ -58,7 +58,7 @@ export default async function People({ searchParams }: { searchParams: Promise<{
       </div>
       <details className="card mt-6 max-w-2xl">
         <summary className="h2 cursor-pointer">Add a CasaVilla staff account</summary>
-        <form action={createStaff} className="mt-4 grid gap-3 sm:grid-cols-2">
+        <form action={createStaff} className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="Name"><input name="name" className="input" required /></Field>
           <Field label="Phone"><input name="phone" className="input" required /></Field>
           <Field label="Email"><input name="email" type="email" className="input" required /></Field>

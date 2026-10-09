@@ -12,7 +12,7 @@ export default async function NewJob() {
     <div className="max-w-2xl">
       <PageHeader title="New maintenance job" />
       <form action={landlordJob} className="card space-y-4">
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label="Property"><select name="propertyId" className="input">{props.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</select></Field>
           <Field label="Category"><select name="category" className="input">{SERVICE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
           <Field label="Priority"><select name="priority" className="input" defaultValue="normal"><option value="low">Low</option><option value="normal">Normal</option><option value="urgent">Urgent</option></select></Field>

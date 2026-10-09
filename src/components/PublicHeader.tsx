@@ -39,7 +39,7 @@ export async function PublicHeader() {
 export function PublicFooter() {
   return (
     <footer className="no-print web-only mt-14 bg-brand-950 pb-28 text-white/70 lg:pb-0">
-      <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 text-sm md:grid-cols-3">
+      <div className="mx-auto grid grid-cols-1 max-w-6xl gap-8 px-4 py-12 text-sm md:grid-cols-3">
         <div>
           <Logo tone="light" />
           <p className="mt-4 max-w-xs">Connect. Manage. Grow. Property management for landlords, tenants and trusted service providers across Kampala.</p>

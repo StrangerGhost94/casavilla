@@ -2,7 +2,7 @@
 export function StayCalendar({ booked, today, months = 3 }: { booked: Set<string>; today: string; months?: number }) {
   const [y0, m0] = today.split("-").map(Number);
   return (
-    <div className="grid gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {Array.from({ length: months }, (_, k) => {
         const first = new Date(Date.UTC(y0, m0 - 1 + k, 1));
         const days = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate();

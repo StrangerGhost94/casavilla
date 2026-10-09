@@ -51,7 +51,7 @@ export async function StatementPage({ viewer, landlordId, month, propertyId, bas
         <Kpi label="Arrears at month end" value={ugx(s.arrears)} hint={`${s.occupied}/${s.units} units let`} />
       </div>
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="card">
           <div className="mb-2 font-semibold text-brand-950">Money in · {monthName(month)}</div>
           {incomeRows.length ? incomeRows.map(([k, v]) => <Line key={k} k={KIND_NAMES[k] ?? k} v={ugx(v)} />) : <p className="text-sm text-stone-500">Nothing received this month.</p>}
@@ -107,7 +107,7 @@ export async function StatementPage({ viewer, landlordId, month, propertyId, bas
         </div>
       )}
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-[1fr_20rem]">
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_20rem]">
         <div className="card p-0">
           <div className="px-4 pb-2 pt-4 font-semibold text-brand-950">Expenses · {monthName(month)}</div>
           {s.expenses.length ? (

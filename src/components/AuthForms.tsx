@@ -93,7 +93,7 @@ export function RegisterForm({ role: initial, next, messaging = false }: { role?
         <div className="pt-2 text-xs font-semibold uppercase tracking-wide text-stone-500">Your details</div>
         <IconInput icon={User}><input name="name" required className="input pl-11" placeholder="Full name" autoComplete="name" /></IconInput>
         {role === "provider" && (
-          <div className="grid gap-3.5 sm:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             <IconInput icon={Building}><input name="businessName" className="input pl-11" placeholder="Business name" /></IconInput>
             <input name="area" className="input" placeholder="Area you serve, e.g. Rubaga" />
           </div>

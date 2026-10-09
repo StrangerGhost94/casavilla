@@ -38,8 +38,8 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
   return (
     <main className="mx-auto max-w-6xl md:px-4 md:pt-6">
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2">
           <div className="relative">
             <Photo id={property.photoId} alt={property.name} className="h-72 w-full md:h-96 md:rounded-3xl" />
             <Link href="/listings" aria-label="Back to homes" className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-brand-900 shadow-card backdrop-blur">
@@ -51,7 +51,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             <h1 className="mt-3 text-2xl font-bold text-brand-950">{unit.bedrooms} Bedroom · {property.name}</h1>
             <div className="mt-1 flex items-center gap-1 text-sm text-stone-500"><MapPin className="h-4 w-4 shrink-0" /> {property.location}</div>
             {trail.length > 1 && <div className="mt-1 text-xs text-brand-800">{crumbText(trail, true)}</div>}
-            {property.landmark && <div className="mt-1 text-xs text-stone-500">Landmark: {property.landmark}</div>}
+            {property.landmark && <div className="mt-1 break-words text-xs text-stone-500">Landmark: {property.landmark}</div>}
             {area && <Link href={`/listings?in=${area.id}`} className="link mt-1 inline-block text-xs">More homes in {area.name} →</Link>}
             <div className="mt-3 text-2xl font-bold text-brand-900">{ugx(unit.rent)} <span className="text-sm font-normal text-stone-500">/ month</span></div>
             <div className="mt-4 grid grid-cols-3 gap-2">
@@ -67,14 +67,14 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             {property.description && (
               <section className="mt-6">
                 <h2 className="h2">Overview</h2>
-                <p className="mt-2 whitespace-pre-line text-sm leading-relaxed text-stone-600">{property.description}</p>
+                <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-stone-600">{property.description}</p>
               </section>
             )}
             <section className="mt-6">
               <h2 className="h2">Location</h2>
               <a href={maps} target="_blank" rel="noreferrer" className="card mt-2 flex items-center gap-3 p-4 hover:border-brand-200">
                 <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><MapPin className="h-5 w-5" /></span>
-                <span className="flex-1 text-sm text-stone-700">{property.location}</span>
+                <span className="min-w-0 flex-1 break-words text-sm text-stone-700">{property.location}</span>
                 <span className="text-xs font-semibold text-brand-700">View on map</span>
               </a>
             </section>
@@ -91,7 +91,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
           </div>
         </div>
 
-        <aside className="px-4 md:px-0">
+        <aside className="min-w-0 px-4 md:px-0">
           <div className="card lg:sticky lg:top-24">
             <div className="flex items-center gap-3">
               <Avatar name={landlord.name} />

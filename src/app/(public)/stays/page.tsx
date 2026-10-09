@@ -50,7 +50,7 @@ export default async function Stays({ searchParams }: { searchParams: Promise<{ 
         <h2 className="h2">{dated ? `Available ${sp.checkIn} → ${sp.checkOut} (${n} night${n === 1 ? "" : "s"})` : "All short stays"}</h2>
         <span className="text-xs text-stone-500">{rows.length} home{rows.length === 1 ? "" : "s"}</span>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {rows.map(({ u }) => (
           <Link key={u.id} href={q(u.id)} className="group block overflow-hidden rounded-2xl border border-stone-200/70 bg-white shadow-card transition hover:-translate-y-0.5">
             <div className="relative"><Photo id={u.property.photoId} alt={u.property.name} className="h-44 w-full" /><span className="pill absolute left-3 top-3 bg-gold-400 text-brand-950">Short stay</span></div>

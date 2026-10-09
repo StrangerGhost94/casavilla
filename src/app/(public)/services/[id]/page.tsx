@@ -35,7 +35,7 @@ export default async function ProviderPage({ params }: { params: Promise<{ id: s
       {p.bio && <p className="mt-4 max-w-2xl text-sm leading-relaxed text-stone-600">{p.bio}</p>}
 
       <h2 className="h2 mt-7">Services</h2>
-      <div className="mt-3 grid gap-4 md:grid-cols-2">
+      <div className="mt-3 grid grid-cols-1 gap-4 md:grid-cols-2">
         {svcs.map((s) => (
           <div key={s.id} className="card">
             <div className="flex items-start justify-between gap-2">
@@ -71,7 +71,7 @@ export default async function ProviderPage({ params }: { params: Promise<{ id: s
       {prods.length > 0 && (
         <>
           <h2 className="h2 mt-10">Items for sale</h2>
-          <div className="mt-3 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {prods.map((pr) => (
               <div key={pr.id} className="card overflow-hidden p-0">
                 <Photo id={pr.photoId} alt={pr.name} className="h-36 w-full" />

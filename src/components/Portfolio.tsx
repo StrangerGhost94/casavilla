@@ -92,7 +92,7 @@ export async function PropertyList({ where, base }: { where: Prisma.PropertyWher
   if (!rows.length) return <><Empty title="No properties yet">Add your first property, then its units.</Empty>{archivedList}</>;
   return (
     <>
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {rows.map((p) => {
         const total = p.units.length;
         const occupied = p.units.filter((u) => u.status === "occupied").length;

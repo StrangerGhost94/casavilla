@@ -11,7 +11,7 @@ export default async function ProviderServices() {
   return (
     <>
       <PageHeader title="My services" subtitle="These appear in the CasaVilla directory and decide which repair jobs you're matched to." />
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-3 lg:col-span-2">
           {list.length === 0 && <div className="muted">No services yet.</div>}
           {list.map((s) => (
@@ -25,7 +25,7 @@ export default async function ProviderServices() {
               </summary>
               <form action={saveService} className="mt-4 space-y-3 border-t border-stone-100 pt-4">
                 <input type="hidden" name="id" value={s.id} />
-                <div className="grid gap-3 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <select name="category" defaultValue={s.category} className="input">{SERVICE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
                   <input name="priceFrom" type="number" defaultValue={s.priceFrom ?? ""} className="input" placeholder="Price from (UGX)" />
                 </div>

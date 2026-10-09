@@ -44,7 +44,7 @@ export default async function ManagerHome() {
         <div className="mt-2 flex justify-between text-xs text-white/70"><span>{pct}% of {ugx(s.due_month)} due</span><span>Overdue {ugx(s.arrears)}</span></div>
       </Link>
 
-      <div className="grid gap-x-6 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         <div>
           <SectionTitle title="Attention required" />
           <AttentionList rows={[

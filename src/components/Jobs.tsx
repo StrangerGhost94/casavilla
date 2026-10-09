@@ -87,7 +87,7 @@ export async function JobDetail({ id, viewer, back }: { id: number; viewer: User
         <div className="flex gap-2"><Badge>{j.priority}</Badge><Badge>{j.status === "in_progress" ? "in progress" : j.status}</Badge></div>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <div className="card">
             <div className="h2">Details</div>
