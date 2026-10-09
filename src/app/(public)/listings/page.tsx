@@ -39,7 +39,7 @@ export default async function Listings({ searchParams }: { searchParams: Promise
         </div>
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="h-4 w-4 shrink-0 text-stone-400" />
-          <select name="max" defaultValue={sp.max ?? ""} className="input w-auto py-2 text-xs">
+          <select name="max" defaultValue={sp.max ?? ""} className="input w-auto py-2">
             <option value="">Any price</option>
             {budgets.map((b) => <option key={b} value={b}>Up to {ugx(b)}</option>)}
           </select>
