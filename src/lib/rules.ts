@@ -41,3 +41,12 @@ export const MAX_ADVANCE_MONTHS = 6;
 
 /** Features a landlord can tick for a unit (shown on listings and in the tenancy agreement). */
 export const AMENITIES = ["Water (NWSC)", "Water tank", "Yaka power", "Solar backup", "Parking", "Security / askari", "CCTV", "Wi-Fi", "Balcony", "Garden", "Tiled floors", "Fitted kitchen", "Wardrobes", "Hot shower", "Gated", "Pet friendly"] as const;
+
+/** What landlords spend money on, for expenses and monthly statements. */
+export const EXPENSE_CATEGORIES = ["Repairs & maintenance", "Security", "Garbage collection", "Cleaning", "Utilities (landlord paid)", "Management fee", "Property rates & taxes", "Insurance", "Legal & agency", "Other"] as const;
+
+/**
+ * Uganda rental income tax for individuals (Income Tax Act): 12% of gross rental income above UGX 2,820,000 a year,
+ * with no expenses deducted. Companies are taxed differently (30% of net). Shown as an estimate only.
+ */
+export const RENTAL_TAX = { rate: 0.12, threshold: 2_820_000 } as const;

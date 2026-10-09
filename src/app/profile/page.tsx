@@ -1,7 +1,9 @@
-import { BadgeCheck, ChevronRight, Clock, LogOut, MapPin, MessageCircle } from "lucide-react";
+import { BadgeCheck, BellRing, ChevronRight, Clock, LogOut, MapPin, MessageCircle } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { menus, roleName } from "@/lib/nav";
-import { logout } from "@/app/actions";
+import { logout, saveMessagePrefs } from "@/app/actions";
+import { PhoneCheck } from "@/components/AuthForms";
+import { otpMode } from "@/lib/messaging";
 import { PortalShell } from "@/components/PortalShell";
 import { NavIcon } from "@/components/NavLinks";
 import { Avatar, ListRow } from "@/components/ui";
@@ -49,6 +51,32 @@ export default async function Profile() {
               </form>
             </details>
           )}
+          <details className="group">
+            <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition hover:bg-stone-50">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#25D366]/10 text-[#128C7E]"><BellRing className="h-[18px] w-[18px]" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-medium text-stone-800">WhatsApp & SMS</span>
+                <span className="block truncate text-xs text-stone-500">{u.messageOptIn ? "Reminders on" : "Reminders off"}{u.phoneVerifiedAt ? " · number confirmed" : " · number not confirmed"}</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-stone-400 transition group-open:rotate-90" />
+            </summary>
+            <div className="space-y-4 border-t border-stone-100 px-4 pb-4 pt-3">
+              <form action={saveMessagePrefs} className="space-y-3">
+                <label className="flex items-start gap-2.5 text-sm text-stone-700">
+                  <input type="checkbox" name="messageOptIn" defaultChecked={u.messageOptIn} className="mt-0.5 h-4 w-4 accent-brand-700" />
+                  <span>Send me reminders and updates on WhatsApp or SMS<span className="block text-xs text-stone-500">To {u.phone}. Codes for signing in are always sent.</span></span>
+                </label>
+                {u.role === "landlord" && (
+                  <label className="flex items-start gap-2.5 text-sm text-stone-700">
+                    <input type="checkbox" name="remindTenants" defaultChecked={u.remindTenants} className="mt-0.5 h-4 w-4 accent-brand-700" />
+                    <span>Remind my tenants automatically<span className="block text-xs text-stone-500">3 days before rent is due, on the day, then 3 and 7 days late — with a link to pay.</span></span>
+                  </label>
+                )}
+                <Submit className="btn-primary btn-sm">Save</Submit>
+              </form>
+              {!u.phoneVerifiedAt && otpMode() !== "off" && <div className="border-t border-stone-100 pt-3"><PhoneCheck /></div>}
+            </div>
+          </details>
           {items.map((i) => (
             <ListRow key={i.href} href={i.href} title={i.label}
               icon={<span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><NavIcon name={i.icon} className="h-[18px] w-[18px]" /></span>} />

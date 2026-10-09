@@ -236,8 +236,16 @@ export async function decideApplication(fd: FormData) {
 }
 
 export async function recordCashPayment(fd: FormData) {
-  const u = await actor();
-  const l = await ownedLease(u, id(fd, "leaseId"));
+  const u = await requireUser("landlord", "manager", "caretaker");
+  let l;
+  if (u.role === "caretaker") {
+    // Caretakers may record cash only on properties they look after, and only if the landlord allowed it.
+    const found = await db.lease.findUnique({ where: { id: id(fd, "leaseId") }, include: { unit: { select: { propertyId: true } } } });
+    const a = found ? await db.caretakerAssignment.findUnique({ where: { caretakerId_propertyId: { caretakerId: u.id, propertyId: found.unit.propertyId } } }) : null;
+    if (!found || !a?.canCollect) return fail("You can't record payments for this tenant");
+    if (found.status !== "active") return fail("This lease has ended — ask the landlord");
+    l = found;
+  } else l = await ownedLease(u, id(fd, "leaseId"));
   const owed = await leaseBalance(l.id);
   // After move-out only the remaining balance can be collected (no paying ahead on a finished lease).
   if (l.status !== "active" && owed <= 0) return fail("This lease has ended and nothing is owed");
@@ -255,6 +263,10 @@ export async function recordCashPayment(fd: FormData) {
     data: { chargeId: target.id, leaseId: l.id, tenantId: l.tenantId, amount, method, reference: ref, status: "pending", recordedById: u.id },
   });
   await completePayment(p.id);
+  if (u.role === "caretaker") {
+    const t = await db.user.findUnique({ where: { id: l.tenantId }, select: { name: true } });
+    await notify(l.landlordId, `${u.name} (caretaker) recorded ${ugx(amount)} ${method} from ${t?.name ?? "a tenant"}. Receipt sent to the tenant.`, `/landlord/tenants/${l.id}`);
+  }
   refresh();
   redirect(`/receipts/${p.id}`);
 }

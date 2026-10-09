@@ -7,6 +7,7 @@ import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { Avatar, Badge, Empty, Field, Photo } from "./ui";
 import { Submit, ConfirmSubmit } from "./client";
 import { Documents } from "./Documents";
+import { InspectionsCard } from "./Inspections";
 import { PlaceFields } from "./PlaceFields";
 import { UnitFields } from "./UnitFields";
 import { PhotoStudio } from "./PhotoStudio";
@@ -410,7 +411,8 @@ export async function LeaseDetail({ id, viewer, base }: { id: number; viewer: Us
           <AgreementCard l={l} />
           <TenantScoreCard tenantId={l.tenantId} />
           {active && <RenewForm l={l} location={l.unit.property} bedrooms={l.unit.bedrooms} />}
-          {active && <MoveOutForm l={l} />}
+          <InspectionsCard leaseId={l.id} viewer={viewer} manage />
+          {active && <MoveOutForm l={l} moveOut={await db.inspection.findFirst({ where: { leaseId: l.id, kind: "move_out" }, select: { status: true, deductions: true } })} />}
           <Documents leaseId={id} viewerId={viewer.id} />
         </div>
       </div>

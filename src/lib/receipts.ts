@@ -21,7 +21,8 @@ export async function receiptData(paymentId: number, viewer?: User) {
     },
   });
   if (!p || p.status !== "success") return null;
-  if (viewer && viewer.role !== "manager" && viewer.id !== p.lease.tenantId && viewer.id !== p.lease.landlordId) return null;
+  // The tenant, the landlord, CasaVilla — and a caretaker for the cash they recorded themselves.
+  if (viewer && viewer.role !== "manager" && viewer.id !== p.lease.tenantId && viewer.id !== p.lease.landlordId && viewer.id !== p.recordedById) return null;
   const lines = p.allocations.map((a) => ({
     description: a.charge.description,
     period: /^\d{4}-\d{2}$/.test(a.charge.period) ? periodLabel(a.charge.period) : a.charge.kind === "deposit" ? "Security deposit" : `Due ${fmtDate(a.charge.dueDate)}`,

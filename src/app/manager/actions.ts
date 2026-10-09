@@ -24,7 +24,7 @@ export async function setUserStatus(fd: FormData) {
   await audit(me.id, `user.${status}`, "user", u.id, `${u.name} (${u.role}): ${before.status} → ${status}`);
 
   if (status === "active") {
-    const link = { tenant: "/tenant", landlord: "/landlord", provider: "/provider", manager: "/manager" }[u.role];
+    const link = `/${u.role}`;
     await notify(u.id, "Your CasaVilla account has been approved. Welcome aboard!", link);
   }
   if (status === "suspended" && u.role === "provider") {
@@ -90,4 +90,14 @@ export async function managerOrder(fd: FormData) {
   const status = await oneOf(fd, "status", ["confirmed", "delivered", "cancelled"] as const, "status");
   await advanceOrder(id(fd), status, me.id);
   revalidatePath("/manager/orders");
+}
+
+/** Sends a test message to the manager's own phone, straight away. */
+export async function sendTestMessage() {
+  const me = await requireUser("manager");
+  const { queueMessage, sendQueuedMessages } = await import("@/lib/messaging");
+  const first = me.name.split(" ")[0];
+  await queueMessage({ userId: me.id, kind: "notice", dedupeKey: `test:${me.id}:${Date.now()}`, params: [first, "This is a test message from CasaVilla. WhatsApp/SMS is working."], text: `Hello ${first}, this is a test message from CasaVilla. WhatsApp/SMS is working.` });
+  await sendQueuedMessages(5);
+  revalidatePath("/manager/messages");
 }

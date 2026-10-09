@@ -12,6 +12,7 @@ enum Role {
   landlord
   provider
   manager
+  caretaker
 }
 
 enum UserStatus {
@@ -62,6 +63,22 @@ model User {
   bookings        Booking[]      @relation("BookingGuest")
   /// Send receipts and booking confirmations by email (once an email provider is configured).
   emailReceipts   Boolean        @default(true) @map("email_receipts")
+  /// When the phone number was confirmed with a WhatsApp/SMS code.
+  phoneVerifiedAt DateTime?      @map("phone_verified_at")
+  /// Rent reminders and notices on WhatsApp / SMS.
+  messageOptIn    Boolean        @default(true) @map("message_opt_in")
+  /// Landlords: send tenants automatic rent reminders.
+  remindTenants   Boolean        @default(true) @map("remind_tenants")
+  /// Landlords: management commission (% of rent collected) shown on monthly statements. 0 = self-managed.
+  commissionPct   Float          @default(0) @map("commission_pct")
+  messages        MessageOutbox[]
+  caretakerOf     CaretakerAssignment[] @relation("Caretaker")
+  caretakers      CaretakerAssignment[] @relation("CaretakerLandlord")
+  inspections     Inspection[]   @relation("InspectionBy")
+  expenses        Expense[]      @relation("ExpenseLandlord")
+  expensesAdded   Expense[]      @relation("ExpenseBy")
+  meterReadings   MeterReading[]
+  utilityBills    UtilityBill[]
 
   @@map("users")
 }
@@ -109,6 +126,9 @@ model Property {
   units       Unit[]
   jobs        Job[]
   documents   Document[]
+  caretakers  CaretakerAssignment[]
+  expenses    Expense[]
+  meters      Meter[]
 
   @@index([landlordId])
   @@index([locationId])
@@ -143,6 +163,9 @@ model Unit {
   applications Application[]
   leases       Lease[]
   jobs         Job[]
+  inspections  Inspection[]
+  expenses     Expense[]
+  meters       Meter[]
   createdAt    DateTime      @default(now()) @map("created_at")
 
   @@index([propertyId])
@@ -196,6 +219,7 @@ model Lease {
   payments   Payment[]
   documents  Document[]
   links      TenantLink[]
+  inspections Inspection[]
 
   @@index([tenantId])
   @@index([landlordId])
@@ -348,6 +372,7 @@ model Job {
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
   notes       JobNote[]
+  expense     Expense?
 
   @@index([providerId])
   @@index([landlordId])
@@ -613,4 +638,209 @@ model EmailOutbox {
 
   @@index([status, createdAt])
   @@map("email_outbox")
+}
+
+/// WhatsApp / SMS messages. Codes are sent straight away; reminders wait here and go out in daytime.
+model MessageOutbox {
+  id          Int       @id @default(autoincrement())
+  userId      Int?      @map("user_id")
+  user        User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  toPhone     String    @map("to_phone")
+  /// otp | reminder | notice
+  kind        String
+  /// WhatsApp template name and its {{1}}, {{2}}… values; text is the same message for SMS.
+  template    String?
+  params      String[]  @default([])
+  text        String
+  /// Stops the same reminder going twice (e.g. "rent-due0:42").
+  dedupeKey   String?   @unique @map("dedupe_key")
+  /// queued | sent | failed | expired | test (no provider set up — shown on System health)
+  status      String    @default("queued")
+  channel     String?   // whatsapp | sms
+  providerRef String?   @map("provider_ref")
+  error       String?
+  attempts    Int       @default(0)
+  createdAt   DateTime  @default(now()) @map("created_at")
+  sentAt      DateTime? @map("sent_at")
+
+  @@index([status, createdAt])
+  @@index([userId])
+  @@map("message_outbox")
+}
+
+/// One-time codes for confirming a phone number (sign-up) or resetting a password. Only a hash is stored.
+model PhoneCode {
+  id         Int       @id @default(autoincrement())
+  phone      String
+  purpose    String // signup | reset
+  codeHash   String    @map("code_hash")
+  expiresAt  DateTime  @map("expires_at")
+  attempts   Int       @default(0)
+  consumedAt DateTime? @map("consumed_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([phone, purpose, createdAt])
+  @@map("phone_codes")
+}
+
+/// A caretaker looking after one of a landlord's properties.
+model CaretakerAssignment {
+  id             Int      @id @default(autoincrement())
+  caretakerId    Int      @map("caretaker_id")
+  caretaker      User     @relation("Caretaker", fields: [caretakerId], references: [id], onDelete: Cascade)
+  landlordId     Int      @map("landlord_id")
+  landlord       User     @relation("CaretakerLandlord", fields: [landlordId], references: [id], onDelete: Cascade)
+  propertyId     Int      @map("property_id")
+  property       Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  /// May record cash rent collected on site.
+  canCollect     Boolean  @default(true) @map("can_collect")
+  /// May see what each tenant owes (to follow up on arrears).
+  canSeeBalances Boolean  @default(true) @map("can_see_balances")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@unique([caretakerId, propertyId])
+  @@index([propertyId])
+  @@map("caretaker_assignments")
+}
+
+/// Condition report: at move-in, at move-out (compared with move-in), or a routine check.
+model Inspection {
+  id             Int       @id @default(autoincrement())
+  unitId         Int       @map("unit_id")
+  unit           Unit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  leaseId        Int?      @map("lease_id")
+  lease          Lease?    @relation(fields: [leaseId], references: [id])
+  kind           String // move_in | move_out | routine
+  /// draft (being filled in) | submitted (waiting for the tenant) | agreed | disputed
+  status         String    @default("draft")
+  conductedById  Int       @map("conducted_by_id")
+  conductedBy    User      @relation("InspectionBy", fields: [conductedById], references: [id])
+  conductedOn    DateTime  @default(now()) @map("conducted_on") @db.Date
+  keys           Int?
+  notes          String?
+  submittedAt    DateTime? @map("submitted_at")
+  tenantAnsweredAt DateTime? @map("tenant_answered_at")
+  tenantComment  String?   @map("tenant_comment")
+  /// Move-out: total deductions for damage, and the charge they were billed as.
+  deductions     Int       @default(0)
+  chargeId       Int?      @unique @map("charge_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @default(now()) @updatedAt @map("updated_at")
+  items          InspectionItem[]
+  readings       MeterReading[]
+
+  @@index([unitId])
+  @@index([leaseId])
+  @@map("inspections")
+}
+
+model InspectionItem {
+  id           Int        @id @default(autoincrement())
+  inspectionId Int        @map("inspection_id")
+  inspection   Inspection @relation(fields: [inspectionId], references: [id], onDelete: Cascade)
+  area         String
+  item         String
+  sort         Int        @default(0)
+  /// good | fair | poor | damaged | missing | na
+  condition    String     @default("good")
+  note         String?
+  photoIds     Int[]      @default([]) @map("photo_ids")
+  /// Move-out only: amount to take from the deposit for this item.
+  deduction    Int        @default(0)
+
+  @@index([inspectionId])
+  @@map("inspection_items")
+}
+
+/// Money a landlord spent on a property (repairs, security, garbage, commission, …), for monthly statements.
+model Expense {
+  id            Int       @id @default(autoincrement())
+  landlordId    Int       @map("landlord_id")
+  landlord      User      @relation("ExpenseLandlord", fields: [landlordId], references: [id])
+  propertyId    Int?      @map("property_id")
+  property      Property? @relation(fields: [propertyId], references: [id], onDelete: SetNull)
+  unitId        Int?      @map("unit_id")
+  unit          Unit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  category      String
+  description   String
+  amount        Int
+  spentOn       DateTime  @map("spent_on") @db.Date
+  receiptFileId Int?      @map("receipt_file_id")
+  /// Repairs paid through CasaVilla are added automatically from the finished job.
+  jobId         Int?      @unique @map("job_id")
+  job           Job?      @relation(fields: [jobId], references: [id], onDelete: SetNull)
+  /// Caretakers' expenses wait for the landlord: pending | approved | rejected
+  status        String    @default("approved")
+  createdById   Int       @map("created_by_id")
+  createdBy     User      @relation("ExpenseBy", fields: [createdById], references: [id])
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([landlordId, spentOn])
+  @@index([propertyId])
+  @@map("expenses")
+}
+
+/// An electricity (Yaka) or water (NWSC) meter — for one unit, or shared by the property.
+model Meter {
+  id         Int      @id @default(autoincrement())
+  propertyId Int      @map("property_id")
+  property   Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  /// The unit it serves; empty = shared by the whole property (or the units listed in shareUnitIds).
+  unitId     Int?     @map("unit_id")
+  unit       Unit?    @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  kind       String // electricity | water
+  label      String?
+  number     String?
+  /// prepaid: tenant buys tokens / pays the utility directly (readings for records only)
+  /// submeter: landlord bills the tenant from readings × rate
+  /// shared: landlord enters the monthly bill and it is split between the units
+  billing    String   @default("prepaid")
+  /// UGX per unit (kWh or m³) for sub-meters.
+  rate       Int?
+  /// Shared meters: which units share the bill (empty = every occupied unit in the property).
+  shareUnitIds Int[]  @default([]) @map("share_unit_ids")
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now()) @map("created_at")
+  readings   MeterReading[]
+  bills      UtilityBill[]
+
+  @@index([propertyId])
+  @@index([unitId])
+  @@map("meters")
+}
+
+model MeterReading {
+  id           Int         @id @default(autoincrement())
+  meterId      Int         @map("meter_id")
+  meter        Meter       @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  reading      Float
+  readOn       DateTime    @map("read_on") @db.Date
+  photoFileId  Int?        @map("photo_file_id")
+  recordedById Int         @map("recorded_by_id")
+  recordedBy   User        @relation(fields: [recordedById], references: [id])
+  inspectionId Int?        @map("inspection_id")
+  inspection   Inspection? @relation(fields: [inspectionId], references: [id], onDelete: SetNull)
+  /// Sub-meters: the tenant charge raised from this reading.
+  chargeId     Int?        @unique @map("charge_id")
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  @@index([meterId, readOn])
+  @@map("meter_readings")
+}
+
+/// A shared meter's bill for one month, split into charges on each sharing unit's lease.
+model UtilityBill {
+  id          Int      @id @default(autoincrement())
+  meterId     Int      @map("meter_id")
+  meter       Meter    @relation(fields: [meterId], references: [id], onDelete: Cascade)
+  period      String // YYYY-MM
+  amount      Int
+  note        String?
+  splitCount  Int      @default(0) @map("split_count")
+  createdById Int      @map("created_by_id")
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@unique([meterId, period])
+  @@map("utility_bills")
 }

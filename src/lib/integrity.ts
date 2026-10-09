@@ -177,6 +177,32 @@ const CHECKS: { id: string; title: string; why: string; sql: string; fix?: strin
     sql: `SELECT l.id, 'lease ' || l.id || ': credit ' || l.credit AS label FROM leases l
           WHERE l.status = 'active' AND l.credit > 0 AND EXISTS (SELECT 1 FROM charges c WHERE c.lease_id = l.id AND c.status <> 'paid')`,
   },
+  {
+    id: "message-failed",
+    title: "WhatsApp / SMS messages that could not be delivered (last 7 days)",
+    why: "Check the phone number, the WhatsApp template names and approval, or the Africa's Talking balance. See WhatsApp & SMS.",
+    sql: `SELECT id, to_phone || ' — ' || COALESCE(error, '') AS label FROM message_outbox WHERE status = 'failed' AND created_at > now() - interval '7 days'`,
+  },
+  {
+    id: "inspection-charge",
+    title: "Move-out deductions that don't match their damage charge",
+    why: "The charge raised from a move-out inspection should equal the deductions (unless part was waived). Reopen and resubmit the report, or adjust the charge.",
+    sql: `SELECT i.id, 'inspection ' || i.id || ': deductions ' || i.deductions || ' vs charge ' || (c.amount + c.waived) AS label
+          FROM inspections i JOIN charges c ON c.id = i.charge_id WHERE c.amount + c.waived <> i.deductions`,
+  },
+  {
+    id: "expense-pending",
+    title: "Caretaker expenses waiting more than two weeks for approval",
+    why: "They're left off the landlord's statement until approved or rejected.",
+    sql: `SELECT id, description || ' — ' || amount AS label FROM expenses WHERE status = 'pending' AND created_at < now() - interval '14 days'`,
+  },
+  {
+    id: "caretaker-wrong-landlord",
+    title: "Caretaker assignments that don't match the property's landlord",
+    why: "A caretaker should only work for the landlord who owns the property (e.g. after a property changed hands).",
+    sql: `SELECT a.id, 'assignment ' || a.id || ' (property ' || a.property_id || ')' AS label FROM caretaker_assignments a JOIN properties p ON p.id = a.property_id WHERE p.landlord_id <> a.landlord_id`,
+    fix: `UPDATE caretaker_assignments a SET landlord_id = p.landlord_id FROM properties p WHERE p.id = a.property_id AND p.landlord_id <> a.landlord_id`,
+  },
 ];
 
 export async function runChecks(): Promise<Check[]> {

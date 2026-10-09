@@ -162,7 +162,7 @@ export async function RenewForm({ l, location, bedrooms }: { l: Lease; location:
   );
 }
 
-export function MoveOutForm({ l }: { l: Lease }) {
+export function MoveOutForm({ l, moveOut }: { l: Lease; moveOut?: { status: string; deductions: number } | null }) {
   return (
     <details className="card group">
       <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-maroon-600"><LogOut className="h-4 w-4" /> Move-out & settle</summary>
@@ -172,6 +172,9 @@ export function MoveOutForm({ l }: { l: Lease }) {
         <label className="flex items-start gap-2"><input type="checkbox" name="useDeposit" defaultChecked className="mt-0.5 accent-brand-700" /> Use the held deposit against unpaid rent and bills</label>
         <label className="flex items-start gap-2"><input type="checkbox" name="relist" defaultChecked className="mt-0.5 accent-brand-700" /> List the unit again so new tenants can apply</label>
         <p className="text-xs text-stone-500">Unpaid rent for months after the move-out is cancelled. CasaVilla works out the final refund or balance and tells the tenant.</p>
+        {!moveOut || moveOut.status === "draft"
+          ? <p className="rounded-lg bg-gold-50 p-2 text-xs text-gold-700">Tip: finish the move-out inspection first (above) so any damage is deducted from the deposit with photos as evidence.</p>
+          : moveOut.deductions > 0 && <p className="rounded-lg bg-brand-50 p-2 text-xs text-brand-800">Includes {ugx(moveOut.deductions)} of damage from the move-out inspection.</p>}
         <ConfirmSubmit message="End this lease and settle the account? The tenant will be notified." className="btn-outline btn-sm w-full text-maroon-600">End lease & settle</ConfirmSubmit>
       </form>
     </details>

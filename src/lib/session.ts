@@ -3,7 +3,7 @@ import { SignJWT, jwtVerify } from "jose";
 export const SESSION_COOKIE = "cv_session";
 const secret = () => new TextEncoder().encode(process.env.AUTH_SECRET || "dev-secret-change-me-dev-secret-change-me");
 
-export type SessionPayload = { uid: number; role: "tenant" | "landlord" | "provider" | "manager" };
+export type SessionPayload = { uid: number; role: "tenant" | "landlord" | "provider" | "manager" | "caretaker" };
 
 export async function signSession(p: SessionPayload) {
   return new SignJWT(p).setProtectedHeader({ alg: "HS256" }).setIssuedAt().setExpirationTime("30d").sign(secret());

@@ -14,3 +14,13 @@ export async function markAllRead() {
   await db.notification.updateMany({ where: { userId: u.id }, data: { read: true } });
   revalidatePath("/", "layout");
 }
+
+/** WhatsApp/SMS preferences from the profile. */
+export async function saveMessagePrefs(fd: FormData) {
+  const u = await requireUser();
+  await db.user.update({
+    where: { id: u.id },
+    data: { messageOptIn: fd.get("messageOptIn") === "on", ...(u.role === "landlord" ? { remindTenants: fd.get("remindTenants") === "on" } : {}) },
+  });
+  revalidatePath("/profile");
+}

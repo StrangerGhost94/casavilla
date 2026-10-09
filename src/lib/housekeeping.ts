@@ -4,6 +4,7 @@ import { ensureChargesFor, expireStalePayments, daysBetween } from "./billing";
 import { managerIds, notifyOnce } from "./notify";
 import { fmtDate, kampalaToday, ugx, ymd } from "./format";
 import { sendQueuedEmails } from "./mail";
+import { appUrl, queueMessage, sendQueuedMessages } from "./messaging";
 import { expireStaleBookings } from "./stays";
 
 /**
@@ -25,11 +26,21 @@ export async function runHousekeeping(force = false) {
     out.escalations = await jobEscalations() + await stockAlerts();
     await expireStaleBookings().catch((e) => console.error("bookings sweep", e));
     await sendQueuedEmails().catch((e) => console.error("email sweep", e));
+    await sendQueuedMessages().catch((e) => console.error("message sweep", e));
     await db.marker.deleteMany({ where: { key: { startsWith: "sweep:" }, createdAt: { lt: new Date(Date.now() - 7 * 86400000) } } });
   } catch (e) {
     console.error("housekeeping failed", e);
   }
   return out;
+}
+
+/** Which reminder a charge is due for today: 3 days before, on the day, then 3 and 7 days late. */
+export function reminderStage(daysUntilDue: number): "due3" | "due0" | "late3" | "late7" | null {
+  if (daysUntilDue >= 1 && daysUntilDue <= 3) return "due3";
+  if (daysUntilDue === 0) return "due0";
+  if (daysUntilDue <= -7 && daysUntilDue >= -30) return "late7";
+  if (daysUntilDue <= -3 && daysUntilDue > -7) return "late3";
+  return null;
 }
 
 async function rentReminders() {
@@ -38,7 +49,7 @@ async function rentReminders() {
   const managers = await managerIds();
   const open = await db.charge.findMany({
     where: { status: { not: "paid" }, dueDate: { lte: soon }, lease: { status: "active" } },
-    include: { lease: { include: { tenant: { select: { name: true } }, unit: { select: { label: true, property: { select: { name: true } } } } } } },
+    include: { lease: { include: { tenant: { select: { name: true } }, landlord: { select: { remindTenants: true } }, unit: { select: { label: true, property: { select: { name: true } } } } } } },
   });
   let n = 0;
   for (const c of open) {
@@ -46,6 +57,19 @@ async function rentReminders() {
     const days = daysBetween(today, ymd(c.dueDate));
     const where = `${c.lease.unit.property.name} · ${c.lease.unit.label}`;
     const pay = `/tenant/pay/${c.id}`;
+    // WhatsApp / SMS, once per stage — only if the landlord has reminders on (and the tenant agreed to messages).
+    const stage = reminderStage(days);
+    if (stage && c.lease.landlord.remindTenants && owed > 0) {
+      const when = stage === "due3" ? `is due on ${fmtDate(c.dueDate)}` : stage === "due0" ? "is due today" : `was due on ${fmtDate(c.dueDate)} (${-days} days ago)`;
+      const first = c.lease.tenant.name.split(" ")[0];
+      const what = `${c.description} (${where})`;
+      const link = appUrl(pay);
+      if (await queueMessage({
+        userId: c.lease.tenantId, kind: "reminder", dedupeKey: `rent-${stage}:${c.id}`,
+        params: [first, ugx(owed), what, when, link],
+        text: `Hello ${first}, ${ugx(owed)} for ${what} ${when}. Pay with Mobile Money: ${link} — CasaVilla`,
+      })) n++;
+    }
     if (days >= 0) {
       if (await notifyOnce(`due:${c.id}`, c.lease.tenantId, `${c.description}: ${ugx(owed)} is due ${days === 0 ? "today" : `on ${fmtDate(c.dueDate)}`}. Pay early with Mobile Money.`, pay)) n++;
       continue;

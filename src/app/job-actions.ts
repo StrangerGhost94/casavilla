@@ -24,7 +24,7 @@ const isParty = (u: User, j: Job) =>
 const isOwner = (u: User, j: Job) => u.role === "manager" || j.landlordId === u.id || payerOf(j) === u.id;
 
 const linkFor = (role: string, jid: number) =>
-  ({ tenant: `/tenant/requests/${jid}`, landlord: `/landlord/maintenance/${jid}`, provider: `/provider/jobs/${jid}`, manager: `/manager/jobs/${jid}` })[role]!;
+  ({ tenant: `/tenant/requests/${jid}`, landlord: `/landlord/maintenance/${jid}`, provider: `/provider/jobs/${jid}`, manager: `/manager/jobs/${jid}`, caretaker: `/caretaker/repairs/${jid}` })[role]!;
 
 async function tellParties(j: Pick<Job, "id" | "requesterId" | "landlordId" | "providerId">, actor: User, msg: string) {
   const ids = [...new Set([j.requesterId, j.landlordId, j.providerId].filter((x): x is number => !!x && x !== actor.id))];
@@ -102,6 +102,11 @@ export async function providerRespond(fd: FormData) {
     }
     const cost = finalCost ?? job.quote;
     await move(job, "done", u, `${who(u)} marked the job as done${cost != null ? ` — ${ugx(cost)}` : ""}`, { completedAt: new Date(), quote: cost });
+    // Repairs the landlord pays for go straight onto their monthly statement as an expense.
+    if (cost && job.landlordId && payerOf(job) === job.landlordId) {
+      const data = { landlordId: job.landlordId, propertyId: job.propertyId, unitId: job.unitId, category: "Repairs & maintenance", description: `${job.title} (${who(u)})`, amount: cost, spentOn: new Date(new Date().toISOString().slice(0, 10) + "T00:00:00Z"), createdById: u.id, status: "approved" };
+      await db.expense.upsert({ where: { jobId: job.id }, create: { ...data, jobId: job.id }, update: data });
+    }
     await tellParties(job, u, `"${job.title}" is done. Please check the work and rate ${who(u)}.`);
   } else return fail("Unknown action");
   refresh();
@@ -139,6 +144,7 @@ export async function reopenJob(fd: FormData) {
   const provider = job.providerId ? await db.user.findFirst({ where: { id: job.providerId, status: "active" } }) : null;
   const to = provider ? "assigned" : "open";
   await move(job, to, u, `${who(u)} reopened the job${job.status === "done" ? " — the problem isn't fixed" : ""}`, { providerId: provider?.id ?? null, completedAt: null, rating: null, review: null, assignedAt: provider ? new Date() : null });
+  await db.expense.deleteMany({ where: { jobId: job.id } });
   await tellParties(job, u, `"${job.title}" was reopened`);
   refresh();
 }

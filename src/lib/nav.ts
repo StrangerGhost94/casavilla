@@ -1,9 +1,9 @@
 // Navigation for each kind of account. Icons are lucide names, resolved in NavIcons.tsx.
-export type Role = "tenant" | "landlord" | "provider" | "manager";
+export type Role = "tenant" | "landlord" | "provider" | "manager" | "caretaker";
 export type NavItem = { href: string; label: string; icon: string };
 
 export const roleName: Record<Role, string> = {
-  tenant: "Tenant", landlord: "Landlord", provider: "Service provider", manager: "Property manager",
+  tenant: "Tenant", landlord: "Landlord", provider: "Service provider", manager: "Property manager", caretaker: "Caretaker",
 };
 
 export const menus: Record<Role, NavItem[]> = {
@@ -24,7 +24,11 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/landlord/properties", label: "Properties & units", icon: "building" },
     { href: "/landlord/applications", label: "Applications", icon: "clipboard" },
     { href: "/landlord/tenants", label: "Tenants & rent", icon: "users" },
+    { href: "/landlord/statements", label: "Statements & expenses", icon: "chart" },
     { href: "/landlord/maintenance", label: "Maintenance", icon: "wrench" },
+    { href: "/landlord/inspections", label: "Inspections", icon: "clipboardCheck" },
+    { href: "/landlord/utilities", label: "Utilities & meters", icon: "zap" },
+    { href: "/landlord/caretakers", label: "Caretakers", icon: "userCog" },
     { href: "/landlord/areas", label: "By area", icon: "map" },
     { href: "/landlord/stays", label: "Short stays", icon: "calendar" },
     { href: "/landlord/documents", label: "Receipts & documents", icon: "file" },
@@ -39,6 +43,14 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/provider/orders", label: "Orders", icon: "bag" },
     { href: "/provider/profile", label: "Business profile", icon: "store" },
   ],
+  caretaker: [
+    { href: "/caretaker", label: "Today", icon: "home" },
+    { href: "/caretaker/rent", label: "Rent & cash", icon: "wallet" },
+    { href: "/caretaker/repairs", label: "Repairs", icon: "wrench" },
+    { href: "/caretaker/inspections", label: "Inspections", icon: "clipboardCheck" },
+    { href: "/caretaker/meters", label: "Meter readings", icon: "zap" },
+    { href: "/caretaker/expenses", label: "Expenses", icon: "receipt" },
+  ],
   manager: [
     { href: "/manager", label: "Dashboard", icon: "home" },
     { href: "/manager/people", label: "People & approvals", icon: "users" },
@@ -46,6 +58,10 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/manager/applications", label: "Applications", icon: "clipboard" },
     { href: "/manager/tenants", label: "Leases & rent", icon: "file" },
     { href: "/manager/payments", label: "Payments", icon: "wallet" },
+    { href: "/manager/statements", label: "Statements & expenses", icon: "chart" },
+    { href: "/manager/inspections", label: "Inspections", icon: "clipboardCheck" },
+    { href: "/manager/utilities", label: "Utilities & meters", icon: "zap" },
+    { href: "/manager/messages", label: "WhatsApp & SMS", icon: "message" },
     { href: "/manager/jobs", label: "Maintenance jobs", icon: "wrench" },
     { href: "/manager/areas", label: "By area", icon: "map" },
     { href: "/manager/orders", label: "Shop orders", icon: "bag" },
@@ -78,6 +94,11 @@ export const tabs: Record<Role | "guest", Tabs> = {
     left: [{ href: "/provider", label: "Home", icon: "home" }, { href: "/provider/jobs", label: "Jobs", icon: "briefcase" }],
     action: { href: "/provider/services#add", label: "Add service", icon: "plus" },
     right: [{ href: "/provider/orders", label: "Orders", icon: "bag" }, { href: "/profile", label: "Profile", icon: "user" }],
+  },
+  caretaker: {
+    left: [{ href: "/caretaker", label: "Today", icon: "home" }, { href: "/caretaker/rent", label: "Rent", icon: "wallet" }],
+    action: { href: "/caretaker/repairs#new", label: "Report repair", icon: "plus" },
+    right: [{ href: "/caretaker/meters", label: "Meters", icon: "zap" }, { href: "/profile", label: "Profile", icon: "user" }],
   },
   manager: {
     left: [{ href: "/manager", label: "Home", icon: "home" }, { href: "/manager/people", label: "People", icon: "users" }],

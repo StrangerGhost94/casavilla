@@ -3,6 +3,8 @@ import { PageHeader, Empty } from "@/components/ui";
 import { Documents } from "@/components/Documents";
 import { AgreementCard, LeaseFacts } from "@/components/LeaseTools";
 import { activeLease } from "../lib";
+import { InspectionsCard } from "@/components/Inspections";
+import { TenantMeters } from "@/components/Utilities";
 
 export default async function TenantLease() {
   const u = await requireUser("tenant");
@@ -16,6 +18,8 @@ export default async function TenantLease() {
         <div className="space-y-3">
           <LeaseFacts l={l} manage={false} />
           <AgreementCard l={l} manage={false} />
+          <InspectionsCard leaseId={l.id} viewer={u} manage={false} />
+          <TenantMeters unitId={l.unitId} propertyId={lease.propertyId} />
           <div className="card text-sm">
             <div className="text-stone-500">Landlord</div>
             <div className="font-semibold text-stone-800">{lease.landlord}</div>

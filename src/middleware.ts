@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
-const areas = ["tenant", "landlord", "provider", "manager"] as const;
+const areas = ["tenant", "landlord", "provider", "manager", "caretaker"] as const;
 
 export async function middleware(req: NextRequest) {
   const area = req.nextUrl.pathname.split("/")[1];
@@ -12,4 +12,4 @@ export async function middleware(req: NextRequest) {
   return NextResponse.next();
 }
 
-export const config = { matcher: ["/tenant/:path*", "/landlord/:path*", "/provider/:path*", "/manager/:path*"] };
+export const config = { matcher: ["/tenant/:path*", "/landlord/:path*", "/provider/:path*", "/manager/:path*", "/caretaker/:path*"] };

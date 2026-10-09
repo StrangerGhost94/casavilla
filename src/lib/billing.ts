@@ -9,6 +9,7 @@ import { LATE_FEE_GRACE_DAYS, PAYMENT_TIMEOUT_MIN } from "./rules";
 import { verifyCharge, provider } from "./momo";
 import { brandFor } from "./brand";
 import { emailHtml, queueEmail } from "./mail";
+import { appUrl, queueMessage } from "./messaging";
 
 type Tx = Prisma.TransactionClient;
 
@@ -172,6 +173,10 @@ export async function completePayment(paymentId: number) {
       html: emailHtml({ accent: brand.accentColor, title: `Payment received — ${ugx(p.amount)}`, lines: [`Hello ${lease.tenant.name.split(" ")[0]},`, `We received ${ugx(p.amount)} for ${lease.unit.property.name} · ${lease.unit.label}. Your receipt ${receiptNo} is attached.`, extra.trim()], button: { label: "View receipt", href: `${app}/receipts/${p.id}` }, footer: brand.displayName }),
     });
   }
+  // A WhatsApp / SMS receipt too (people check WhatsApp far more than email).
+  const first = lease.tenant.name.split(" ")[0];
+  const msg = `Payment received: ${ugx(p.amount)} for ${lease.unit.property.name} · ${lease.unit.label}. Receipt ${receiptNo}`;
+  await queueMessage({ userId: lease.tenantId, kind: "notice", dedupeKey: `receipt:${p.id}`, params: [first, `${msg}: ${appUrl(`/receipts/${p.id}`)}`], text: `Hello ${first}, ${msg}: ${appUrl(`/receipts/${p.id}`)} — CasaVilla` });
   await audit(p.recordedById ?? p.tenantId, "payment.received", "payment", p.id, `${ugx(p.amount)} via ${p.method}${left ? `, ${ugx(left)} to credit` : ""}`);
 }
 

@@ -52,7 +52,8 @@ export async function JobList({ where, base, empty = "No jobs yet" }: { where: P
 export async function JobDetail({ id, viewer, back }: { id: number; viewer: User; back: string }) {
   const j = await db.job.findUnique({ where: { id }, include: jobInclude });
   if (!j) notFound();
-  const party = viewer.role === "manager" || [j.requesterId, j.landlordId, j.providerId].includes(viewer.id);
+  const party = viewer.role === "manager" || [j.requesterId, j.landlordId, j.providerId].includes(viewer.id)
+    || (viewer.role === "caretaker" && !!j.propertyId && !!(await db.caretakerAssignment.findUnique({ where: { caretakerId_propertyId: { caretakerId: viewer.id, propertyId: j.propertyId } } })));
   if (!party) notFound();
   const r = {
     property: j.property?.name, location: j.property?.location, unit: j.unit?.label, service: j.service?.title,
@@ -235,4 +236,5 @@ export const jobsFor = {
   tenant: (u: User): Prisma.JobWhereInput => ({ requesterId: u.id }),
   landlord: (u: User): Prisma.JobWhereInput => ({ OR: [{ landlordId: u.id }, { requesterId: u.id }] }),
   provider: (u: User): Prisma.JobWhereInput => ({ providerId: u.id }),
+  caretaker: (propertyIds: number[]): Prisma.JobWhereInput => ({ propertyId: { in: propertyIds } }),
 };
