@@ -59,17 +59,46 @@ export async function saveProperty(fd: FormData) {
     }
     await audit(u.id, "property.updated", "property", existing.id, name);
     refresh();
-    return;
+    redirect(`/${u.role}/properties/${existing.id}`);
   }
   const landlordId = u.role === "manager" ? id(fd, "landlordId") : u.id;
   const landlord = await db.user.findFirst({ where: { id: landlordId, role: "landlord" } });
   if (!landlord) return fail("Choose a landlord");
-  const p = await db.property.create({ data: { ...data, landlordId, photoId } });
-  await audit(u.id, "property.created", "property", p.id, `${name} — ${location}`);
+  const units = await readUnitGroups(fd);
+  const listed = fd.get("listed") === "on";
+  const p = await db.$transaction(async (tx) => {
+    const created = await tx.property.create({ data: { ...data, landlordId, photoId } });
+    if (units.length) await tx.unit.createMany({ data: units.map((x) => ({ ...x, propertyId: created.id, listed, selfContained: x.bathrooms > 0 })) });
+    return created;
+  });
+  await audit(u.id, "property.created", "property", p.id, `${name} — ${location}${units.length ? ` · ${units.length} units` : ""}`);
   if (landlord.status === "pending") await notifyManagers(`${landlord.name} added a property (${p.name}) — approve them so it can be listed.`, "/manager/people?status=pending");
-  redirect(`/${u.role}/properties/${p.id}`);
+  // Photos are the natural next step once there are rooms to photograph.
+  redirect(units.length ? `/${u.role}/properties/${p.id}/photos?new=1` : `/${u.role}/properties/${p.id}`);
 }
 
+
+/** Unit groups from the new-property form: "4 × Apt, 2 bed, 1 bath, 850,000" → Apt 1 … Apt 4. */
+async function readUnitGroups(fd: FormData) {
+  const labels = fd.getAll("g_label").map((v) => String(v).trim());
+  if (!labels.length) return [];
+  const counts = fd.getAll("g_count"), beds = fd.getAll("g_beds"), baths = fd.getAll("g_baths"), rents = fd.getAll("g_rent");
+  const num = (v: FormDataEntryValue | undefined, d: number) => { const n = Number(String(v ?? "").replace(/[,\s]/g, "")); return Number.isFinite(n) ? Math.round(n) : d; };
+  const out: { label: string; bedrooms: number; bathrooms: number; rent: number }[] = [];
+  for (let i = 0; i < labels.length; i++) {
+    const label = labels[i].slice(0, 34);
+    if (!label) return fail("Give each kind of unit a name");
+    const count = num(counts[i], 1), rent = num(rents[i], 0);
+    if (count < 1 || count > 50) return fail(`How many "${label}" units? Use 1 to 50`);
+    if (rent < 1000 || rent > MAX_RENT) return fail(`Enter the monthly rent for "${label}"`);
+    const bedrooms = Math.min(20, Math.max(0, num(beds[i], 1))), bathrooms = Math.min(20, Math.max(0, num(baths[i], 1)));
+    for (let n = 1; n <= count; n++) out.push({ label: count > 1 ? `${label} ${n}` : label, bedrooms, bathrooms, rent });
+  }
+  if (out.length > 200) return fail("That's more than 200 units — add the rest from the property page");
+  const seen = new Set<string>();
+  for (const x of out) { const k = x.label.toLowerCase(); if (seen.has(k)) return fail(`Two units would both be called "${x.label}" — give each kind a different name`); seen.add(k); }
+  return out;
+}
 
 /** Unit features + short-stay settings, shared by add and edit. */
 async function readUnitDetails(fd: FormData, current?: { mode: string; bathrooms: number }) {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronDown, Plus } from "lucide-react";
 import { notFound } from "next/navigation";
 import type { Prisma, Property } from "@prisma/client";
 import { db, type User } from "@/db";
@@ -9,6 +10,7 @@ import { Documents } from "./Documents";
 import { PlaceFields } from "./PlaceFields";
 import { UnitFields } from "./UnitFields";
 import { PhotoStudio } from "./PhotoStudio";
+import { Steps, UnitGroups } from "./NewPropertyFlow";
 import { shotList } from "@/lib/photo-check";
 import { Ledger } from "./Ledger";
 import { saveProperty, addUnit, updateUnit, decideApplication } from "@/app/landlord/actions";
@@ -20,25 +22,46 @@ import { marketRent, tenantScore } from "@/lib/insights";
 import { PROPERTY_TYPES } from "@/lib/property-types";
 export { PROPERTY_TYPES };
 
-export async function PropertyForm({ p, landlords }: { p?: Property; landlords?: { id: number; name: string }[] }) {
+/** Editing an existing property's details (its own screen, not repeated on the property page). */
+export async function PropertyForm({ p }: { p: Property }) {
   return (
     <form action={saveProperty} className="card space-y-4">
-      {p && <input type="hidden" name="id" value={p.id} />}
-      {landlords && !p && (
-        <Field label="Landlord">
-          <select name="landlordId" className="input" required>{landlords.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>
-        </Field>
-      )}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Property name"><input name="name" defaultValue={p?.name} className="input" required placeholder="e.g. Rubaga Court" /></Field>
-        <Field label="Type">
-          <select name="type" defaultValue={p?.type} className="input">{PROPERTY_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
-        </Field>
-      </div>
+      <input type="hidden" name="id" value={p.id} />
+      <BasicsFields p={p} />
       <PlaceFields p={p} />
-      <Field label="Description"><textarea name="description" defaultValue={p?.description ?? ""} rows={3} className="input" placeholder="Water, power, parking, security, nearby…" /></Field>
-      {!p && <p className="text-xs text-stone-500">You'll add photos room by room on the next screen, after adding units.</p>}
-      <Submit>{p ? "Save changes" : "Add property"}</Submit>
+      <Submit>Save changes</Submit>
+    </form>
+  );
+}
+
+function BasicsFields({ p }: { p?: Property }) {
+  return (
+    <>
+      <Field label="Property name"><input name="name" defaultValue={p?.name} className="input" required maxLength={120} placeholder="e.g. Rubaga Court" /></Field>
+      <Field label="Type">
+        <select name="type" defaultValue={p?.type} className="input">{PROPERTY_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
+      </Field>
+      <Field label="Description (optional)"><textarea name="description" defaultValue={p?.description ?? ""} rows={3} className="input" placeholder="Water, power, parking, security, nearby…" /></Field>
+    </>
+  );
+}
+
+/** Adding a property: three short steps in one form — the basics, where it is, and its units. */
+export async function NewPropertyForm({ landlords }: { landlords?: { id: number; name: string }[] }) {
+  return (
+    <form action={saveProperty}>
+      <Steps titles={["Basics", "Location", "Units"]} submitLabel="Add property">
+        <div className="space-y-4">
+          {landlords && (
+            <Field label="Landlord">
+              <select name="landlordId" className="input" required>{landlords.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>
+            </Field>
+          )}
+          <BasicsFields />
+        </div>
+        <div><PlaceFields /></div>
+        <div><UnitGroups /></div>
+      </Steps>
     </form>
   );
 }
@@ -84,6 +107,8 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
   const trail = await trailFor(p.locationId);
   const photos = await db.propertyPhoto.findMany({ where: { propertyId: p.id }, orderBy: [{ sort: "asc" }] });
   const markets = new Map(await Promise.all(p.units.filter((u) => u.status === "vacant" && u.mode === "long").map(async (u) => [u.id, await marketRent(p, u.bedrooms, u.id)] as const)));
+  const occupied = p.units.filter((u) => u.status === "occupied").length;
+  const editHref = `${base}/${p.id}/edit`;
   return (
     <div>
       <Link href={base} className="link hidden text-sm lg:inline">← Properties</Link>
@@ -91,62 +116,96 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
         <div className="min-w-0 space-y-6 lg:col-span-2">
           <div className="card overflow-hidden p-0">
             <Photo id={p.photoId} alt={p.name} className="h-36 w-full" />
-            <div className="p-4 pb-2">
-              <div className="text-xl font-bold text-brand-950">{p.name}</div><div className="muted">{p.location} · {p.type}</div>
-              {trail.length > 1 ? <div className="mt-1 text-xs text-brand-800">{crumbText(trail, true)}{p.lat != null ? " · exact pin saved" : ""}</div>
-                : <div className="mt-1 inline-block rounded-lg bg-gold-50 px-2 py-1 text-[11px] font-semibold text-gold-700">Location not verified — confirm it in the form →</div>}
+            <div className="flex items-start justify-between gap-3 p-4">
+              <div className="min-w-0">
+                <div className="text-xl font-bold text-brand-950">{p.name}</div>
+                <div className="muted">{p.type} · {p.units.length} unit{p.units.length === 1 ? "" : "s"}{p.units.length ? ` · ${occupied} let` : ""}</div>
+                {trail.length > 1 ? <div className="mt-1 text-xs text-brand-800">{crumbText(trail, true)}{p.lat != null ? " · exact pin saved" : ""}</div>
+                  : <Link href={editHref} className="mt-1 inline-block rounded-lg bg-gold-50 px-2 py-1 text-[11px] font-semibold text-gold-700">Location not verified — confirm it →</Link>}
+              </div>
+              <Link href={editHref} className="btn-outline btn-sm shrink-0">Edit</Link>
             </div>
-            <div className="px-4 pb-1 pt-2 text-xs font-semibold uppercase tracking-wide text-stone-500">Units</div>
-            <div className="divide-y divide-stone-100">
+          </div>
+
+          <div className="card p-0">
+            <div className="flex items-center justify-between px-4 pb-2 pt-4">
+              <div className="font-semibold text-brand-950">Units</div>
+              <span className="text-xs text-stone-500">Tap a unit to edit it</span>
+            </div>
+            <div className="divide-y divide-stone-100 border-t border-stone-100">
               {p.units.map((u) => {
                 const lease = u.leases[0];
+                const m = markets.get(u.id);
+                const diff = m ? Math.round(((u.rent - m.median) / m.median) * 100) : 0;
                 return (
-                  <div key={u.id} className="px-4 py-3">
-                    <div className="mb-2 flex items-center justify-between gap-2 text-sm">
-                      {lease ? <Link href={`${tenantsBase}/${lease.id}`} className="link truncate">{lease.tenant.name}</Link> : <Badge>{u.status}</Badge>}
-                      {u.status === "vacant" && u.listed && <Link href={`/listings/${u.id}`} className="text-xs text-stone-500 hover:underline">View listing</Link>}
+                  <details key={u.id} className="group">
+                    <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-stone-50">
+                      <div className="min-w-0 flex-1">
+                        <div className="truncate font-medium text-stone-900">{u.label}</div>
+                        <div className="truncate text-xs text-stone-500">
+                          {u.bedrooms ? `${u.bedrooms} bed · ` : ""}{u.bathrooms} bath{u.mode === "short" ? ` · ${ugx(u.nightlyRate ?? 0)}/night` : ` · ${ugx(u.rent)}/mo`}
+                          {lease ? ` · ${lease.tenant.name}` : u.status === "vacant" ? (u.listed ? " · listed" : " · not listed") : ""}
+                        </div>
+                        {m && Math.abs(diff) >= 10 && <div className={`text-[11px] ${diff > 0 ? "text-gold-700" : "text-brand-700"}`}>{diff > 0 ? `${diff}% above` : `${-diff}% below`} similar units {m.scope}</div>}
+                      </div>
+                      {u.mode === "short" ? <Badge color="blue">short stay</Badge> : <Badge>{u.status}</Badge>}
+                      <ChevronDown className="h-4 w-4 shrink-0 text-stone-400 transition group-open:rotate-180" />
+                    </summary>
+                    <div className="space-y-3 bg-stone-50/60 px-4 pb-4 pt-1">
+                      <div className="flex flex-wrap gap-3 text-xs">
+                        {lease && <Link href={`${tenantsBase}/${lease.id}`} className="link">Open {lease.tenant.name}'s tenancy →</Link>}
+                        {u.status === "vacant" && u.listed && <Link href={u.mode === "short" ? `/stays/${u.id}` : `/listings/${u.id}`} className="link">View listing →</Link>}
+                      </div>
+                      {m && <p className="text-[11px] text-stone-500">Similar {u.bedrooms}-bed units {m.scope} let for about {ugx(m.median)}.</p>}
+                      <form action={updateUnit} className="grid grid-cols-[1.3fr_0.6fr_1.2fr] items-end gap-2">
+                        <input type="hidden" name="id" value={u.id} />
+                        <label className="min-w-0"><span className="label">Unit</span><input name="label" defaultValue={u.label} className="input py-2" /></label>
+                        <label className="min-w-0"><span className="label">Beds</span><input name="bedrooms" type="number" min={0} defaultValue={u.bedrooms} className="input py-2" /></label>
+                        <label className="min-w-0"><span className="label">Rent (UGX)</span><input name="rent" type="number" min={0} defaultValue={u.rent} className="input py-2" /></label>
+                        <label className="col-span-full flex items-center gap-2 text-sm text-stone-600"><input name="listed" type="checkbox" defaultChecked={u.listed} className="h-4 w-4 accent-brand-700" disabled={u.status === "occupied"} /> {u.status === "occupied" ? "Let — not listed" : "Listed publicly"}</label>
+                        <UnitFields u={u} />
+                        <div className="col-span-full"><Submit className="btn-primary btn-sm">Save {u.label}</Submit></div>
+                      </form>
                     </div>
-                    <form action={updateUnit} className="grid grid-cols-[1.3fr_0.7fr_1.2fr] items-end gap-2 sm:grid-cols-[1.3fr_0.6fr_1fr_auto_auto]">
-                      <input type="hidden" name="id" value={u.id} />
-                      <label className="min-w-0"><span className="label">Unit</span><input name="label" defaultValue={u.label} className="input py-2" /></label>
-                      <label className="min-w-0"><span className="label">Beds</span><input name="bedrooms" type="number" min={0} defaultValue={u.bedrooms} className="input py-2" /></label>
-                      <label className="min-w-0"><span className="label">Rent (UGX)</span><input name="rent" type="number" min={0} defaultValue={u.rent} className="input py-2" /></label>
-                      <label className="col-span-2 flex items-center gap-2 py-2 text-sm text-stone-600 sm:col-span-1"><input name="listed" type="checkbox" defaultChecked={u.listed} className="h-4 w-4 accent-brand-700" disabled={u.status === "occupied"} /> Listed</label>
-                      <Submit className="btn-outline btn-sm py-2">Save</Submit>
-                      <details className="col-span-full">
-                        <summary className="cursor-pointer list-none text-xs font-semibold text-brand-700">{u.mode === "short" ? `Short stay · ${ugx(u.nightlyRate ?? 0)}/night` : `${u.bathrooms} bath${u.selfContained ? " · self-contained" : ""}${u.furnished ? " · furnished" : ""}`}{u.amenities.length ? ` · ${u.amenities.length} features` : ""} — edit details…</summary>
-                        <div className="mt-2"><UnitFields u={u} /></div>
-                      </details>
-                    </form>
-                    {(() => {
-                      const m = markets.get(u.id);
-                      if (!m) return null;
-                      const diff = Math.round(((u.rent - m.median) / m.median) * 100);
-                      if (Math.abs(diff) < 10) return <p className="mt-1.5 text-[11px] text-stone-500">In line with similar {u.bedrooms}-bed units {m.scope} (~{ugx(m.median)}).</p>;
-                      return <p className={`mt-1.5 text-[11px] ${diff > 0 ? "text-gold-700" : "text-brand-700"}`}>{diff > 0 ? `${diff}% above` : `${-diff}% below`} similar {u.bedrooms}-bed units {m.scope} (~{ugx(m.median)}){diff > 0 ? " — may take longer to let." : " — you may be able to charge more."}</p>;
-                    })()}
-                  </div>
+                  </details>
                 );
               })}
-              {p.units.length === 0 && <div className="px-4 py-3 text-sm text-stone-500">No units yet — add them below.</div>}
+              {p.units.length === 0 && <div className="px-4 py-4 text-sm text-stone-500">No units yet.</div>}
             </div>
-            <form action={addUnit} className="grid grid-cols-2 gap-2 border-t border-stone-100 bg-stone-50/50 p-4 sm:grid-cols-6">
-              <div className="col-span-2 text-xs font-semibold uppercase tracking-wide text-stone-500 sm:col-span-6">Add units</div>
-              <input type="hidden" name="propertyId" value={p.id} />
-              <input name="label" className="input col-span-2" placeholder="Unit name, e.g. Apt A1" required />
-              <label className="min-w-0"><span className="label">Beds</span><input name="bedrooms" type="number" min={0} className="input" defaultValue={1} /></label>
-              <label className="min-w-0"><span className="label">Rent (UGX)</span><input name="rent" type="number" min={0} className="input" placeholder="e.g. 800000" required /></label>
-              <label className="min-w-0"><span className="label">How many</span><input name="count" type="number" min={1} max={50} className="input" defaultValue={1} title="Add several identical units at once" /></label>
-              <label className="flex items-center gap-2 self-end pb-3 text-sm text-stone-600"><input type="checkbox" name="listed" defaultChecked className="h-4 w-4 accent-brand-700" /> List publicly</label>
-              <UnitFields />
-              <div className="col-span-2 sm:col-span-6"><Submit className="btn-primary btn-sm">Add unit(s)</Submit></div>
-            </form>
+            <details className="border-t border-stone-100" open={p.units.length === 0}>
+              <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-brand-700"><Plus className="h-4 w-4" /> Add units</summary>
+              <form action={addUnit} className="grid grid-cols-2 gap-2 px-4 pb-4 sm:grid-cols-4">
+                <input type="hidden" name="propertyId" value={p.id} />
+                <label className="col-span-2 min-w-0"><span className="label">Name</span><input name="label" className="input" placeholder="e.g. Apt B" required /></label>
+                <label className="min-w-0"><span className="label">How many</span><input name="count" type="number" min={1} max={50} className="input" defaultValue={1} /></label>
+                <label className="min-w-0"><span className="label">Beds</span><input name="bedrooms" type="number" min={0} className="input" defaultValue={1} /></label>
+                <label className="col-span-2 min-w-0"><span className="label">Rent / month (UGX)</span><input name="rent" type="number" min={0} className="input" placeholder="e.g. 800000" required /></label>
+                <label className="col-span-2 flex items-center gap-2 self-end pb-3 text-sm text-stone-600"><input type="checkbox" name="listed" defaultChecked className="h-4 w-4 accent-brand-700" /> List publicly</label>
+                <p className="col-span-full text-[11px] text-stone-500">Several at once are numbered: Apt B 1, Apt B 2…</p>
+                <UnitFields />
+                <div className="col-span-full"><Submit className="btn-primary btn-sm">Add</Submit></div>
+              </form>
+            </details>
           </div>
+        </div>
+        <div className="space-y-6">
           <PhotoSummary base={base} propertyId={p.id} photos={photos} units={p.units} />
           <Documents propertyId={p.id} viewerId={viewer.id} />
         </div>
-        <div><PropertyForm p={p} /></div>
       </div>
+    </div>
+  );
+}
+
+/** Editing a property's name, type, description and location. */
+export async function PropertyEdit({ id, viewer, base }: { id: number; viewer: User; base: string }) {
+  const p = await db.property.findUnique({ where: { id } });
+  if (!p || (viewer.role !== "manager" && p.landlordId !== viewer.id)) notFound();
+  return (
+    <div className="mx-auto max-w-2xl">
+      <Link href={`${base}/${p.id}`} className="link text-sm">← {p.name}</Link>
+      <h1 className="mb-4 mt-2 text-xl font-bold text-brand-950">Edit property</h1>
+      <PropertyForm p={p} />
     </div>
   );
 }
@@ -181,7 +240,7 @@ function PhotoSummary({ base, propertyId, photos, units }: { base: string; prope
 }
 
 /** Dedicated photos screen for one property. */
-export async function PropertyPhotos({ id, viewer, base }: { id: number; viewer: User; base: string }) {
+export async function PropertyPhotos({ id, viewer, base, fresh }: { id: number; viewer: User; base: string; fresh?: boolean }) {
   const p = await db.property.findUnique({ where: { id }, include: { units: { orderBy: { label: "asc" }, select: { id: true, label: true, bedrooms: true, bathrooms: true } } } });
   if (!p || (viewer.role !== "manager" && p.landlordId !== viewer.id)) notFound();
   const photos = await db.propertyPhoto.findMany({ where: { propertyId: p.id }, orderBy: [{ sort: "asc" }] });
@@ -190,6 +249,11 @@ export async function PropertyPhotos({ id, viewer, base }: { id: number; viewer:
       <Link href={`${base}/${p.id}`} className="link text-sm">← {p.name}</Link>
       <h1 className="mt-2 text-xl font-bold text-brand-950">Photos</h1>
       <p className="muted mb-4">{p.name} · {p.location}</p>
+      {fresh && (
+        <div className="mb-4 rounded-2xl border border-brand-200 bg-brand-50 p-4 text-sm text-brand-900">
+          <b>{p.name} is added with {p.units.length} unit{p.units.length === 1 ? "" : "s"}.</b> Last step: photos. Pick several at once — we'll match each to a room. You can also <Link href={`${base}/${p.id}`} className="link">skip for now</Link>.
+        </div>
+      )}
       <PhotoStudio propertyId={p.id} units={p.units}
         photos={photos.map((x) => ({ id: x.id, fileId: x.fileId, room: x.room, label: x.label, unitId: x.unitId, isCover: x.isCover, quality: x.quality }))} />
     </div>
