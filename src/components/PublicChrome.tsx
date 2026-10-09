@@ -8,12 +8,12 @@ export function PublicChrome({ header, footer, extras, children }: { header: Rea
   const path = usePathname();
   if (FULL_SCREEN.includes(path)) return <div className="min-h-[100dvh] bg-cream">{children}</div>;
   return (
-    <>
+    <div className="flex min-h-[100dvh] flex-col">
       {header}
-      {children}
+      <div className="flex-1">{children}</div>
       <div className="app-only h-28" aria-hidden />
       {footer}
       {extras}
-    </>
+    </div>
   );
 }

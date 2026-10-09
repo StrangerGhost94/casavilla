@@ -108,3 +108,24 @@ export function StandaloneFileLinks() {
   }, []);
   return null;
 }
+
+/**
+ * iPhone keeps the page nudged up after the keyboard closes (e.g. after typing in a search box), which leaves
+ * the fixed bottom menu out of place. When a field loses focus or the keyboard goes away, snap the view back.
+ */
+export function ViewportFix() {
+  useEffect(() => {
+    const vv = window.visualViewport;
+    let full = vv?.height ?? window.innerHeight;
+    const settle = () => setTimeout(() => {
+      if (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName)) return;
+      window.scrollTo(window.scrollX, window.scrollY);
+      if (document.documentElement.scrollHeight <= window.innerHeight + 1) window.scrollTo(0, 0);
+    }, 120);
+    const onResize = () => { if (!vv) return; if (vv.height >= full - 1) settle(); full = Math.max(full, vv.height); };
+    document.addEventListener("focusout", settle);
+    vv?.addEventListener("resize", onResize);
+    return () => { document.removeEventListener("focusout", settle); vv?.removeEventListener("resize", onResize); };
+  }, []);
+  return null;
+}

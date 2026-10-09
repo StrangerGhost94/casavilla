@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 body { @apply bg-cream font-sans text-stone-800 antialiased; -webkit-tap-highlight-color: transparent; }
+/* Every page fills the whole screen, even with little content. On iPhone, a page shorter than the screen
+   leaves fixed bars (the bottom menu) positioned against a shorter viewport, so the menu floats up. */
+html { min-height: 100%; }
+body { min-height: 100vh; min-height: 100dvh; }
 /* Inside the portals the page behind the green header is green too, so the phone's status-bar /
    toolbar tint (iOS Safari & Chrome sample the page colour) and pull-down bounce stay green, not cream. */
 @media (max-width: 1023px) {
