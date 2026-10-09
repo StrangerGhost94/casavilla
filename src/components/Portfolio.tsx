@@ -4,11 +4,12 @@ import type { Prisma, Property } from "@prisma/client";
 import { db, type User } from "@/db";
 import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { Avatar, Badge, Empty, Field, Photo } from "./ui";
-import { Submit, ConfirmSubmit, FileInput } from "./client";
+import { Submit, ConfirmSubmit } from "./client";
 import { Documents } from "./Documents";
 import { PlaceFields } from "./PlaceFields";
 import { UnitFields } from "./UnitFields";
-import { PhotoWizard } from "./PhotoWizard";
+import { PhotoStudio } from "./PhotoStudio";
+import { shotList } from "@/lib/photo-check";
 import { Ledger } from "./Ledger";
 import { saveProperty, addUnit, updateUnit, decideApplication } from "@/app/landlord/actions";
 import { AgreementCard, CashForm, ChargeForm, LeaseFacts, MoveOutForm, RenewForm, ScorePill, TenantScoreCard } from "./LeaseTools";
@@ -36,7 +37,7 @@ export async function PropertyForm({ p, landlords }: { p?: Property; landlords?:
       </div>
       <PlaceFields p={p} />
       <Field label="Description"><textarea name="description" defaultValue={p?.description ?? ""} rows={3} className="input" placeholder="Water, power, parking, security, nearby…" /></Field>
-      <Field label={p?.photoId ? "Replace photo" : "Photo"}><FileInput name="photo" accept="image/*" /></Field>
+      {!p && <p className="text-xs text-stone-500">You'll add photos room by room on the next screen, after adding units.</p>}
       <Submit>{p ? "Save changes" : "Add property"}</Submit>
     </form>
   );
@@ -141,12 +142,56 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
               <div className="col-span-2 sm:col-span-6"><Submit className="btn-primary btn-sm">Add unit(s)</Submit></div>
             </form>
           </div>
-          <PhotoWizard propertyId={p.id} units={p.units.map((u) => ({ id: u.id, label: u.label, bedrooms: u.bedrooms, bathrooms: u.bathrooms }))}
-            photos={photos.map((x) => ({ id: x.id, fileId: x.fileId, room: x.room, label: x.label, unitId: x.unitId, isCover: x.isCover, quality: x.quality }))} />
+          <PhotoSummary base={base} propertyId={p.id} photos={photos} units={p.units} />
           <Documents propertyId={p.id} viewerId={viewer.id} />
         </div>
         <div><PropertyForm p={p} /></div>
       </div>
+    </div>
+  );
+}
+
+/** Compact photo card on the property page: progress, a strip of thumbnails, and one way in. */
+function PhotoSummary({ base, propertyId, photos, units }: { base: string; propertyId: number; photos: { id: number; fileId: number; label: string; unitId: number | null; isCover: boolean }[]; units: { id: number; label: string; bedrooms: number; bathrooms: number }[] }) {
+  const req = shotList(units, units.length > 1).filter((s) => s.required);
+  const done = req.filter((s) => photos.some((x) => x.label.replace(/ · \d+$/, "") === s.label && x.unitId === s.unitId)).length;
+  const href = `${base}/${propertyId}/photos`;
+  const sorted = [...photos].sort((a, b) => Number(b.isCover) - Number(a.isCover));
+  return (
+    <div className="card">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-semibold text-brand-950">Photos</div>
+          <div className="text-xs text-stone-500">{photos.length ? `${photos.length} photo${photos.length === 1 ? "" : "s"} · ${done} of ${req.length} must-have rooms` : "No photos yet — listings with photos fill much faster"}</div>
+        </div>
+        <Link href={href} className={photos.length ? "btn-outline btn-sm shrink-0" : "btn-primary btn-sm shrink-0"}>{photos.length ? "Manage" : "Add photos"}</Link>
+      </div>
+      {req.length > 0 && <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-stone-100"><div className="h-full rounded-full bg-brand-600" style={{ width: `${Math.round((done / req.length) * 100)}%` }} /></div>}
+      {sorted.length > 0 && (
+        <Link href={href} className="mt-3 flex gap-2 overflow-hidden">
+          {sorted.slice(0, 5).map((x) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img key={x.id} src={`/api/files/${x.fileId}`} alt={x.label} className="h-16 w-20 shrink-0 rounded-lg object-cover" />
+          ))}
+          {sorted.length > 5 && <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-sm font-semibold text-stone-600">+{sorted.length - 5}</span>}
+        </Link>
+      )}
+    </div>
+  );
+}
+
+/** Dedicated photos screen for one property. */
+export async function PropertyPhotos({ id, viewer, base }: { id: number; viewer: User; base: string }) {
+  const p = await db.property.findUnique({ where: { id }, include: { units: { orderBy: { label: "asc" }, select: { id: true, label: true, bedrooms: true, bathrooms: true } } } });
+  if (!p || (viewer.role !== "manager" && p.landlordId !== viewer.id)) notFound();
+  const photos = await db.propertyPhoto.findMany({ where: { propertyId: p.id }, orderBy: [{ sort: "asc" }] });
+  return (
+    <div className="mx-auto max-w-3xl">
+      <Link href={`${base}/${p.id}`} className="link text-sm">← {p.name}</Link>
+      <h1 className="mt-2 text-xl font-bold text-brand-950">Photos</h1>
+      <p className="muted mb-4">{p.name} · {p.location}</p>
+      <PhotoStudio propertyId={p.id} units={p.units}
+        photos={photos.map((x) => ({ id: x.id, fileId: x.fileId, room: x.room, label: x.label, unitId: x.unitId, isCover: x.isCover, quality: x.quality }))} />
     </div>
   );
 }

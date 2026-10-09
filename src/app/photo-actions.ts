@@ -24,14 +24,20 @@ export async function uploadListingPhoto(fd: FormData) {
   if (unitId && !(await db.unit.findFirst({ where: { id: unitId, propertyId: p.id } }))) return fail("Choose a unit in this property");
   if ((await db.propertyPhoto.count({ where: { propertyId: p.id } })) >= MAX_PHOTOS) return fail(`Up to ${MAX_PHOTOS} photos per property — delete some first`);
   const room = await oneOf(fd, "room", ROOMS, "room");
-  const label = await reqText(fd, "label", "a label", { max: 80 });
+  let label = await reqText(fd, "label", "a label", { max: 80 });
   const quality = await int(fd, "quality", "the quality score", { min: 0, max: 100, fallback: 0 });
   const width = await int(fd, "width", "the width", { min: 0, max: 20000, fallback: 0 });
   const height = await int(fd, "height", "the height", { min: 0, max: 20000, fallback: 0 });
   const fileId = await saveUpload(fd.get("photo"), u.id, true, true);
   if (!fileId) return fail("Take or choose a photo first");
-  // Re-shooting the same slot replaces the old photo.
-  const old = await db.propertyPhoto.findFirst({ where: { propertyId: p.id, unitId, label } });
+  // "Retake" replaces the photo in that slot; otherwise a second photo of the same room is kept as an extra.
+  const replace = fd.get("replace") === "1";
+  let old = await db.propertyPhoto.findFirst({ where: { propertyId: p.id, unitId, label } });
+  if (old && !replace) {
+    const same = await db.propertyPhoto.count({ where: { propertyId: p.id, unitId, label: { startsWith: label } } });
+    label = `${label} · ${same + 1}`.slice(0, 80);
+    old = null;
+  }
   const hasCover = await db.propertyPhoto.count({ where: { propertyId: p.id, isCover: true } });
   const makeCover = (!hasCover && (room === "exterior" || room === "living")) || !!old?.isCover;
   await db.$transaction(async (tx) => {
@@ -70,5 +76,21 @@ export async function deletePhoto(fd: FormData) {
       await tx.property.update({ where: { id: ph.propertyId }, data: { photoId: next?.fileId ?? null } });
     }
   });
+  revalidatePath("/", "layout");
+}
+
+/** Moves a photo to another room/slot (fixing a wrong tag). */
+export async function retagPhoto(fd: FormData) {
+  const u = await requireUser("landlord", "manager");
+  const ph = await db.propertyPhoto.findUnique({ where: { id: id(fd) } });
+  if (!ph) return fail("Photo not found");
+  await ownedProperty(u, ph.propertyId);
+  const room = await oneOf(fd, "room", ROOMS, "room");
+  let label = await reqText(fd, "label", "a label", { max: 80 });
+  const unitId = id(fd, "unitId") || null;
+  if (unitId && !(await db.unit.findFirst({ where: { id: unitId, propertyId: ph.propertyId } }))) return fail("Choose a unit in this property");
+  const clash = await db.propertyPhoto.count({ where: { propertyId: ph.propertyId, unitId, label: { startsWith: label }, id: { not: ph.id } } });
+  if (clash) label = `${label} · ${clash + 1}`.slice(0, 80);
+  await db.propertyPhoto.update({ where: { id: ph.id }, data: { room, label, unitId } });
   revalidatePath("/", "layout");
 }
