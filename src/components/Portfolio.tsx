@@ -7,9 +7,13 @@ import { Avatar, Badge, Empty, Field, Photo } from "./ui";
 import { Submit, ConfirmSubmit, FileInput } from "./client";
 import { Documents } from "./Documents";
 import { Ledger } from "./Ledger";
-import { saveProperty, addUnit, updateUnit, decideApplication, recordCashPayment, endLease } from "@/app/landlord/actions";
+import { saveProperty, addUnit, updateUnit, decideApplication } from "@/app/landlord/actions";
+import { CashForm, ChargeForm, LeaseFacts, MoveOutForm, RenewForm, ScorePill, TenantScoreCard } from "./LeaseTools";
+import { ensureCharges } from "@/lib/billing";
+import { marketRent, tenantScore } from "@/lib/insights";
 
-export const PROPERTY_TYPES = ["Apartments", "Standalone house", "Rentals (row houses)", "Commercial / shops", "Hostel", "Office"];
+import { PROPERTY_TYPES } from "@/lib/property-types";
+export { PROPERTY_TYPES };
 
 export function PropertyForm({ p, landlords }: { p?: Property; landlords?: { id: number; name: string }[] }) {
   return (
@@ -71,6 +75,7 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
   });
   if (!p || (viewer.role !== "manager" && p.landlordId !== viewer.id)) notFound();
   const tenantsBase = base.replace("/properties", "/tenants");
+  const markets = new Map(await Promise.all(p.units.filter((u) => u.status === "vacant").map(async (u) => [u.id, await marketRent(p.location, u.bedrooms, u.id)] as const)));
   return (
     <div>
       <Link href={base} className="link hidden text-sm lg:inline">← Properties</Link>
@@ -97,6 +102,13 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
                       <label className="col-span-2 flex items-center gap-2 py-2 text-sm text-stone-600 sm:col-span-1"><input name="listed" type="checkbox" defaultChecked={u.listed} className="h-4 w-4 accent-brand-700" disabled={u.status === "occupied"} /> Listed</label>
                       <Submit className="btn-outline btn-sm py-2">Save</Submit>
                     </form>
+                    {(() => {
+                      const m = markets.get(u.id);
+                      if (!m) return null;
+                      const diff = Math.round(((u.rent - m.median) / m.median) * 100);
+                      if (Math.abs(diff) < 10) return <p className="mt-1.5 text-[11px] text-stone-500">In line with similar {u.bedrooms}-bed units {m.scope} (~{ugx(m.median)}).</p>;
+                      return <p className={`mt-1.5 text-[11px] ${diff > 0 ? "text-gold-700" : "text-brand-700"}`}>{diff > 0 ? `${diff}% above` : `${-diff}% below`} similar {u.bedrooms}-bed units {m.scope} (~{ugx(m.median)}){diff > 0 ? " — may take longer to let." : " — you may be able to charge more."}</p>;
+                    })()}
                   </div>
                 );
               })}
@@ -128,6 +140,21 @@ export async function ApplicationsTable({ where }: { where: Prisma.ApplicationWh
   });
   if (!rows.length) return <Empty title="No applications">When tenants apply for your listed units, they show up here.</Empty>;
   const today = kampalaToday();
+  const pending = rows.filter((a) => a.status === "pending");
+  const tenantIds = [...new Set(pending.map((a) => a.tenantId))];
+  const [scores, housed] = await Promise.all([
+    Promise.all(tenantIds.map(async (t) => [t, await tenantScore(t)] as const)).then((x) => new Map(x)),
+    db.lease.findMany({ where: { tenantId: { in: tenantIds }, status: "active" }, select: { tenantId: true, unit: { select: { label: true, property: { select: { name: true } } } } } }),
+  ]);
+  // Best applicant per unit: highest reliability score among those with a history.
+  const best = new Map<number, number>();
+  for (const a of pending) {
+    const sc = scores.get(a.tenantId)?.score;
+    if (sc == null) continue;
+    const cur = best.get(a.unitId);
+    if (cur === undefined || sc > (scores.get(pending.find((x) => x.id === cur)!.tenantId)?.score ?? -1)) best.set(a.unitId, a.id);
+  }
+  const rivals = (unitId: number) => pending.filter((x) => x.unitId === unitId).length;
   const nextYear = `${Number(today.slice(0, 4)) + 1}${today.slice(4)}`;
   return (
     <div className="space-y-4">
@@ -138,18 +165,26 @@ export async function ApplicationsTable({ where }: { where: Prisma.ApplicationWh
               <div className="font-semibold">{a.tenant.name} <span className="font-normal text-stone-500">→ {a.unit.property.name} · {a.unit.label}</span></div>
               <div className="text-sm text-stone-500">{a.tenant.phone} · {a.tenant.email} · applied {fmtDate(a.createdAt)}{a.moveIn && ` · wants to move in ${fmtDate(a.moveIn)}`}</div>
               {a.message && <p className="mt-2 text-sm text-stone-700">“{a.message}”</p>}
+              {a.status === "pending" && (
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  {scores.get(a.tenantId) && <ScorePill s={scores.get(a.tenantId)!} />}
+                  {best.get(a.unitId) === a.id && rivals(a.unitId) > 1 && <span className="pill bg-gold-100 text-gold-700">★ Most reliable of {rivals(a.unitId)} applicants</span>}
+                  {housed.find((h) => h.tenantId === a.tenantId) && (() => { const h = housed.find((x) => x.tenantId === a.tenantId)!; return <span className="pill bg-amber-50 text-amber-700">Currently renting {h.unit.property.name} · {h.unit.label} — that lease must end first</span>; })()}
+                </div>
+              )}
             </div>
             <Badge>{a.status}</Badge>
           </div>
           {a.status === "pending" && (
             <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-stone-100 pt-4">
-              <form action={decideApplication} className="grid flex-1 gap-2 sm:grid-cols-6">
+              <form action={decideApplication} className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-7">
                 <input type="hidden" name="id" value={a.id} /><input type="hidden" name="decision" value="approve" />
-                <Field label="Start"><input type="date" name="startDate" defaultValue={a.moveIn ? ymd(a.moveIn) : today} className="input" required /></Field>
-                <Field label="End"><input type="date" name="endDate" defaultValue={nextYear} className="input" required /></Field>
+                <div className="col-span-2 sm:col-span-1"><Field label="Start"><input type="date" name="startDate" defaultValue={a.moveIn ? ymd(a.moveIn) : today} className="input" required /></Field></div>
+                <div className="col-span-2 sm:col-span-1"><Field label="End"><input type="date" name="endDate" defaultValue={nextYear} className="input" required /></Field></div>
                 <Field label="Rent / month"><input type="number" name="rent" defaultValue={a.unit.rent} className="input" /></Field>
                 <Field label="Deposit"><input type="number" name="deposit" defaultValue={a.unit.rent} className="input" /></Field>
                 <Field label="Due day"><input type="number" name="dueDay" min={1} max={28} defaultValue={5} className="input" /></Field>
+                <Field label="Late fee %"><input type="number" name="lateFeePct" min={0} max={50} defaultValue={0} className="input" title="Added once rent is 7+ days late. 0 = off" /></Field>
                 <div className="flex items-end"><Submit className="btn-primary w-full">Approve & create lease</Submit></div>
               </form>
               <form action={decideApplication}>
@@ -223,46 +258,30 @@ export async function TenantsTable({ where, base, only }: { where: Prisma.LeaseW
 export async function LeaseDetail({ id, viewer, base }: { id: number; viewer: User; base: string }) {
   const l = await db.lease.findUnique({
     where: { id },
-    include: { tenant: { select: { name: true, phone: true, email: true } }, unit: { select: { label: true, property: { select: { name: true } } } } },
+    include: { tenant: { select: { name: true, phone: true, email: true } }, unit: { select: { label: true, bedrooms: true, property: { select: { name: true, location: true } } } } },
   });
   if (!l || (viewer.role !== "manager" && l.landlordId !== viewer.id)) notFound();
-  const open = await db.charge.findMany({ where: { leaseId: id, status: { not: "paid" } }, orderBy: { dueDate: "asc" } });
-  const cash = l.status === "active" && open.length > 0 && (
-    <form action={recordCashPayment} className="card grid gap-2 sm:grid-cols-5">
-      <div className="h2 sm:col-span-5">Record a cash or bank payment</div>
-      <select name="chargeId" className="input sm:col-span-2">{open.map((c) => <option key={c.id} value={c.id}>{c.description} — owes {ugx(c.amount - c.paid)}</option>)}</select>
-      <input name="amount" type="number" min={1} className="input" placeholder="Amount" required />
-      <select name="method" className="input"><option value="cash">Cash</option><option value="bank">Bank</option></select>
-      <input name="reference" className="input" placeholder="Ref (optional)" />
-      <div className="sm:col-span-5"><Submit className="btn-outline btn-sm">Record & issue receipt</Submit></div>
-    </form>
-  );
+  if (l.status === "active") await ensureCharges(l);
+  const active = l.status === "active";
   return (
     <div>
       <Link href={base} className="link hidden text-sm lg:inline">← Tenants</Link>
       <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
-        <div>
+        <div className="min-w-0">
           <h1 className="h1">{l.tenant.name}</h1>
-          <div className="muted">{l.unit.property.name} · {l.unit.label} · {l.tenant.phone} · {l.tenant.email}</div>
+          <div className="muted break-words">{l.unit.property.name} · {l.unit.label} · <a href={`tel:${l.tenant.phone}`} className="hover:underline">{l.tenant.phone}</a> · {l.tenant.email}</div>
         </div>
         <Badge>{l.status}</Badge>
       </div>
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <div className="min-w-0 lg:col-span-2"><Ledger leaseId={id} recordCash={cash} /></div>
-        <div className="space-y-6">
-          <div className="card space-y-2 text-sm">
-            <div className="flex justify-between"><span className="text-stone-500">Lease</span><span>{fmtDate(l.startDate)} – {fmtDate(l.endDate)}</span></div>
-            <div className="flex justify-between"><span className="text-stone-500">Rent</span><span>{ugx(l.rent)} / month</span></div>
-            <div className="flex justify-between"><span className="text-stone-500">Due day</span><span>{l.dueDay}</span></div>
-            <div className="flex justify-between"><span className="text-stone-500">Deposit</span><span>{ugx(l.deposit)}</span></div>
-            {l.status === "active" && (
-              <form action={endLease} className="space-y-2 border-t border-stone-100 pt-3">
-                <input type="hidden" name="id" value={l.id} />
-                <label className="flex items-center gap-2"><input type="checkbox" name="relist" defaultChecked className="accent-brand-500" /> Re-list the unit as vacant</label>
-                <ConfirmSubmit message="End this lease? The tenant will be notified." className="btn-outline btn-sm w-full text-maroon-600">End lease / move out</ConfirmSubmit>
-              </form>
-            )}
-          </div>
+        <div className="min-w-0 space-y-5 lg:col-span-2">
+          <Ledger leaseId={id} manage recordCash={<><CashForm l={l} />{active && <ChargeForm leaseId={l.id} />}</>} />
+        </div>
+        <div className="space-y-5">
+          <LeaseFacts l={l} />
+          <TenantScoreCard tenantId={l.tenantId} />
+          {active && <RenewForm l={l} location={l.unit.property.location} bedrooms={l.unit.bedrooms} />}
+          {active && <MoveOutForm l={l} />}
           <Documents leaseId={id} viewerId={viewer.id} />
         </div>
       </div>

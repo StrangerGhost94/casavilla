@@ -6,6 +6,7 @@ import { ensureChargesFor } from "@/lib/billing";
 import { kampalaToday, ugx } from "@/lib/format";
 import { AttentionList, KeyRow, SectionTitle, Stat } from "@/components/ui";
 import { portfolioStats, TenantsTable } from "@/components/Portfolio";
+import { SmartPanel } from "@/components/Insights";
 
 export default async function LandlordHome() {
   const u = await requireUser("landlord");
@@ -54,6 +55,8 @@ export default async function LandlordHome() {
           ]} />
         </div>
       </div>
+
+      <SmartPanel landlordId={u.id} base="/landlord" />
 
       <SectionTitle title="Tenants with balances" href="/landlord/tenants" />
       <TenantsTable where={{ landlordId: u.id, status: "active" }} only="owing" base="/landlord/tenants" />

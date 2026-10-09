@@ -2,6 +2,8 @@ import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { fmtDate, ugx } from "@/lib/format";
 import { Badge, Empty } from "@/components/ui";
+import { ConfirmSubmit } from "@/components/client";
+import { cancelMyOrder } from "@/app/market-actions";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My orders" };
@@ -28,7 +30,14 @@ export default async function MyOrders({ searchParams }: { searchParams: Promise
                   <td data-label="Item">{r.o.quantity} × {r.product}</td>
                   <td data-label="Seller">{r.seller || r.sellerName}<div className="text-xs text-stone-500">{r.sellerPhone}</div></td>
                   <td data-label="Total">{ugx(r.o.total)}</td>
-                  <td data-label="Status"><Badge>{r.o.status}</Badge></td>
+                  <td data-label="Status">
+                    <div className="flex items-center justify-end gap-2 md:justify-start">
+                      <Badge>{r.o.status}</Badge>
+                      {r.o.status === "placed" && (
+                        <form action={cancelMyOrder}><input type="hidden" name="id" value={r.o.id} /><ConfirmSubmit message="Cancel this order?" className="btn-ghost btn-sm text-maroon-600">Cancel</ConfirmSubmit></form>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
             </tbody>

@@ -51,6 +51,7 @@ model User {
   jobNotes        JobNote[]
   documents       Document[]
   notifications   Notification[]
+  audits          AuditLog[]
 
   @@map("users")
 }
@@ -100,6 +101,7 @@ model Unit {
   applications Application[]
   leases       Lease[]
   jobs         Job[]
+  createdAt    DateTime      @default(now()) @map("created_at")
 
   @@index([propertyId])
   @@map("units")
@@ -116,6 +118,8 @@ model Application {
   status    String    @default("pending") // pending | approved | rejected | withdrawn
   createdAt DateTime  @default(now()) @map("created_at")
 
+  @@index([unitId])
+  @@index([tenantId])
   @@map("applications")
 }
 
@@ -133,6 +137,13 @@ model Lease {
   deposit    Int        @default(0)
   dueDay     Int        @default(5) @map("due_day")
   status     String     @default("active") // active | ended
+  /// Money paid beyond what was owed; applied automatically to the next charges.
+  credit     Int        @default(0)
+  /// Optional late fee (% of the month's rent) added once a rent charge is 7+ days overdue. 0 = off.
+  lateFeePct Int        @default(0) @map("late_fee_pct")
+  endedAt    DateTime?  @map("ended_at") @db.Date
+  /// Move-out settlement: positive = refund owed to the tenant, negative = tenant still owes.
+  settlement Int?
   createdAt  DateTime   @default(now()) @map("created_at")
   charges    Charge[]
   payments   Payment[]
@@ -147,15 +158,22 @@ model Charge {
   id          Int       @id @default(autoincrement())
   leaseId     Int       @map("lease_id")
   lease       Lease     @relation(fields: [leaseId], references: [id])
-  period      String // YYYY-MM or DEPOSIT
+  period      String // YYYY-MM, DEPOSIT, LATE-YYYY-MM or X-<id> for one-off charges
+  kind        String    @default("rent") // rent | deposit | late_fee | utility | repair | other
   description String
+  /// Amount due after any waiver.
   amount      Int
   paid        Int       @default(0)
+  /// How much was written off by the landlord/manager.
+  waived      Int       @default(0)
   dueDate     DateTime  @map("due_date") @db.Date
   status      String    @default("unpaid") // unpaid | partial | paid
+  createdAt   DateTime  @default(now()) @map("created_at")
   payments    Payment[]
+  allocations Allocation[]
 
   @@unique([leaseId, period])
+  @@index([status, dueDate])
   @@map("charges")
 }
 
@@ -177,8 +195,28 @@ model Payment {
   recordedBy   User?     @relation("PaymentRecorder", fields: [recordedById], references: [id])
   createdAt    DateTime  @default(now()) @map("created_at")
   paidAt       DateTime? @map("paid_at")
+  allocations  Allocation[]
 
+  @@index([leaseId])
+  @@index([chargeId])
+  @@index([status, createdAt])
   @@map("payments")
+}
+
+/// Where money went: each successful payment (or lease credit / held deposit) is split across charges, oldest first.
+model Allocation {
+  id        Int      @id @default(autoincrement())
+  paymentId Int?     @map("payment_id")
+  payment   Payment? @relation(fields: [paymentId], references: [id])
+  chargeId  Int      @map("charge_id")
+  charge    Charge   @relation(fields: [chargeId], references: [id])
+  amount    Int
+  source    String   @default("payment") // payment | credit | deposit
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([chargeId])
+  @@index([paymentId])
+  @@map("allocations")
 }
 
 model Service {
@@ -224,6 +262,8 @@ model Order {
   status       String   @default("placed") // placed | confirmed | delivered | cancelled
   createdAt    DateTime @default(now()) @map("created_at")
 
+  @@index([providerId])
+  @@index([buyerId])
   @@map("orders")
 }
 
@@ -248,11 +288,20 @@ model Job {
   priority    String    @default("normal") // low | normal | urgent
   photoId     Int?      @map("photo_id")
   quote       Int?
-  status      String    @default("open") // open | assigned | accepted | in_progress | done | cancelled
+  status      String    @default("open") // open | assigned | quoted | accepted | in_progress | done | cancelled
+  assignedAt  DateTime? @map("assigned_at")
+  completedAt DateTime? @map("completed_at")
+  /// 1–5 stars from whoever requested/pays for the job, after it is done.
+  rating      Int?
+  review      String?
   createdAt   DateTime  @default(now()) @map("created_at")
   updatedAt   DateTime  @default(now()) @updatedAt @map("updated_at")
   notes       JobNote[]
 
+  @@index([providerId])
+  @@index([landlordId])
+  @@index([requesterId])
+  @@index([status])
   @@map("jobs")
 }
 
@@ -263,8 +312,11 @@ model JobNote {
   authorId  Int      @map("author_id")
   author    User     @relation(fields: [authorId], references: [id])
   body      String
+  /// Automatic timeline entries (status changes) rather than a person's message.
+  system    Boolean  @default(false)
   createdAt DateTime @default(now()) @map("created_at")
 
+  @@index([jobId])
   @@map("job_notes")
 }
 
@@ -290,8 +342,34 @@ model Notification {
   message   String
   link      String?
   read      Boolean  @default(false)
+  /// Set for automatic reminders so the same reminder is never sent twice.
+  key       String?  @unique
   createdAt DateTime @default(now()) @map("created_at")
 
-  @@index([userId])
+  @@index([userId, read])
   @@map("notifications")
+}
+
+/// Who did what, for accountability and dispute resolution.
+model AuditLog {
+  id        Int      @id @default(autoincrement())
+  actorId   Int?     @map("actor_id")
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+  action    String
+  entity    String
+  entityId  Int?     @map("entity_id")
+  detail    String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+/// Run-once markers for background housekeeping (e.g. "sweep:2026-10-09T13").
+model Marker {
+  key       String   @id
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("markers")
 }

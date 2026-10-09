@@ -38,6 +38,8 @@ export async function register(_: FormState, fd: FormData): Promise<FormState> {
   const parsed = schema.safeParse(Object.fromEntries(fd));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const d = parsed.data;
+  if (!/^\+256\d{9}$/.test(normalizePhone(d.phone))) return { error: "Enter a valid Ugandan phone number, e.g. 0772 123 456" };
+  if (d.role === "provider" && !d.businessName) return { error: "Enter your business name" };
   const exists = await db.user.findUnique({ where: { email: d.email }, select: { id: true } });
   if (exists) return { error: "An account with this email already exists. Sign in instead." };
   const u = await db.user.create({ data: {

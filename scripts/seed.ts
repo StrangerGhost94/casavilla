@@ -52,8 +52,8 @@ async function main() {
 
   // Charges for each month of each lease up to now.
   for (const l of L) {
-    const data: { leaseId: number; period: string; description: string; amount: number; dueDate: Date }[] = [];
-    if (l.deposit) data.push({ leaseId: l.id, period: "DEPOSIT", description: "Security deposit", amount: l.deposit, dueDate: l.startDate });
+    const data: { leaseId: number; period: string; kind?: string; description: string; amount: number; dueDate: Date }[] = [];
+    if (l.deposit) data.push({ leaseId: l.id, period: "DEPOSIT", kind: "deposit", description: "Security deposit", amount: l.deposit, dueDate: l.startDate });
     const [y, m] = l.startDate.toISOString().slice(0, 7).split("-").map(Number);
     for (let i = 0; ; i++) {
       const d = new Date(Date.UTC(y, m - 1 + i, 1));
@@ -78,6 +78,7 @@ async function main() {
       },
     });
     await prisma.payment.update({ where: { id: p.id }, data: { receiptNo: `CV-${when.getFullYear()}-${String(p.id).padStart(6, "0")}` } });
+    await prisma.allocation.create({ data: { paymentId: p.id, chargeId: c.id, amount, source: "payment", createdAt: when } });
     const paid = c.paid + amount;
     await prisma.charge.update({ where: { id: c.id }, data: { paid, status: paid >= c.amount ? "paid" : "partial" } });
   };

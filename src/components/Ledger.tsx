@@ -3,6 +3,8 @@ import { Banknote, Building, ChevronRight, Smartphone } from "lucide-react";
 import { db } from "@/db";
 import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { Badge } from "./ui";
+import { Submit } from "./client";
+import { waiveLeaseCharge } from "@/app/landlord/actions";
 
 const methodLabel: Record<string, string> = { mtn: "MTN MoMo", airtel: "Airtel Money", cash: "Cash", bank: "Bank" };
 const MethodIcon = ({ m }: { m: string }) => {
@@ -13,7 +15,8 @@ const MethodIcon = ({ m }: { m: string }) => {
 };
 
 /** Rent charges and payment history for one lease. */
-export async function Ledger({ leaseId, payHref, recordCash }: { leaseId: number; payHref?: (chargeId: number) => string; recordCash?: React.ReactNode }) {
+/** `manage` lets a landlord/manager waive part or all of an open charge. */
+export async function Ledger({ leaseId, payHref, recordCash, manage }: { leaseId: number; payHref?: (chargeId: number) => string; recordCash?: React.ReactNode; manage?: boolean }) {
   const [cs, ps] = await Promise.all([
     db.charge.findMany({ where: { leaseId }, orderBy: { dueDate: "desc" } }),
     db.payment.findMany({ where: { leaseId }, orderBy: { createdAt: "desc" } }),
@@ -24,7 +27,7 @@ export async function Ledger({ leaseId, payHref, recordCash }: { leaseId: number
     <div className="space-y-5">
       <div className="card p-0">
         <div className="flex items-center justify-between px-4 pb-2 pt-4">
-          <div className="h2">Rent charges</div>
+          <div className="h2">Charges</div>
           <div className="text-xs text-stone-500">Balance <span className={`ml-1 text-sm font-bold ${owed > 0 ? "text-maroon-600" : "text-brand-700"}`}>{ugx(owed)}</span></div>
         </div>
         <div className="divide-y divide-stone-100">
@@ -34,7 +37,18 @@ export async function Ledger({ leaseId, payHref, recordCash }: { leaseId: number
               <div key={c.id} className="flex items-center gap-3 px-4 py-3">
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-medium text-stone-800">{c.description}</div>
-                  <div className="text-xs text-stone-500">Due {fmtDate(c.dueDate)}{c.paid > 0 && c.status !== "paid" && <> · paid {ugx(c.paid)}</>}</div>
+                  <div className="text-xs text-stone-500">Due {fmtDate(c.dueDate)}{c.paid > 0 && c.status !== "paid" && <> · paid {ugx(c.paid)}</>}{c.waived > 0 && <> · {ugx(c.waived)} waived</>}</div>
+                  {manage && c.status !== "paid" && (
+                    <details className="mt-1">
+                      <summary className="cursor-pointer list-none text-[11px] font-semibold text-brand-700">Waive…</summary>
+                      <form action={waiveLeaseCharge} className="mt-1.5 flex flex-wrap gap-1.5">
+                        <input type="hidden" name="chargeId" value={c.id} />
+                        <input name="amount" type="number" min={1} max={c.amount - c.paid} defaultValue={c.amount - c.paid} inputMode="numeric" className="input w-28 py-1.5" aria-label="Amount to waive" />
+                        <input name="reason" className="input w-40 flex-1 py-1.5" placeholder="Reason" maxLength={200} />
+                        <Submit className="btn-outline btn-sm">Waive</Submit>
+                      </form>
+                    </details>
+                  )}
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-semibold text-stone-800">{ugx(c.amount)}</div>

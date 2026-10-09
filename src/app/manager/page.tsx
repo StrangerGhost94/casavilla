@@ -6,6 +6,8 @@ import { fmtDate, kampalaToday, ugx } from "@/lib/format";
 import { AttentionList, Avatar, SectionTitle } from "@/components/ui";
 import { portfolioStats, TenantsTable } from "@/components/Portfolio";
 import { JobList } from "@/components/Jobs";
+import { SmartPanel } from "@/components/Insights";
+import { runChecks } from "@/lib/integrity";
 
 export default async function ManagerHome() {
   await requireUser("manager");
@@ -19,6 +21,7 @@ export default async function ManagerHome() {
     db.charge.findMany({ where: { status: { not: "paid" }, dueDate: { lt: new Date(`${today}T00:00:00Z`) } }, distinct: ["leaseId"], select: { leaseId: true } }),
     db.payment.findMany({ where: { status: "success" }, orderBy: { paidAt: "desc" }, take: 6, include: { tenant: { select: { name: true } } } }),
   ]);
+  const dataIssues = (await runChecks()).filter((c) => c.count > 0).length;
   const vacant = s.units - s.occupied;
   const pct = s.due_month ? Math.min(100, Math.round((s.collected / s.due_month) * 100)) : 0;
   return (
@@ -49,6 +52,7 @@ export default async function ManagerHome() {
             { href: "/manager/people?status=pending", count: pending, label: "Landlords & providers to approve", tone: "blue" },
             { href: "/manager/applications", count: pendingApps, label: "Tenant applications", tone: "blue" },
             { href: "/manager/properties", count: vacant, label: "Vacant units", tone: "green" },
+            { href: "/manager/health", count: dataIssues, label: "Data checks needing attention", tone: "gold" },
           ]} />
         </div>
         <div>
@@ -65,6 +69,8 @@ export default async function ManagerHome() {
           </div>
         </div>
       </div>
+
+      <SmartPanel base="/manager" />
 
       <SectionTitle title="Repairs with no provider yet" href="/manager/jobs" />
       <JobList where={{ providerId: null, status: { notIn: ["done", "cancelled"] } }} base="/manager/jobs" empty="Every open job has a provider" />

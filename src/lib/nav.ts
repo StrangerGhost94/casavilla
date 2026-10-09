@@ -43,6 +43,7 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/manager/payments", label: "Payments", icon: "wallet" },
     { href: "/manager/jobs", label: "Maintenance jobs", icon: "wrench" },
     { href: "/manager/orders", label: "Shop orders", icon: "bag" },
+    { href: "/manager/health", label: "System health", icon: "shield" },
   ],
 };
 

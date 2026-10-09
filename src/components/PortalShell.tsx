@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { after } from "next/server";
+import { runHousekeeping } from "@/lib/housekeeping";
 import { Bell, LogOut } from "lucide-react";
 import { db, type User } from "@/db";
 import { logout, markAllRead } from "@/app/actions";
@@ -44,6 +46,9 @@ async function Notifications({ user, tone }: { user: User; tone: "light" | "dark
 
 export async function PortalShell({ user, children }: { user: User; children: React.ReactNode }) {
   const items = menus[user.role];
+  // Keeps rent charges, late fees, reminders and escalations moving without anyone pressing a button.
+  // Runs after the page is sent, at most once an hour across all users.
+  after(() => runHousekeeping().catch((e) => console.error("housekeeping", e)));
   const display = user.businessName || user.name;
   const first = user.name.split(" ")[0];
   return (
