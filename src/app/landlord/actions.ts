@@ -16,6 +16,7 @@ import { triage } from "@/lib/insights";
 import { PROPERTY_TYPES } from "@/lib/property-types";
 import { placeLine, readPlace } from "@/lib/geo-form";
 import { saveAgreementSnapshot } from "@/lib/agreement";
+import { propertyRemoval, unitRemoval } from "@/lib/removal";
 
 const refresh = () => revalidatePath("/", "layout");
 
@@ -124,6 +125,7 @@ async function readUnitDetails(fd: FormData, current?: { mode: string; bathrooms
 export async function addUnit(fd: FormData) {
   const u = await actor();
   const p = await ownedProperty(u, id(fd, "propertyId"));
+  if (p.archivedAt) return fail("This property is archived — restore it first");
   const count = await int(fd, "count", "how many units", { min: 1, max: 50, fallback: 1 });
   const label = await reqText(fd, "label", "a unit name", { max: 40 });
   const details = await readUnitDetails(fd);
@@ -156,7 +158,7 @@ export async function updateUnit(fd: FormData) {
   await db.unit.update({
     where: { id: unit.id },
     // An occupied unit can never be listed; its lease rent is changed through a renewal, not here.
-    data: { label, rent, bedrooms, listed: unit.status === "occupied" ? false : fd.get("listed") === "on", ...details },
+    data: { label, rent, bedrooms, listed: unit.status === "occupied" || unit.property.archivedAt ? false : fd.get("listed") === "on", ...details },
   });
   if (rent !== unit.rent) await audit(u.id, "unit.rent_changed", "unit", unit.id, `${unit.label}: ${ugx(unit.rent)} → ${ugx(rent)}`);
   refresh();
@@ -392,5 +394,59 @@ export async function markRefundPaid(fd: FormData) {
   if (!done.count) return fail("This lease was just updated — refresh");
   await notify(l.tenantId, `Your deposit refund of ${ugx(l.settlement)} has been paid (${method}). Your account is fully settled.`, "/tenant/lease");
   await audit(u.id, "lease.refund_paid", "lease", l.id, `${ugx(l.settlement)} via ${method}`);
+  refresh();
+}
+
+/** Removes a property: deleted if nothing depends on it, otherwise archived (see propertyRemoval). */
+export async function removeProperty(fd: FormData) {
+  const u = await actor();
+  const p = await ownedProperty(u, id(fd));
+  if (String(fd.get("confirm") || "").trim().toLowerCase() !== p.name.trim().toLowerCase()) return fail(`Type the property name (${p.name}) to confirm`);
+  const plan = await propertyRemoval(p.id);
+  if (plan.mode === "blocked") return fail(plan.reason);
+  if (plan.mode === "archive") {
+    await db.$transaction([
+      db.property.update({ where: { id: p.id }, data: { archivedAt: new Date() } }),
+      db.unit.updateMany({ where: { propertyId: p.id }, data: { listed: false } }),
+      db.application.updateMany({ where: { unit: { propertyId: p.id }, status: "pending" }, data: { status: "rejected" } }),
+      db.booking.deleteMany({ where: { unit: { propertyId: p.id }, status: "blocked" } }),
+    ]);
+    await audit(u.id, "property.archived", "property", p.id, p.name);
+  } else {
+    const unitIds = (await db.unit.findMany({ where: { propertyId: p.id }, select: { id: true } })).map((x) => x.id);
+    await db.$transaction([
+      db.document.deleteMany({ where: { propertyId: p.id } }),
+      db.booking.deleteMany({ where: { unitId: { in: unitIds } } }),
+      db.expense.updateMany({ where: { propertyId: p.id }, data: { propertyId: null, unitId: null } }),
+      db.property.delete({ where: { id: p.id } }),
+    ]);
+    await audit(u.id, "property.deleted", "property", p.id, p.name);
+  }
+  refresh();
+  redirect(`/${u.role}/properties`);
+}
+
+export async function restoreProperty(fd: FormData) {
+  const u = await actor();
+  const p = await ownedProperty(u, id(fd));
+  await db.property.update({ where: { id: p.id }, data: { archivedAt: null } });
+  await audit(u.id, "property.restored", "property", p.id, p.name);
+  refresh();
+  redirect(`/${u.role}/properties/${p.id}`);
+}
+
+/** Deletes a unit that was never let, booked or repaired (otherwise it can only be unlisted). */
+export async function removeUnit(fd: FormData) {
+  const u = await actor();
+  const unit = await db.unit.findUnique({ where: { id: id(fd) }, include: { property: true } });
+  if (!unit || !owns(u, unit.property.landlordId)) return fail("Unit not found");
+  const plan = await unitRemoval(unit.id);
+  if (!plan.ok) return fail(plan.reason);
+  await db.$transaction([
+    db.booking.deleteMany({ where: { unitId: unit.id } }),
+    db.expense.updateMany({ where: { unitId: unit.id }, data: { unitId: null } }),
+    db.unit.delete({ where: { id: unit.id } }),
+  ]);
+  await audit(u.id, "unit.deleted", "property", unit.propertyId, unit.label);
   refresh();
 }

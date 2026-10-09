@@ -136,7 +136,7 @@ export async function StatementPage({ viewer, landlordId, month, propertyId, bas
 }
 
 export async function ExpenseForm({ landlordId, propertyIds }: { landlordId?: number; propertyIds?: number[] }) {
-  const props = await db.property.findMany({ where: propertyIds ? { id: { in: propertyIds } } : { landlordId }, orderBy: { name: "asc" }, select: { id: true, name: true } });
+  const props = await db.property.findMany({ where: { archivedAt: null, ...(propertyIds ? { id: { in: propertyIds } } : { landlordId }) }, orderBy: { name: "asc" }, select: { id: true, name: true } });
   return (
     <form action={addExpense} className="card space-y-2.5 self-start">
       <div className="font-semibold text-brand-950">Add an expense</div>

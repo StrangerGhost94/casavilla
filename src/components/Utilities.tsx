@@ -17,7 +17,7 @@ export async function UtilitiesPage({ viewer }: { viewer: User }) {
   const scope = await propertyScope(viewer);
   const manage = viewer.role !== "caretaker";
   const props = await db.property.findMany({
-    where: scope, orderBy: { name: "asc" },
+    where: { ...scope, archivedAt: null }, orderBy: { name: "asc" },
     select: {
       id: true, name: true,
       units: { where: { mode: "long" }, orderBy: { label: "asc" }, select: { id: true, label: true, status: true } },

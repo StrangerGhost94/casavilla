@@ -13,7 +13,7 @@ import { addCaretaker, caretakerJob, updateCaretaker } from "@/app/caretaker-act
 /** Landlord's page: who looks after which property, what they may do, and adding someone new. */
 export async function CaretakerAdmin({ landlordId }: { landlordId: number }) {
   const [props, rows] = await Promise.all([
-    db.property.findMany({ where: { landlordId }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
+    db.property.findMany({ where: { landlordId, archivedAt: null }, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     db.caretakerAssignment.findMany({ where: { landlordId }, orderBy: [{ caretakerId: "asc" }], include: { caretaker: { select: { name: true, phone: true, phoneVerifiedAt: true, passwordHash: true } }, property: { select: { name: true } } } }),
   ]);
   const people = [...new Map(rows.map((r) => [r.caretakerId, r.caretaker])).entries()];

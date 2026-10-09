@@ -14,7 +14,8 @@ import { PhotoStudio } from "./PhotoStudio";
 import { Steps, UnitGroups } from "./NewPropertyFlow";
 import { shotList } from "@/lib/photo-check";
 import { Ledger } from "./Ledger";
-import { saveProperty, addUnit, updateUnit, decideApplication } from "@/app/landlord/actions";
+import { saveProperty, addUnit, updateUnit, decideApplication, removeProperty, restoreProperty, removeUnit } from "@/app/landlord/actions";
+import { propertyRemoval } from "@/lib/removal";
 import { AgreementCard, CashForm, ChargeForm, LeaseFacts, MoveOutForm, RenewForm, ScorePill, TenantScoreCard } from "./LeaseTools";
 import { ensureCharges } from "@/lib/billing";
 import { crumbText, trailFor } from "@/lib/geo";
@@ -68,12 +69,29 @@ export async function NewPropertyForm({ landlords }: { landlords?: { id: number;
 }
 
 export async function PropertyList({ where, base }: { where: Prisma.PropertyWhereInput; base: string }) {
-  const rows = await db.property.findMany({
-    where, orderBy: { createdAt: "desc" },
-    include: { landlord: { select: { name: true } }, units: { select: { status: true } } },
-  });
-  if (!rows.length) return <Empty title="No properties yet">Add your first property, then its units.</Empty>;
+  const [rows, archived] = await Promise.all([
+    db.property.findMany({
+      where: { ...where, archivedAt: null }, orderBy: { createdAt: "desc" },
+      include: { landlord: { select: { name: true } }, units: { select: { status: true } } },
+    }),
+    db.property.findMany({ where: { ...where, archivedAt: { not: null } }, orderBy: { archivedAt: "desc" }, select: { id: true, name: true, location: true, archivedAt: true } }),
+  ]);
+  const archivedList = archived.length > 0 && (
+    <details className="card mt-6">
+      <summary className="cursor-pointer list-none text-sm font-semibold text-stone-600">Archived properties ({archived.length})</summary>
+      <div className="mt-2 divide-y divide-stone-100">
+        {archived.map((p) => (
+          <Link key={p.id} href={`${base}/${p.id}`} className="flex items-center justify-between gap-2 py-2 text-sm hover:underline">
+            <span className="min-w-0 truncate">{p.name} · <span className="text-stone-500">{p.location}</span></span>
+            <span className="shrink-0 text-xs text-stone-500">archived {fmtDate(p.archivedAt!)}</span>
+          </Link>
+        ))}
+      </div>
+    </details>
+  );
+  if (!rows.length) return <><Empty title="No properties yet">Add your first property, then its units.</Empty>{archivedList}</>;
   return (
+    <>
     <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {rows.map((p) => {
         const total = p.units.length;
@@ -95,6 +113,8 @@ export async function PropertyList({ where, base }: { where: Prisma.PropertyWher
         );
       })}
     </div>
+    {archivedList}
+    </>
   );
 }
 
@@ -110,9 +130,23 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
   const markets = new Map(await Promise.all(p.units.filter((u) => u.status === "vacant" && u.mode === "long").map(async (u) => [u.id, await marketRent(p, u.bedrooms, u.id)] as const)));
   const occupied = p.units.filter((u) => u.status === "occupied").length;
   const editHref = `${base}/${p.id}/edit`;
+  // Units that were never let, booked or repaired can be deleted outright.
+  const ids = p.units.map((u) => u.id);
+  const [withLeases, withStays, withJobs] = await Promise.all([
+    db.lease.findMany({ where: { unitId: { in: ids } }, select: { unitId: true }, distinct: ["unitId"] }),
+    db.booking.findMany({ where: { unitId: { in: ids }, status: { notIn: ["blocked", "expired"] } }, select: { unitId: true }, distinct: ["unitId"] }),
+    db.job.findMany({ where: { unitId: { in: ids } }, select: { unitId: true }, distinct: ["unitId"] }),
+  ]);
+  const used = new Set([...withLeases, ...withStays, ...withJobs].map((x) => x.unitId));
   return (
     <div>
       <Link href={base} className="link hidden text-sm lg:inline">← Properties</Link>
+      {p.archivedAt && (
+        <div className="card mt-3 flex flex-wrap items-center justify-between gap-3 border-gold-200 bg-gold-50/60">
+          <div className="text-sm text-stone-700"><b>Archived {fmtDate(p.archivedAt)}.</b> Hidden from your lists and listings; its tenancy history is kept.</div>
+          <form action={restoreProperty}><input type="hidden" name="id" value={p.id} /><Submit className="btn-outline btn-sm">Restore</Submit></form>
+        </div>
+      )}
       <div className="mt-3 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-6 lg:col-span-2">
           <div className="card overflow-hidden p-0">
@@ -167,13 +201,19 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
                         <UnitFields u={u} />
                         <div className="col-span-full"><Submit className="btn-primary btn-sm">Save {u.label}</Submit></div>
                       </form>
+                      {!used.has(u.id) && (
+                        <form action={removeUnit} className="text-right">
+                          <input type="hidden" name="id" value={u.id} />
+                          <ConfirmSubmit message={`Delete ${u.label}? This can't be undone.`} className="text-xs font-semibold text-maroon-600 hover:underline">Delete this unit</ConfirmSubmit>
+                        </form>
+                      )}
                     </div>
                   </details>
                 );
               })}
               {p.units.length === 0 && <div className="px-4 py-4 text-sm text-stone-500">No units yet.</div>}
             </div>
-            <details className="border-t border-stone-100" open={p.units.length === 0}>
+            {!p.archivedAt && <details className="border-t border-stone-100" open={p.units.length === 0}>
               <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 text-sm font-semibold text-brand-700"><Plus className="h-4 w-4" /> Add units</summary>
               <form action={addUnit} className="grid grid-cols-2 gap-2 px-4 pb-4 sm:grid-cols-4">
                 <input type="hidden" name="propertyId" value={p.id} />
@@ -186,7 +226,7 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
                 <UnitFields />
                 <div className="col-span-full"><Submit className="btn-primary btn-sm">Add</Submit></div>
               </form>
-            </details>
+            </details>}
           </div>
         </div>
         <div className="space-y-6">
@@ -195,6 +235,28 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
         </div>
       </div>
     </div>
+  );
+}
+
+/** Remove a property: says up front whether it will be deleted, archived, or can't be removed yet. */
+async function RemoveProperty({ id, name }: { id: number; name: string }) {
+  const plan = await propertyRemoval(id);
+  return (
+    <details className="card mt-6 border-maroon-100">
+      <summary className="cursor-pointer list-none text-sm font-semibold text-maroon-600">Remove this property</summary>
+      <div className="mt-3 space-y-3 text-sm">
+        <p className="text-stone-600">{plan.reason}</p>
+        {plan.mode !== "blocked" && (
+          <form action={removeProperty} className="space-y-2">
+            <input type="hidden" name="id" value={id} />
+            <label className="block"><span className="label">Type <b>{name}</b> to confirm</span><input name="confirm" required autoComplete="off" className="input" /></label>
+            <ConfirmSubmit message={plan.mode === "delete" ? `Delete ${name} for good?` : `Archive ${name}?`} className="btn-outline btn-sm border-maroon-200 text-maroon-600">
+              {plan.mode === "delete" ? "Delete property" : "Archive property"}
+            </ConfirmSubmit>
+          </form>
+        )}
+      </div>
+    </details>
   );
 }
 
@@ -207,6 +269,7 @@ export async function PropertyEdit({ id, viewer, base }: { id: number; viewer: U
       <Link href={`${base}/${p.id}`} className="link text-sm">← {p.name}</Link>
       <h1 className="mb-4 mt-2 text-xl font-bold text-brand-950">Edit property</h1>
       <PropertyForm p={p} />
+      {!p.archivedAt && <RemoveProperty id={p.id} name={p.name} />}
     </div>
   );
 }
@@ -425,12 +488,12 @@ export async function portfolioStats(landlordId?: number) {
   const today = kampalaToday();
   const month = today.slice(0, 7);
   const monthStart = new Date(`${month}-01T00:00:00+03:00`);
-  const byProp: Prisma.UnitWhereInput = landlordId ? { property: { landlordId } } : {};
+  const byProp: Prisma.UnitWhereInput = { property: { archivedAt: null, ...(landlordId ? { landlordId } : {}) } };
   const byLease: Prisma.LeaseWhereInput = landlordId ? { landlordId } : {};
   const [units, occupied, properties, collected, overdueCharges, dueMonth] = await Promise.all([
     db.unit.count({ where: byProp }),
     db.unit.count({ where: { ...byProp, status: "occupied" } }),
-    db.property.count({ where: landlordId ? { landlordId } : {} }),
+    db.property.count({ where: { archivedAt: null, ...(landlordId ? { landlordId } : {}) } }),
     db.payment.aggregate({ _sum: { amount: true }, where: { status: "success", paidAt: { gte: monthStart }, lease: byLease } }),
     db.charge.findMany({ where: { status: { not: "paid" }, dueDate: { lt: new Date(`${today}T00:00:00Z`) }, lease: byLease }, select: { amount: true, paid: true } }),
     db.charge.aggregate({ _sum: { amount: true }, where: { period: month, lease: byLease } }),

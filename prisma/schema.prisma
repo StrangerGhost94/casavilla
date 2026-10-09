@@ -120,6 +120,8 @@ model Property {
   coordAccuracyM Int?    @map("coord_accuracy_m")
   coordSource String?    @map("coord_source") // gps | map
   description String?
+  /// Removed by the landlord but kept because it has tenancy history (receipts, statements). Hidden everywhere.
+  archivedAt  DateTime?  @map("archived_at")
   photos      PropertyPhoto[]
   photoId     Int?       @map("photo_id")
   createdAt   DateTime   @default(now()) @map("created_at")

@@ -209,7 +209,7 @@ export async function InspectionList({ viewer }: { viewer: User }) {
       include: { unit: { select: { label: true, property: { select: { name: true } } } }, lease: { select: { tenant: { select: { name: true } } } } },
     }),
     db.unit.findMany({
-      where: { property: scope, mode: "long" }, orderBy: [{ property: { name: "asc" } }, { label: "asc" }],
+      where: { property: { ...scope, archivedAt: null }, mode: "long" }, orderBy: [{ property: { name: "asc" } }, { label: "asc" }],
       select: { id: true, label: true, property: { select: { name: true } }, leases: { where: { status: "active" }, select: { id: true, tenant: { select: { name: true } } } } },
     }),
   ]);
