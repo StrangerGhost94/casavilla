@@ -1,4 +1,4 @@
-import { BadgeCheck, Clock, LogOut, MessageCircle } from "lucide-react";
+import { BadgeCheck, ChevronRight, Clock, LogOut, MapPin, MessageCircle } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { menus, roleName } from "@/lib/nav";
 import { logout } from "@/app/actions";
@@ -8,7 +8,7 @@ import { Avatar, ListRow } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { LocationPicker } from "@/components/LocationPicker";
 import { setMyLocation } from "@/app/place-actions";
-import { trailFor } from "@/lib/geo";
+import { crumbText, trailFor } from "@/lib/geo";
 
 export const metadata = { title: "Profile" };
 
@@ -31,14 +31,24 @@ export default async function Profile() {
           </div>
         </div>
 
-        {u.role !== "manager" && (
-          <form action={setMyLocation} className="card mt-4 space-y-2">
-            <LocationPicker initial={myPlace} label={u.role === "provider" ? "Where your business is based" : "Where you live"} hint="Used for nearby homes, services and reports. Pick as far down as you like." />
-            <Submit className="btn-outline btn-sm">Save area</Submit>
-          </form>
-        )}
-
         <div className="card mt-4 divide-y divide-stone-100 p-0">
+          {u.role !== "manager" && (
+            // Same row style as the menu below; the picker only opens when tapped.
+            <details className="group">
+              <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition hover:bg-stone-50">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><MapPin className="h-[18px] w-[18px]" /></span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-sm font-medium text-stone-800">{u.role === "provider" ? "Where your business is based" : "Where you live"}</span>
+                  <span className="block truncate text-xs text-stone-500">{myPlace.length > 1 ? myPlace.filter((c) => !["country", "region"].includes(c.level)).reverse().slice(0, 3).map((c) => c.name).join(", ") || crumbText(myPlace, true) : "Not set — tap to choose"}</span>
+                </span>
+                <ChevronRight className="h-4 w-4 shrink-0 text-stone-400 transition group-open:rotate-90" />
+              </summary>
+              <form action={setMyLocation} className="space-y-2 border-t border-stone-100 px-4 pb-4 pt-3">
+                <LocationPicker initial={myPlace} label="" hint="Used for nearby homes, services and reports. Pick as far down as you like." />
+                <Submit className="btn-primary btn-sm">Save area</Submit>
+              </form>
+            </details>
+          )}
           {items.map((i) => (
             <ListRow key={i.href} href={i.href} title={i.label}
               icon={<span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><NavIcon name={i.icon} className="h-[18px] w-[18px]" /></span>} />
