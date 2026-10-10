@@ -11,6 +11,7 @@ import { Steps } from "./NewPropertyFlow";
 import { PlaceFields } from "./PlaceFields";
 import { SaleBasics, SaleDetails } from "./SaleFields";
 import { SalePhotos } from "./SalePhotos";
+import { AddChoice } from "./AddChoice";
 import { deleteSaleListing, markEnquiry, reviewSale, saveSaleListing, setSaleStatus, verifySaleTitle } from "@/app/sale-actions";
 
 const pill = (s: string) => <Badge color={STATUS[s]?.tone ?? "gray"}>{STATUS[s]?.label ?? s}</Badge>;
@@ -73,6 +74,7 @@ export async function SaleForm({ viewer, id }: { viewer: User; id?: number }) {
     <div className="mx-auto max-w-2xl">
       <Link href={l ? `/${viewer.role}/sale/${l.id}` : `/${viewer.role}/sale`} className="link text-sm">← {l ? l.title : "For sale"}</Link>
       <h1 className="mb-4 mt-2 text-xl font-bold text-brand-950">{l ? "Edit listing" : "List land or a property for sale"}</h1>
+      {!l && (viewer.role === "landlord" || viewer.role === "manager") && <AddChoice role={viewer.role} active="sell" />}
       <form action={saveSaleListing}>
         {l && <input type="hidden" name="id" value={l.id} />}
         <Steps titles={["What & price", "Details", "Location"]} submitLabel={l ? "Save changes" : viewer.role === "manager" ? "Publish" : "Send for review"}>
