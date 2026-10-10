@@ -53,7 +53,10 @@ export const fullUgx = (n: number) => `UGX ${Math.round(n).toLocaleString("en-US
 
 export function sizeText(l: { sizeValue: number | null; sizeUnit: string | null; plotDims: string | null }) {
   const parts: string[] = [];
-  if (l.sizeValue && l.sizeUnit) parts.push(`${Number(l.sizeValue.toFixed(2)).toLocaleString("en-US")} ${SIZE_UNIT[l.sizeUnit] ?? l.sizeUnit}`);
+  if (l.sizeValue && l.sizeUnit) {
+    const unit = SIZE_UNIT[l.sizeUnit] ?? l.sizeUnit;
+    parts.push(`${Number(l.sizeValue.toFixed(2)).toLocaleString("en-US")} ${l.sizeValue === 1 && unit.endsWith("s") ? unit.slice(0, -1) : unit}`);
+  }
   if (l.plotDims) parts.push(l.plotDims);
   return parts.join(" · ");
 }

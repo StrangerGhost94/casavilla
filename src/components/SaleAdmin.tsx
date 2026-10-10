@@ -10,7 +10,7 @@ import { ConfirmSubmit, Submit } from "./client";
 import { Steps } from "./NewPropertyFlow";
 import { PlaceFields } from "./PlaceFields";
 import { SaleBasics, SaleDetails } from "./SaleFields";
-import { SalePhotos } from "./SalePhotos";
+import { SalePhotos, ScrollTop } from "./SalePhotos";
 import { AddChoice } from "./AddChoice";
 import { deleteSaleListing, markEnquiry, reviewSale, saveSaleListing, setSaleStatus, verifySaleTitle } from "@/app/sale-actions";
 
@@ -52,7 +52,7 @@ export async function SaleList({ viewer, tab }: { viewer: User; tab?: string }) 
                 <div className="truncate text-xs text-stone-500">{KIND[l.kind as SaleKind]?.label} · {shortUgx(l.price)} · {l.location}{manager ? ` · ${l.owner.name}` : ""}</div>
                 <div className="mt-0.5 flex items-center gap-3 text-[11px] text-stone-500">
                   <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> {l.views}</span>
-                  <span>{l._count.photos} photo{l._count.photos === 1 ? "" : "s"}</span>
+                  {l._count.photos ? <span>{l._count.photos} photo{l._count.photos === 1 ? "" : "s"}</span> : <span className="font-semibold text-gold-700">No photos yet — tap to add</span>}
                   {l._count.enquiries > 0 && <span className="font-semibold text-brand-700">{l._count.enquiries} new enquir{l._count.enquiries === 1 ? "y" : "ies"}</span>}
                 </div>
               </div>
@@ -97,6 +97,12 @@ export async function SaleManage({ viewer, id, fresh }: { viewer: User; id: numb
   const manager = viewer.role === "manager";
   const base = `/${viewer.role}/sale`;
   const live = ["active", "under_offer", "sold"].includes(l.status);
+  // Straight after saving (or while there are none), photos are the next step — shown first and highlighted.
+  const photosFirst = !!fresh || l.photos.length === 0;
+  const photosCard = (
+    <SalePhotos listingId={l.id} photos={l.photos.map((p) => ({ id: p.id, fileId: p.fileId, isCover: p.isCover }))} highlight={photosFirst}
+      doneHref={fresh ? `/${viewer.role}/sale/${l.id}` : undefined} reviewNote={!manager && l.status === "pending"} />
+  );
   const statusBtn = (to: string, label: string, cls = "btn-outline btn-sm", confirm?: string) => (
     <form action={setSaleStatus}><input type="hidden" name="id" value={l.id} /><input type="hidden" name="status" value={to} />
       {confirm ? <ConfirmSubmit message={confirm} className={cls}>{label}</ConfirmSubmit> : <Submit className={cls}>{label}</Submit>}</form>
@@ -117,7 +123,8 @@ export async function SaleManage({ viewer, id, fresh }: { viewer: User; id: numb
         {pill(l.status)}
       </div>
 
-      {fresh && l.status === "pending" && <div className="card border-brand-100 bg-brand-50/60 text-sm text-brand-900"><b>Listing saved.</b> Add photos below — CasaVilla reviews it and you&apos;ll be notified when it&apos;s live.</div>}
+      {fresh && <ScrollTop />}
+      {photosFirst && photosCard}
       {l.status === "rejected" && l.reviewNote && <div className="card border-maroon-100 bg-maroon-50/50 text-sm"><b className="text-maroon-700">CasaVilla asked for changes:</b> {l.reviewNote}<div className="mt-1 text-xs text-stone-500">Edit the listing and save — it goes back for review.</div></div>}
 
       {manager && (
@@ -153,7 +160,7 @@ export async function SaleManage({ viewer, id, fresh }: { viewer: User; id: numb
         )}
       </div>
 
-      <SalePhotos listingId={l.id} photos={l.photos.map((p) => ({ id: p.id, fileId: p.fileId, isCover: p.isCover }))} />
+      {!photosFirst && photosCard}
 
       <div className="card space-y-1 text-sm">
         <div className="mb-1 font-semibold text-brand-950">Details</div>
