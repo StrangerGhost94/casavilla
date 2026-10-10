@@ -6,6 +6,7 @@ import { Empty } from "@/components/ui";
 import { PropertyCard } from "@/components/PropertyCard";
 import { LocationPicker } from "@/components/LocationPicker";
 import { NearMe } from "@/components/NearMe";
+import { DiscoverTabs } from "@/components/DiscoverTabs";
 import { crumbText, trailFor } from "@/lib/geo";
 import { fmtKm, inUganda } from "@/lib/geo-core";
 
@@ -27,7 +28,8 @@ export default async function Listings({ searchParams }: { searchParams: Promise
   return (
     <main className="mx-auto max-w-6xl px-4 pt-6">
       <h1 className="text-2xl font-bold text-brand-950">Discover</h1>
-      <p className="muted mt-0.5">Vacant homes from CasaVilla landlords</p>
+      <p className="muted mt-0.5 mb-4">Vacant homes from CasaVilla landlords</p>
+      <DiscoverTabs active="rent" />
 
       <form className="mt-4 space-y-3">
         {sp.beds && <input type="hidden" name="beds" value={sp.beds} />}

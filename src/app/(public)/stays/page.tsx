@@ -6,6 +6,7 @@ import { crumbText, insideFilter, trailFor } from "@/lib/geo";
 import { isFree, nightsBetween, checkStay } from "@/lib/stays";
 import { Empty, Photo } from "@/components/ui";
 import { LocationPicker } from "@/components/LocationPicker";
+import { DiscoverTabs } from "@/components/DiscoverTabs";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Short stays" };
@@ -32,8 +33,9 @@ export default async function Stays({ searchParams }: { searchParams: Promise<{ 
   const q = (id: number) => `/stays/${id}?${new URLSearchParams(Object.entries({ checkIn: sp.checkIn, checkOut: sp.checkOut, guests: sp.guests }).filter(([, v]) => v) as [string, string][])}`;
   return (
     <main className="mx-auto max-w-6xl px-4 pt-6">
-      <h1 className="text-2xl font-bold text-brand-950">Short stays</h1>
-      <p className="muted mt-0.5">Furnished homes by the night — booked and paid with Mobile Money.</p>
+      <h1 className="text-2xl font-bold text-brand-950">Discover</h1>
+      <p className="muted mt-0.5 mb-4">Furnished homes by the night — booked and paid with Mobile Money.</p>
+      <DiscoverTabs active="stays" />
       <form className="card mt-4 space-y-3 p-4">
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
           <label><span className="label">Check-in</span><input type="date" name="checkIn" min={today} defaultValue={sp.checkIn} className="input" /></label>

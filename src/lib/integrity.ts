@@ -197,6 +197,18 @@ const CHECKS: { id: string; title: string; why: string; sql: string; fix?: strin
     sql: `SELECT id, description || ' — ' || amount AS label FROM expenses WHERE status = 'pending' AND created_at < now() - interval '14 days'`,
   },
   {
+    id: "sale-review-waiting",
+    title: "Listings for sale waiting more than 3 days for review",
+    why: "Sellers are waiting. Open Manager → For sale → To review.",
+    sql: `SELECT id, title AS label FROM sale_listings WHERE status = 'pending' AND updated_at < now() - interval '3 days'`,
+  },
+  {
+    id: "sale-no-photo",
+    title: "Live listings for sale with no photos",
+    why: "Listings without photos get very few enquiries — ask the seller to add some.",
+    sql: `SELECT s.id, s.title AS label FROM sale_listings s WHERE s.status IN ('active', 'under_offer') AND NOT EXISTS (SELECT 1 FROM sale_photos p WHERE p.listing_id = s.id)`,
+  },
+  {
     id: "caretaker-wrong-landlord",
     title: "Caretaker assignments that don't match the property's landlord",
     why: "A caretaker should only work for the landlord who owns the property (e.g. after a property changed hands).",

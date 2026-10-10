@@ -5,6 +5,8 @@ import { SERVICE_CATEGORIES } from "@/db";
 import { CategoryIcon, categoryLabel } from "@/lib/icons";
 import { BuildingArt, Logo, SectionTitle } from "@/components/ui";
 import { PropertyCard } from "@/components/PropertyCard";
+import { SaleCard } from "@/components/SaleCard";
+import { db } from "@/db";
 
 export const dynamic = "force-dynamic";
 
@@ -16,6 +18,7 @@ const roles = [
 
 export default async function Home() {
   const homes = await listedUnits({ limit: 6 });
+  const forSale = await db.saleListing.findMany({ where: { status: "active" }, orderBy: { publishedAt: "desc" }, take: 3 });
   return (
     <main>
       {/* Splash / hero */}
@@ -64,6 +67,13 @@ export default async function Home() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {homes.map((h) => <PropertyCard key={h.id} h={h} />)}
           </div>
+        )}
+
+        {forSale.length > 0 && (
+          <>
+            <SectionTitle title="Land & property for sale" href="/sale" />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{forSale.map((l) => <SaleCard key={l.id} l={l} />)}</div>
+          </>
         )}
 
         {/* Services */}

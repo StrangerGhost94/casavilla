@@ -3,14 +3,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft, Briefcase, Building2, ClipboardList, FileText, Home, Package, Plus, Search, ShoppingBag, Sparkles,
-  CalendarDays, MapPinned, ShieldCheck, Store, User, Users, Wallet, Wrench, BarChart3, ClipboardCheck, Zap, UserCog, Receipt, MessageCircle, type LucideIcon,
+  CalendarDays, MapPinned, ShieldCheck, Store, User, Users, Wallet, Wrench, BarChart3, ClipboardCheck, Zap, UserCog, Receipt, MessageCircle, Tag, type LucideIcon,
 } from "lucide-react";
 import type { NavItem, Tabs } from "@/lib/nav";
 
 const icons: Record<string, LucideIcon> = {
   home: Home, wallet: Wallet, wrench: Wrench, file: FileText, clipboard: ClipboardList, search: Search, sparkles: Sparkles,
   bag: ShoppingBag, building: Building2, users: Users, briefcase: Briefcase, package: Package, store: Store, user: User, plus: Plus, shield: ShieldCheck, map: MapPinned, calendar: CalendarDays,
-  chart: BarChart3, clipboardCheck: ClipboardCheck, zap: Zap, userCog: UserCog, receipt: Receipt, message: MessageCircle,
+  chart: BarChart3, clipboardCheck: ClipboardCheck, zap: Zap, userCog: UserCog, receipt: Receipt, message: MessageCircle, tag: Tag,
 };
 export function NavIcon({ name, className = "h-5 w-5" }: { name: string; className?: string }) {
   const I = icons[name] ?? Home;

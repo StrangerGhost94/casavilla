@@ -79,6 +79,8 @@ model User {
   expensesAdded   Expense[]      @relation("ExpenseBy")
   meterReadings   MeterReading[]
   utilityBills    UtilityBill[]
+  saleListings    SaleListing[]
+  saleEnquiries   SaleEnquiry[]
 
   @@map("users")
 }
@@ -502,6 +504,7 @@ model Location {
   users          User[]
   jobs           Job[]
   providerAreas  ProviderArea[]
+  saleListings   SaleListing[]
 
   @@index([parentId])
   @@index([level])
@@ -845,4 +848,93 @@ model UtilityBill {
 
   @@unique([meterId, period])
   @@map("utility_bills")
+}
+
+/// Land or property for sale. Separate from rentals: land has no units, tenants or rent.
+/// Landlords' listings are reviewed by CasaVilla before they go public.
+model SaleListing {
+  id             Int        @id @default(autoincrement())
+  ownerId        Int        @map("owner_id")
+  owner          User       @relation(fields: [ownerId], references: [id])
+  /// land | house | apartment | commercial | farm
+  kind           String
+  title          String
+  description    String?
+  /// Asking price in UGX (double precision: land prices can pass 2 billion).
+  price          Float
+  negotiable     Boolean    @default(true)
+  /// Land size: value + unit (acres | decimals | hectares | sqm); plotDims for e.g. "50 × 100 ft".
+  sizeValue      Float?     @map("size_value")
+  sizeUnit       String?    @map("size_unit")
+  plotDims       String?    @map("plot_dims")
+  bedrooms       Int?
+  bathrooms      Int?
+  /// mailo | freehold | leasehold | customary | kibanja
+  tenure         String?
+  /// titled | processing | none
+  titleStatus    String     @default("titled") @map("title_status")
+  /// CasaVilla has seen the title and done a land search.
+  titleVerified  Boolean    @default(false) @map("title_verified")
+  features       String[]   @default([])
+  location       String
+  locationId     String?    @map("location_id")
+  place          Location?  @relation(fields: [locationId], references: [id])
+  estate         String?
+  street         String?
+  plot           String?
+  landmark       String?
+  lat            Float?
+  lng            Float?
+  coordAccuracyM Int?       @map("coord_accuracy_m")
+  coordSource    String?    @map("coord_source")
+  /// pending (waiting for CasaVilla) | active | under_offer | sold | withdrawn | rejected
+  status         String     @default("pending")
+  reviewNote     String?    @map("review_note")
+  photoId        Int?       @map("photo_id")
+  views          Int        @default(0)
+  publishedAt    DateTime?  @map("published_at")
+  soldAt         DateTime?  @map("sold_at")
+  createdAt      DateTime   @default(now()) @map("created_at")
+  updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at")
+  photos         SalePhoto[]
+  enquiries      SaleEnquiry[]
+
+  @@index([status, kind])
+  @@index([ownerId])
+  @@index([locationId])
+  @@map("sale_listings")
+}
+
+model SalePhoto {
+  id        Int         @id @default(autoincrement())
+  listingId Int         @map("listing_id")
+  listing   SaleListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  fileId    Int         @map("file_id")
+  sort      Int         @default(0)
+  isCover   Boolean     @default(false) @map("is_cover")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@index([listingId])
+  @@map("sale_photos")
+}
+
+/// A buyer's question or viewing request. Guests can send one with a name and phone number.
+model SaleEnquiry {
+  id           Int         @id @default(autoincrement())
+  listingId    Int         @map("listing_id")
+  listing      SaleListing @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  userId       Int?        @map("user_id")
+  user         User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name         String
+  phone        String
+  message      String?
+  wantsViewing Boolean     @default(false) @map("wants_viewing")
+  viewingDate  DateTime?   @map("viewing_date") @db.Date
+  /// new | contacted | closed
+  status       String      @default("new")
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  @@index([listingId, status])
+  @@index([phone, createdAt])
+  @@map("sale_enquiries")
 }
