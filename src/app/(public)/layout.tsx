@@ -1,5 +1,6 @@
 import type { Viewport } from "next";
-import { PublicFooter, PublicHeader } from "@/components/PublicHeader";
+import { PublicHeader } from "@/components/PublicHeader";
+import { PublicFooter } from "@/components/SiteFooter";
 import { InstallPrompt } from "@/components/InstallApp";
 import { PublicChrome } from "@/components/PublicChrome";
 

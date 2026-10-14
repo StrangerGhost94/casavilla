@@ -10,7 +10,7 @@ import { PropertyCard, StayCard } from "@/components/PropertyCard";
 import { SaleCard } from "@/components/SaleCard";
 import { MarketSearch } from "@/components/MarketSearch";
 import { Journey } from "@/components/Journey";
-import { MobileFooter } from "@/components/PublicHeader";
+import { MobileFooter } from "@/components/SiteFooter";
 import { AreaChips } from "@/components/AreaChips";
 import { chargesSummary } from "@/components/Ledger";
 import { activeLease } from "@/app/tenant/lib";
