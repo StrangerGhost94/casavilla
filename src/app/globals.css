@@ -16,6 +16,9 @@ body { overflow-wrap: break-word; }
 @media (max-width: 1023px) {
   html:has(.portal-shell), html:has(.portal-shell) body { background-color: #0e3628; }
 }
+/* Same for the marketplace pages (the content itself sits on cream). Newer iOS Safari tints the strip behind the
+   clock/notch from the page background, not from a sticky header — on cream that showed as a pale "fog". */
+html:has(.public-chrome), html:has(.public-chrome) body { background-color: #09251b; }
 /* iPhones zoom the whole page when a form field's text is under 16px, which shifts the screen and the bottom menu.
    Keep every field at 16px on phones so tapping one never zooms. */
 @media (max-width: 767px) {

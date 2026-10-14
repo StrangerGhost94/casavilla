@@ -6,9 +6,9 @@ const FULL_SCREEN = ["/login", "/register"];
 
 export function PublicChrome({ header, footer, extras, children }: { header: React.ReactNode; footer: React.ReactNode; extras: React.ReactNode; children: React.ReactNode }) {
   const path = usePathname();
-  if (FULL_SCREEN.includes(path)) return <div className="min-h-[100dvh] bg-cream">{children}</div>;
+  if (FULL_SCREEN.includes(path)) return <div className="public-chrome min-h-[100dvh] bg-cream">{children}</div>;
   return (
-    <div className="flex min-h-[100dvh] flex-col">
+    <div className="public-chrome flex min-h-[100dvh] flex-col bg-cream">
       {header}
       <div className="flex-1">{children}</div>
       <div className="app-only h-28" aria-hidden />
