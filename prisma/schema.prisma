@@ -124,6 +124,9 @@ model Property {
   description String?
   /// Removed by the landlord but kept because it has tenancy history (receipts, statements). Hidden everywhere.
   archivedAt  DateTime?  @map("archived_at")
+  /// Set by a CasaVilla manager after visiting and checking ownership; the only thing that earns the public "Verified" badge.
+  verifiedAt  DateTime?  @map("verified_at")
+  verifiedBy  Int?       @map("verified_by")
   photos      PropertyPhoto[]
   photoId     Int?       @map("photo_id")
   createdAt   DateTime   @default(now()) @map("created_at")

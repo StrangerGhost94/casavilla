@@ -26,7 +26,7 @@ async function main() {
   const sparkle = await mk({ name: "Rehema Akello", businessName: "Sparkle Clean UG", email: "provider2@demo.casavilla", role: "provider", phone: "+256705112233", area: "Greater Kampala", bio: "Move-in / move-out deep cleans, office cleaning and fumigation." });
   await mk({ name: "Moses Wasswa", businessName: "Wasswa Carpentry Works", email: "provider3@demo.casavilla", role: "provider", phone: "+256759441100", area: "Nateete", status: "pending" });
 
-  const court = await prisma.property.create({ data: { landlordId: nakato.id, name: "Rubaga Court", type: "Apartments", location: "Rubaga Road, Kampala", description: "Secure gated apartments 5 minutes from Rubaga Cathedral. NWSC water with reserve tank, Yaka power per unit, parking and 24-hour askari." } });
+  const court = await prisma.property.create({ data: { landlordId: nakato.id, name: "Rubaga Court", type: "Apartments", location: "Rubaga Road, Kampala", verifiedAt: new Date(), description: "Secure gated apartments 5 minutes from Rubaga Cathedral. NWSC water with reserve tank, Yaka power per unit, parking and 24-hour askari." } });
   const rows = await prisma.property.create({ data: { landlordId: nakato.id, name: "Mengo Rentals", type: "Rentals (row houses)", location: "Mengo, Kampala", description: "Self-contained double rooms near Mengo Hospital. Tiled floors, shared compound." } });
   // Locations come from the imported Uganda dataset (run scripts/import-locations.mjs first). Rubaga Court and Mengo Rentals
   // are left with only their old text address, to exercise the "confirm suggested location" flow.

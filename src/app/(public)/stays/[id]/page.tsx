@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Clock, MapPin, Users } from "lucide-react";
+import { ArrowLeft, BadgeCheck, Clock, MapPin, Users } from "lucide-react";
 import { db } from "@/db";
 import { getUser } from "@/lib/auth";
 import { kampalaToday, ugx } from "@/lib/format";
 import { crumbText, trailFor } from "@/lib/geo";
+import { AroundHere } from "@/components/AroundHere";
 import { bookedNights } from "@/lib/stays";
 import { Photo } from "@/components/ui";
 import { Features, Gallery } from "@/components/Gallery";
@@ -24,6 +25,7 @@ export default async function StayPage({ params, searchParams }: { params: Promi
   const booked = await bookedNights(u.id, today, addDays(today, 370));
   const trail = await trailFor(u.property.locationId);
   const p = u.property;
+  const area = [...trail].reverse().find((c) => ["subcounty", "county", "district"].includes(c.level));
   return (
     <main className="mx-auto max-w-6xl md:px-4 md:pt-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
@@ -37,6 +39,7 @@ export default async function StayPage({ params, searchParams }: { params: Promi
             <h1 className="mt-3 text-2xl font-bold text-brand-950">{p.name} · {u.label}</h1>
             <div className="mt-1 flex items-center gap-1 text-sm text-stone-500"><MapPin className="h-4 w-4 shrink-0" /> {p.location}</div>
             {trail.length > 1 && <div className="mt-1 text-xs text-brand-800">{crumbText(trail, true)}</div>}
+            {p.verifiedAt && <span className="pill mt-3 bg-brand-50 text-brand-700"><BadgeCheck className="h-3.5 w-3.5" /> Verified by CasaVilla</span>}
             <div className="mt-3 text-2xl font-bold text-brand-900">{ugx(u.nightlyRate)} <span className="text-sm font-normal text-stone-500">/ night</span></div>
             <div className="mt-3 flex flex-wrap gap-3 text-xs text-stone-600">
               <span className="flex items-center gap-1"><Users className="h-4 w-4" /> Up to {u.maxGuests} guests</span>
@@ -49,6 +52,7 @@ export default async function StayPage({ params, searchParams }: { params: Promi
             {p.description && <section className="mt-6"><h2 className="h2">About</h2><p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-stone-600">{p.description}</p></section>}
             {u.houseRules && <section className="mt-6"><h2 className="h2">House rules</h2><p className="mt-2 whitespace-pre-line break-words text-sm text-stone-600">{u.houseRules}</p></section>}
             <section className="mt-6"><h2 className="h2">Availability</h2><div className="mt-2"><StayCalendar booked={booked} today={today} /></div></section>
+            <AroundHere area={area} skip="stays" />
           </div>
         </div>
         <aside className="min-w-0 px-4 pb-6 md:px-0">

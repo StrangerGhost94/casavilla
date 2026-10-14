@@ -1,15 +1,15 @@
 import Link from "next/link";
-import { Building2, ChevronRight, KeyRound, LayoutDashboard, MapPin, Wallet } from "lucide-react";
+import { ChevronRight, ClipboardCheck, KeyRound, LayoutDashboard, MessageCircle, Search, Wallet, Wrench, Building2 } from "lucide-react";
 import { db, SERVICE_CATEGORIES, type User } from "@/db";
 import { getUser, homeFor } from "@/lib/auth";
-import { listedUnits } from "@/lib/queries";
+import { areaMatch, listedUnits } from "@/lib/queries";
 import { CategoryIcon, categoryLabel } from "@/lib/icons";
 import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
-import { BuildingArt, Photo } from "@/components/ui";
+import { Photo } from "@/components/ui";
 import { PropertyCard, StayCard } from "@/components/PropertyCard";
 import { SaleCard } from "@/components/SaleCard";
 import { MarketSearch } from "@/components/MarketSearch";
-import { NearMe } from "@/components/NearMe";
+import { AreaChips } from "@/components/AreaChips";
 import { chargesSummary } from "@/components/Ledger";
 import { activeLease } from "@/app/tenant/lib";
 
@@ -71,65 +71,84 @@ async function MyStrip({ u }: { u: User }) {
   );
 }
 
-export default async function Home() {
+export default async function Home({ searchParams }: { searchParams: Promise<{ area?: string }> }) {
   const u = await getUser();
+  // One chosen area filters every row on the page (only the listed areas are accepted).
+  const raw = (await searchParams).area?.trim().toLowerCase();
+  const area = AREAS.find((a) => a.toLowerCase() === raw);
+  const where = area ? await areaMatch(area) : null;
+  const forSale = (kinds: string[]) => db.saleListing.findMany({
+    where: { status: { in: ["active", "under_offer"] }, kind: { in: kinds }, ...(where ? { OR: where } : {}) },
+    orderBy: [{ status: "asc" }, { publishedAt: "desc" }], take: 10,
+  });
   const [homes, stays, land, buildings] = await Promise.all([
-    listedUnits({ limit: 10 }),
+    listedUnits({ limit: 10, q: area }),
     db.unit.findMany({
-      where: { mode: "short", listed: true, nightlyRate: { not: null }, property: { archivedAt: null, landlord: { status: "active" } } },
-      include: { property: { select: { name: true, location: true, photoId: true } } }, orderBy: { createdAt: "desc" }, take: 10,
+      where: { mode: "short", listed: true, nightlyRate: { not: null }, property: { archivedAt: null, landlord: { status: "active" }, ...(where ? { OR: where } : {}) } },
+      include: { property: { select: { name: true, location: true, photoId: true, verifiedAt: true } } }, orderBy: { createdAt: "desc" }, take: 10,
     }),
-    db.saleListing.findMany({ where: { status: { in: ["active", "under_offer"] }, kind: { in: ["land", "farm"] } }, orderBy: [{ status: "asc" }, { publishedAt: "desc" }], take: 10 }),
-    db.saleListing.findMany({ where: { status: { in: ["active", "under_offer"] }, kind: { in: ["house", "apartment", "commercial"] } }, orderBy: [{ status: "asc" }, { publishedAt: "desc" }], take: 10 }),
+    forSale(["land", "farm"]),
+    forSale(["house", "apartment", "commercial"]),
   ]);
+  const inArea = area ? ` in ${area}` : "";
+  const q = area ? `q=${encodeURIComponent(area)}` : "";
   const hour = (new Date().getUTCHours() + 3) % 24;
   const hello = u ? `Good ${hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"}, ${u.name.split(" ")[0]}` : "Rent, stay or buy in Uganda";
   const nothing = !homes.length && !stays.length && !land.length && !buildings.length;
+  const tenant = u?.role === "tenant";
+  const join = (next: string) => (u ? next : `/register?role=tenant&next=${encodeURIComponent(next)}`);
+  const journey = [
+    { icon: Search, title: "Find", body: "Rent, book a stay or buy land. Look for the Verified badge.", href: "/listings" },
+    { icon: ClipboardCheck, title: "Move in", body: "Apply, sign the lease and record a move-in inspection in the app.", href: tenant ? "/tenant" : join("/tenant") },
+    { icon: Wallet, title: "Pay", body: "Rent and utility bills on Mobile Money, with receipts kept for you.", href: tenant ? "/tenant" : join("/tenant") },
+    { icon: Wrench, title: "Fix", body: "Report a repair and a vetted plumber, electrician or cleaner comes.", href: "/services" },
+    { icon: Building2, title: "Own", body: "List, sell, or let CasaVilla find tenants and collect rent for you.", href: "/list" },
+  ];
 
   return (
     <main>
-      {/* Search first: the marketplace is the home screen */}
+      {/* Compact search band: continues the dark header, so listings start high on the screen */}
       <section className="relative overflow-hidden bg-brand-950 text-white">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/launch.jpg" alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover object-[50%_60%] opacity-60" />
-        <div className="absolute inset-0 bg-gradient-to-b from-brand-950/40 via-brand-950/60 to-brand-950" />
-        <div className="relative mx-auto max-w-3xl px-4 pb-10 pt-6 md:pb-14 md:pt-12">
-          <h1 className="text-2xl font-bold drop-shadow md:text-4xl">{hello}</h1>
-          <p className="mt-1 text-sm text-white/80 md:text-base">{u ? "What are you looking for today?" : "Verified homes, short stays, land and property — all in one place."}</p>
-          <div className="mt-4"><MarketSearch /></div>
+        <img src="/launch.jpg" alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover object-[50%_60%] opacity-35" />
+        <div className="absolute inset-0 bg-gradient-to-b from-brand-950 via-brand-950/70 to-brand-950" />
+        <div className="relative mx-auto max-w-3xl px-4 pb-9 pt-2 md:pb-14 md:pt-10">
+          <h1 className="text-xl font-bold md:text-4xl">{hello}</h1>
+          <p className="mt-0.5 hidden text-white/75 md:block">{u ? "What are you looking for today?" : "Homes, short stays, land and property — and everything after you move in."}</p>
+          <div className="mt-3 md:mt-5"><MarketSearch /></div>
         </div>
       </section>
 
-      <div className="relative z-10 mx-auto -mt-5 max-w-6xl rounded-t-3xl bg-cream px-4 pt-5 md:rounded-none md:pt-8">
-        {u && <div className="mb-5"><MyStrip u={u} /></div>}
+      <div className="relative z-10 mx-auto -mt-5 max-w-6xl rounded-t-3xl bg-cream px-4 pt-4 md:rounded-none md:pt-8">
+        {u && <div className="mb-4"><MyStrip u={u} /></div>}
 
-        {/* Popular areas */}
-        <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
-          <NearMe />
-          {AREAS.map((a) => <Link key={a} href={`/listings?q=${encodeURIComponent(a)}`} className="chip"><MapPin className="h-3.5 w-3.5" /> {a}</Link>)}
-        </div>
+        <AreaChips areas={AREAS} active={area} />
 
         {homes.length > 0 && (
-          <Rail title="New homes to rent" href="/listings">
+          <Rail title={`Homes to rent${inArea}`} href={`/listings${q ? `?${q}` : ""}`}>
             {homes.map((h) => <PropertyCard key={h.id} h={h} className={CARD} />)}
           </Rail>
         )}
         {land.length > 0 && (
-          <Rail title="Land & plots for sale" href="/sale?kind=land">
+          <Rail title={`Land & plots for sale${inArea}`} href={`/sale?kind=land${q ? `&${q}` : ""}`}>
             {land.map((l) => <SaleCard key={l.id} l={l} className={CARD} />)}
           </Rail>
         )}
         {stays.length > 0 && (
-          <Rail title="Short stays" href="/stays">
+          <Rail title={`Short stays${inArea}`} href="/stays">
             {stays.map((s) => <StayCard key={s.id} u={s} className={CARD} />)}
           </Rail>
         )}
         {buildings.length > 0 && (
-          <Rail title="Houses & buildings for sale" href="/sale">
+          <Rail title={`Houses & buildings for sale${inArea}`} href={`/sale${q ? `?${q}` : ""}`}>
             {buildings.map((l) => <SaleCard key={l.id} l={l} className={CARD} />)}
           </Rail>
         )}
-        {nothing && <div className="card mt-8 text-center text-sm text-stone-500">New listings are coming soon — check back shortly.</div>}
+        {nothing && (
+          <div className="card mt-6 text-center text-sm text-stone-500">
+            {area ? <>Nothing listed{inArea} yet. <Link href="/" scroll={false} className="link">See all areas</Link> or <a href="https://wa.me/256776593482" className="link">ask us on WhatsApp</a> — we often have homes before they&apos;re listed.</> : "New listings are coming soon — check back shortly."}
+          </div>
+        )}
 
         {/* Services — a short row; the Services tab has the full list */}
         <section className="mt-8">
@@ -144,16 +163,27 @@ export default async function Home() {
           </div>
         </section>
 
-        <section id="contact" className="relative mt-10 overflow-hidden rounded-3xl bg-brand-900 p-7 text-white md:flex md:items-center md:justify-between md:p-10">
-          <BuildingArt className="pointer-events-none absolute inset-x-0 bottom-0 h-40 w-full text-white/[0.06]" />
-          <div className="relative">
-            <div className="flex items-center gap-2 text-gold-300"><Building2 className="h-5 w-5" /><span className="text-xs font-semibold uppercase tracking-widest">Better living starts here</span></div>
-            <div className="mt-2 text-2xl font-semibold">Own property? Let us manage it.</div>
-            <p className="mt-1 text-sm text-white/70">List it for rent or sale yourself, or let our team on Rubaga Road find tenants and collect rent.</p>
-          </div>
-          <div className="relative mt-5 flex flex-wrap gap-2 md:mt-0">
-            <Link href="/list" className="btn-gold">List a property</Link>
-            <a href="https://wa.me/256776593482" className="btn border border-white/30 text-white hover:bg-white/10">WhatsApp us</a>
+        {/* The whole journey in one app: what happens after you find the place */}
+        <section className="mt-10 rounded-3xl bg-brand-950 p-5 text-white md:p-10">
+          <div className="text-xs font-semibold uppercase tracking-widest text-gold-300">One home, one app</div>
+          <h2 className="mt-1 text-xl font-bold md:text-2xl">From finding it to living in it</h2>
+          <ol className="relative mt-5 grid grid-cols-1 gap-0 md:grid-cols-5 md:gap-4">
+            {journey.map((j, i) => (
+              <li key={j.title} className="relative">
+                {i < journey.length - 1 && <span aria-hidden className="absolute left-5 top-11 h-[calc(100%-2.25rem)] w-px bg-white/15 md:left-11 md:top-5 md:h-px md:w-[calc(100%-1.75rem)]" />}
+                <Link href={j.href} className="relative flex gap-3 rounded-2xl py-2.5 pr-2 transition hover:bg-white/5 md:flex-col md:p-0">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-400 text-brand-950"><j.icon className="h-5 w-5" /></span>
+                  <span className="min-w-0">
+                    <span className="block font-semibold">{j.title}</span>
+                    <span className="block text-sm leading-snug text-white/65">{j.body}</span>
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+          <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/10 pt-5">
+            {!u && <Link href="/register" className="btn-gold">Create a free account</Link>}
+            <a href="https://wa.me/256776593482" className="btn border border-white/25 text-white hover:bg-white/10"><MessageCircle className="h-4 w-4" /> WhatsApp CasaVilla</a>
           </div>
         </section>
       </div>

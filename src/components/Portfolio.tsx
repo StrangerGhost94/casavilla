@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronDown, Plus } from "lucide-react";
+import { BadgeCheck, ChevronDown, Plus, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 import type { Prisma, Property } from "@prisma/client";
 import { db, type User } from "@/db";
@@ -14,7 +14,7 @@ import { PhotoStudio } from "./PhotoStudio";
 import { Steps, UnitGroups } from "./NewPropertyFlow";
 import { shotList } from "@/lib/photo-check";
 import { Ledger } from "./Ledger";
-import { saveProperty, addUnit, updateUnit, decideApplication, removeProperty, restoreProperty, removeUnit } from "@/app/landlord/actions";
+import { saveProperty, addUnit, updateUnit, decideApplication, removeProperty, restoreProperty, removeUnit, verifyProperty } from "@/app/landlord/actions";
 import { propertyRemoval } from "@/lib/removal";
 import { AgreementCard, CashForm, ChargeForm, LeaseFacts, MoveOutForm, RenewForm, ScorePill, TenantScoreCard } from "./LeaseTools";
 import { ensureCharges } from "@/lib/billing";
@@ -230,11 +230,53 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
           </div>
         </div>
         <div className="space-y-6">
+          {!p.archivedAt && <VerifyCard p={p} manager={viewer.role === "manager"} />}
           <PhotoSummary base={base} propertyId={p.id} photos={photos} units={p.units} />
           <Documents propertyId={p.id} viewerId={viewer.id} />
         </div>
       </div>
     </div>
+  );
+}
+
+/** CasaVilla verification: a manager visits and checks ownership; only then do listings show "Verified". */
+async function VerifyCard({ p, manager }: { p: Property; manager: boolean }) {
+  if (p.verifiedAt) {
+    const by = p.verifiedBy ? await db.user.findUnique({ where: { id: p.verifiedBy }, select: { name: true } }) : null;
+    return (
+      <div className="card flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><BadgeCheck className="h-5 w-5" /></span>
+        <div className="min-w-0 flex-1 text-sm">
+          <div className="font-semibold text-brand-950">Verified by CasaVilla</div>
+          <div className="text-xs text-stone-500">{fmtDate(p.verifiedAt)}{by ? ` · ${by.name}` : ""}. Its listings show the Verified badge.</div>
+          {manager && <form action={verifyProperty} className="mt-2"><input type="hidden" name="id" value={p.id} /><input type="hidden" name="undo" value="1" /><ConfirmSubmit message="Remove the Verified badge from this property?" className="text-xs font-semibold text-maroon-600 hover:underline">Remove verification</ConfirmSubmit></form>}
+        </div>
+      </div>
+    );
+  }
+  if (!manager) {
+    const wa = `https://wa.me/256776593482?text=${encodeURIComponent(`Hello CasaVilla, please visit ${p.name} (${p.location}) to verify it.`)}`;
+    return (
+      <div className="card flex items-start gap-3">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-500"><ShieldCheck className="h-5 w-5" /></span>
+        <div className="min-w-0 flex-1 text-sm">
+          <div className="font-semibold text-brand-950">Not verified yet</div>
+          <div className="text-xs text-stone-500">Verified homes get the badge buyers and tenants look for. CasaVilla visits, checks ownership and photos.</div>
+          <a href={wa} className="link mt-1.5 inline-block text-xs">Ask CasaVilla to visit →</a>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <form action={verifyProperty} className="card space-y-2.5 text-sm">
+      <input type="hidden" name="id" value={p.id} />
+      <div className="flex items-center gap-2 font-semibold text-brand-950"><ShieldCheck className="h-5 w-5 text-brand-700" /> Verify this property</div>
+      {!p.locationId && <p className="text-xs text-gold-700">Confirm its location first (Edit).</p>}
+      {[["visited", "I visited it and it matches the address"], ["owner", "I checked the landlord owns it or may let it"], ["photos", "The photos are of this property"]].map(([k, t]) => (
+        <label key={k} className="flex items-start gap-2 text-stone-700"><input type="checkbox" name={k} required className="mt-0.5 h-4 w-4 shrink-0 accent-brand-700" /> {t}</label>
+      ))}
+      <Submit className="btn-primary btn-sm">Mark as verified</Submit>
+    </form>
   );
 }
 

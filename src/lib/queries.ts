@@ -4,6 +4,23 @@ import { db } from "@/db";
 import { distanceKm, insideFilter, searchKey, searchPlaces } from "./geo";
 
 /**
+ * Conditions matching a typed area ("Ntinda", "Kira") on anything with an address: the readable address, the estate,
+ * or a canonical place whose name contains the words as whole words — so "Kira" never pulls in "Kakira".
+ * Works for properties and sale listings alike (both have location, estate and place).
+ */
+export async function areaMatch(q: string) {
+  const words = searchKey(q).split(" ").filter(Boolean);
+  const hits = (await searchPlaces(q, { limit: 10 }))
+    .filter((h) => h.level !== "country" && words.every((w) => [h.name, ...h.trail.map((c) => c.name)].some((n) => searchKey(n).split(" ").includes(w))));
+  const paths = await db.location.findMany({ where: { id: { in: hits.map((h) => h.id) } }, select: { path: true } });
+  return [
+    { location: { contains: q, mode: "insensitive" as const } },
+    { estate: { contains: q, mode: "insensitive" as const } },
+    ...paths.map((p) => ({ place: { path: { startsWith: p.path } } })),
+  ];
+}
+
+/**
  * Vacant, listed units. Area filtering always goes through the canonical location tree:
  * `in` = this place and everything inside it; free text `q` matches property names, old addresses, and
  * places whose name contains the searched words as whole words (so "Kira" never pulls in "Kakira").
@@ -12,12 +29,8 @@ import { distanceKm, insideFilter, searchKey, searchPlaces } from "./geo";
 export async function listedUnits(f: { q?: string; max?: number; beds?: number; limit?: number; in?: string; near?: { lat: number; lng: number; km: number } } = {}) {
   const or: Prisma.PropertyWhereInput[] = [];
   if (f.q) {
-    const words = searchKey(f.q).split(" ").filter(Boolean);
-    const hits = (await searchPlaces(f.q, { limit: 10 }))
-      .filter((h) => h.level !== "country" && words.every((w) => [h.name, ...h.trail.map((c) => c.name)].some((n) => searchKey(n).split(" ").includes(w))));
-    const paths = await db.location.findMany({ where: { id: { in: hits.map((h) => h.id) } }, select: { path: true } });
-    or.push({ location: { contains: f.q, mode: "insensitive" } }, { name: { contains: f.q, mode: "insensitive" } }, { estate: { contains: f.q, mode: "insensitive" } }, { street: { contains: f.q, mode: "insensitive" } });
-    for (const p of paths) or.push({ place: { path: { startsWith: p.path } } });
+    or.push({ name: { contains: f.q, mode: "insensitive" } }, { street: { contains: f.q, mode: "insensitive" } });
+    or.push(...(await areaMatch(f.q)));
   }
   const inside = await insideFilter(f.in);
   const rows = await db.unit.findMany({
@@ -38,7 +51,7 @@ export async function listedUnits(f: { q?: string; max?: number; beds?: number; 
   let list = rows.map((u) => ({
     id: u.id, label: u.label, rent: u.rent, bedrooms: u.bedrooms,
     propertyId: u.property.id, property: u.property.name, type: u.property.type, location: u.property.location,
-    photoId: u.property.photoId, landlord: u.property.landlord.name,
+    photoId: u.property.photoId, landlord: u.property.landlord.name, verified: !!u.property.verifiedAt,
     distance: f.near && u.property.lat != null && u.property.lng != null ? distanceKm(f.near, { lat: u.property.lat, lng: u.property.lng }) : undefined,
   }));
   if (f.near) list = list.filter((h) => h.distance! <= f.near!.km).sort((a, b) => a.distance! - b.distance!).slice(0, f.limit ?? 60);

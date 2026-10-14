@@ -9,6 +9,7 @@ import { Avatar, Badge, Field, Photo } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { applyForUnit } from "@/app/tenant/actions";
 import { crumbText, trailFor } from "@/lib/geo";
+import { AroundHere, LivingHere } from "@/components/AroundHere";
 
 export const dynamic = "force-dynamic";
 
@@ -23,7 +24,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   if (row.mode === "short") redirect(`/stays/${row.id}`);
   const { property, ...unit } = row;
   const landlord = property.landlord;
-  const others = await db.unit.findMany({ where: { propertyId: property.id, listed: true, status: "vacant" }, orderBy: { label: "asc" } });
+  const others = await db.unit.findMany({ where: { propertyId: property.id, listed: true, status: "vacant", mode: "long" }, orderBy: { label: "asc" } });
   const user = await getUser();
   const existing = user?.role === "tenant"
     ? await db.application.findFirst({ where: { unitId: unit.id, tenantId: user.id }, orderBy: { createdAt: "desc" } })
@@ -52,7 +53,6 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             <div className="mt-1 flex items-center gap-1 text-sm text-stone-500"><MapPin className="h-4 w-4 shrink-0" /> {property.location}</div>
             {trail.length > 1 && <div className="mt-1 text-xs text-brand-800">{crumbText(trail, true)}</div>}
             {property.landmark && <div className="mt-1 break-words text-xs text-stone-500">Landmark: {property.landmark}</div>}
-            {area && <Link href={`/listings?in=${area.id}`} className="link mt-1 inline-block text-xs">More homes in {area.name} →</Link>}
             <div className="mt-3 text-2xl font-bold text-brand-900">{ugx(unit.rent)} <span className="text-sm font-normal text-stone-500">/ month</span></div>
             <div className="mt-4 grid grid-cols-3 gap-2">
               {[[BedDouble, `${unit.bedrooms} bed${unit.bedrooms > 1 ? "s" : ""}`], [Building2, property.type], [DoorOpen, `Unit ${unit.label}`]].map(([I, t], i) => {
@@ -60,7 +60,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 return <div key={i} className="flex flex-col items-center gap-1 rounded-2xl border border-stone-200/70 bg-white p-3 text-center text-xs text-stone-600"><Icon className="h-5 w-5 text-brand-700" />{t as string}</div>;
               })}
             </div>
-            <span className="pill mt-4 bg-brand-50 text-brand-700"><BadgeCheck className="h-3.5 w-3.5" /> Verified listing · managed with CasaVilla</span>
+            {property.verifiedAt && <span className="pill mt-4 bg-brand-50 text-brand-700"><BadgeCheck className="h-3.5 w-3.5" /> Verified by CasaVilla · visited and ownership checked</span>}
 
             <Gallery propertyId={property.id} unitId={unit.id} />
             <Features u={unit} />
@@ -78,6 +78,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 <span className="text-xs font-semibold text-brand-700">View on map</span>
               </a>
             </section>
+            <LivingHere />
             {others.length > 1 && (
               <section className="mt-6">
                 <h2 className="h2">Other vacant units here</h2>
@@ -88,6 +89,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 </div>
               </section>
             )}
+            <AroundHere area={area} />
           </div>
         </div>
 

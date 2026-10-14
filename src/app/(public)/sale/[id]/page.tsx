@@ -4,6 +4,7 @@ import { ArrowLeft, BadgeCheck, BedDouble, Bath, FileCheck2, Landmark, MapPin, M
 import { db } from "@/db";
 import { getUser } from "@/lib/auth";
 import { crumbText, trailFor } from "@/lib/geo";
+import { AroundHere } from "@/components/AroundHere";
 import { KIND, TENURE, TITLE, fullUgx, perAcre, shortUgx, sizeText, toAcres, type SaleKind } from "@/lib/sales";
 import { Photo } from "@/components/ui";
 import { PhotoZoom } from "@/components/FileButton";
@@ -141,6 +142,7 @@ export default async function SaleListingPage({ params }: { params: Promise<{ id
                 <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2">{similar.map((s) => <SaleCard key={s.id} l={s} />)}</div>
               </section>
             )}
+            <AroundHere area={area} skip="sale" />
           </div>
         </div>
 

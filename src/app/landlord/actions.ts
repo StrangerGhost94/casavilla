@@ -52,7 +52,11 @@ export async function saveProperty(fd: FormData) {
   const data = { name, type, description, location: location || existing?.location || name, ...place };
   const photoId = await saveUpload(fd.get("photo"), u.id, true, true);
   if (existing) {
-    await db.property.update({ where: { id: existing.id }, data: { ...data, ...(photoId ? { photoId } : {}) } });
+    // Moving a verified property (by anyone but a manager) means CasaVilla has to check it again.
+    const moved = place.locationId !== existing.locationId || (place.lat ?? null) !== existing.lat || (place.lng ?? null) !== existing.lng;
+    const reverify = moved && !!existing.verifiedAt && u.role !== "manager";
+    await db.property.update({ where: { id: existing.id }, data: { ...data, ...(photoId ? { photoId } : {}), ...(reverify ? { verifiedAt: null, verifiedBy: null } : {}) } });
+    if (reverify) await notifyManagers(`${existing.name} moved location — visit again to re-verify it.`, `/manager/properties/${existing.id}`);
     if (place.locationId !== existing.locationId) {
       // Open repair jobs travel with the property.
       await db.job.updateMany({ where: { propertyId: existing.id, status: { notIn: ["done", "cancelled"] } }, data: { locationId: place.locationId } });
@@ -395,6 +399,25 @@ export async function markRefundPaid(fd: FormData) {
   await notify(l.tenantId, `Your deposit refund of ${ugx(l.settlement)} has been paid (${method}). Your account is fully settled.`, "/tenant/lease");
   await audit(u.id, "lease.refund_paid", "lease", l.id, `${ugx(l.settlement)} via ${method}`);
   refresh();
+}
+
+/** A CasaVilla manager confirms they visited the property and checked who owns it — this earns the public badge. */
+export async function verifyProperty(fd: FormData) {
+  const u = await requireUser("manager");
+  const p = await ownedProperty(u, id(fd));
+  if (fd.get("undo") === "1") {
+    await db.property.update({ where: { id: p.id }, data: { verifiedAt: null, verifiedBy: null } });
+    await audit(u.id, "property.unverified", "property", p.id, p.name);
+  } else {
+    const checks = ["visited", "owner", "photos"].filter((k) => fd.get(k) === "on");
+    if (checks.length < 3) return fail("Tick all three checks before verifying");
+    if (!p.locationId) return fail("Confirm the property's location first");
+    await db.property.update({ where: { id: p.id }, data: { verifiedAt: new Date(), verifiedBy: u.id } });
+    await audit(u.id, "property.verified", "property", p.id, p.name);
+    await notify(p.landlordId, `${p.name} is now verified by CasaVilla — its listings show the Verified badge.`, `/landlord/properties/${p.id}`);
+  }
+  refresh();
+  redirect(`/manager/properties/${p.id}`);
 }
 
 /** Removes a property: deleted if nothing depends on it, otherwise archived (see propertyRemoval). */
