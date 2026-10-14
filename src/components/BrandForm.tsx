@@ -4,6 +4,7 @@ import { brandFor, CASAVILLA } from "@/lib/brand";
 import { saveBrand } from "@/app/doc-actions";
 import { Field } from "./ui";
 import { Submit, FileInput } from "./client";
+import { fileUrl } from "@/lib/file-url";
 
 /** Receipt & agreement look for one landlord (ownerId) or CasaVilla's default (no ownerId). */
 export async function BrandForm({ ownerId, sampleReceiptId }: { ownerId?: number | null; sampleReceiptId?: number | null }) {
@@ -35,7 +36,7 @@ export async function BrandForm({ ownerId, sampleReceiptId }: { ownerId?: number
       {b.logoFileId && (
         <div className="flex items-center gap-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/api/files/${b.logoFileId}`} alt="Current logo" className="h-10 w-auto rounded" />
+          <img src={fileUrl(b.logoFileId, 320)} alt="Current logo" className="h-10 w-auto rounded" />
           <label className="flex items-center gap-2 text-sm text-stone-600"><input type="checkbox" name="removeLogo" className="accent-brand-700" /> Use the CasaVilla logo instead</label>
         </div>
       )}

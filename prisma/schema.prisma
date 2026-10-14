@@ -96,8 +96,21 @@ model File {
   // documents are private; listing/product photos are public
   isPublic  Boolean  @default(false) @map("is_public")
   createdAt DateTime @default(now()) @map("created_at")
+  variants  FileVariant[]
 
   @@map("files")
+}
+
+/// Smaller copies of an image (WebP), made the first time a size is asked for and reused after that.
+model FileVariant {
+  fileId   Int    @map("file_id")
+  file     File   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  width    Int
+  mimeType String @map("mime_type")
+  data     Bytes
+
+  @@id([fileId, width])
+  @@map("file_variants")
 }
 
 model Property {

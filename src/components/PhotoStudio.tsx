@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Camera, Check, ChevronDown, ImagePlus, Loader2, RotateCcw, Sparkles, Star, Trash2, TriangleAlert, Upload, X } from "lucide-react";
 import { analyse, enhance, resize, shotList, ROOM_TIPS, type PhotoReport, type Shot } from "@/lib/photo-check";
 import { deletePhoto, retagPhoto, setCoverPhoto, uploadListingPhoto } from "@/app/photo-actions";
+import { fileUrl } from "@/lib/file-url";
 
 type Photo = { id: number; fileId: number; room: string; label: string; unitId: number | null; isCover: boolean; quality: number | null };
 type UnitInfo = { id: number; label: string; bedrooms: number; bathrooms: number };
@@ -193,7 +194,7 @@ export function PhotoStudio({ propertyId, units, photos }: { propertyId: number;
                   className={`relative overflow-hidden rounded-xl border text-left ${p ? "border-stone-200" : "border-dashed border-stone-300 bg-stone-50"}`}>
                   {p
                     // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={`/api/files/${p.fileId}`} alt={s.label} className="h-20 w-full object-cover" />
+                    ? <img src={fileUrl(p.fileId, 320)} alt={s.label} loading="lazy" className="h-20 w-full object-cover" />
                     : queued
                       // eslint-disable-next-line @next/next/no-img-element
                       ? <img src={queued.preview} alt="" className="h-20 w-full object-cover opacity-60" />
@@ -218,7 +219,7 @@ export function PhotoStudio({ propertyId, units, photos }: { propertyId: number;
             {extras.map((p) => (
               <button key={p.id} type="button" onClick={() => setManage(p)} className="relative overflow-hidden rounded-xl border border-stone-200 text-left">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/api/files/${p.fileId}`} alt={p.label} className="h-20 w-full object-cover" />
+                <img src={fileUrl(p.fileId, 320)} alt={p.label} loading="lazy" className="h-20 w-full object-cover" />
                 <span className="block truncate px-1.5 py-1 text-[10px] text-stone-700">{p.label}</span>
                 {p.isCover && <span className="absolute left-1 top-1 rounded-full bg-gold-400 px-1.5 text-[9px] font-bold text-brand-950">COVER</span>}
               </button>
@@ -246,7 +247,7 @@ function ManageSheet({ p, groups, onClose, onRetake, shotFor, slotByKey }: {
       <div className="w-full max-w-md space-y-3 rounded-t-3xl bg-white p-4 pb-[calc(1rem+env(safe-area-inset-bottom))] sm:rounded-3xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between"><div className="font-semibold text-brand-950">{p.label}</div><button type="button" onClick={onClose} className="rounded-full p-1.5 text-stone-400 hover:bg-stone-100" aria-label="Close"><X className="h-5 w-5" /></button></div>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`/api/files/${p.fileId}`} alt={p.label} className="max-h-64 w-full rounded-xl object-cover" />
+        <img src={fileUrl(p.fileId, 1024)} alt={p.label} className="max-h-64 w-full rounded-xl object-cover" />
         {p.quality != null && <div className="text-xs text-stone-500">Photo quality {p.quality}/100{p.quality < 50 ? " — a retake in better light would help" : ""}</div>}
         <label className="block"><span className="label">What&apos;s in this photo?</span>
           <select value={slot} onChange={(e) => setSlot(e.target.value)} className="input">

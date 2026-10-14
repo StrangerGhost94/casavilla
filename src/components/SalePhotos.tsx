@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Camera, Check, ImagePlus, Loader2, Star, Trash2 } from "lucide-react";
 import { analyse, enhance, resize } from "@/lib/photo-check";
 import { deleteSalePhoto, setSaleCover, uploadSalePhoto } from "@/app/sale-actions";
+import { fileUrl } from "@/lib/file-url";
 
 /**
  * Pick several photos at once; each is checked and gently brightened if dark, then uploaded in order.
@@ -72,7 +73,7 @@ export function SalePhotos({ listingId, photos, highlight = false, doneHref, rev
           {photos.map((p) => (
             <div key={p.id} className="relative overflow-hidden rounded-xl ring-1 ring-stone-200">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/api/files/${p.fileId}`} alt="" className="h-24 w-full object-cover" />
+              <img src={fileUrl(p.fileId, 320)} alt="" loading="lazy" className="h-24 w-full object-cover" />
               {p.isCover && <span className="absolute left-1 top-1 rounded-full bg-gold-400 px-1.5 text-[9px] font-bold text-brand-950">COVER</span>}
               <div className="absolute bottom-1 right-1 flex gap-1">
                 {!p.isCover && (

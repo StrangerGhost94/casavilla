@@ -8,6 +8,7 @@ import { Badge, Empty, Field, PageHeader } from "./ui";
 import { ConfirmSubmit, Submit } from "./client";
 import { PhotoZoom } from "./FileButton";
 import { addBill, addMeter, addReading, removeReading, retireMeter } from "@/app/utility-actions";
+import { fileUrl } from "@/lib/file-url";
 
 /**
  * Meters per property. Prepaid Yaka/NWSC meters are kept for reference (the tenant can see their meter number);
@@ -68,9 +69,9 @@ export async function UtilitiesPage({ viewer }: { viewer: User }) {
                           {r.inspectionId && <span className="text-[11px] text-stone-400">inspection</span>}
                           <span className="ml-auto flex items-center gap-1.5">
                             {r.photoFileId && (
-                              <PhotoZoom src={`/api/files/${r.photoFileId}`} alt={`Meter reading ${r.reading}`} className="h-8 w-10 overflow-hidden rounded ring-1 ring-stone-200">
+                              <PhotoZoom src={fileUrl(r.photoFileId, 1600)} alt={`Meter reading ${r.reading}`} className="h-8 w-10 overflow-hidden rounded ring-1 ring-stone-200">
                                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={`/api/files/${r.photoFileId}`} alt="" className="h-full w-full object-cover" />
+                                <img src={fileUrl(r.photoFileId, 160)} alt="" loading="lazy" className="h-full w-full object-cover" />
                               </PhotoZoom>
                             )}
                             {manage && i === 0 && <form action={removeReading}><input type="hidden" name="id" value={r.id} /><ConfirmSubmit message="Delete this reading? Its bill is withdrawn if unpaid." className="text-[11px] text-stone-400 hover:text-maroon-600">Undo</ConfirmSubmit></form>}

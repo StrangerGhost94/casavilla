@@ -42,7 +42,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
           <div className="relative">
-            <Photo id={property.photoId} alt={property.name} className="h-72 w-full md:h-96 md:rounded-3xl" />
+            <Photo id={property.photoId} alt={property.name} className="h-72 w-full md:h-96 md:rounded-3xl" sizes="(min-width: 1024px) 66vw, 70vw" priority />
             <Link href="/listings" aria-label="Back to homes" className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-brand-900 shadow-card backdrop-blur">
               <ArrowLeft className="h-5 w-5" />
             </Link>

@@ -4,6 +4,7 @@ import { Camera, ChevronDown, Loader2, X } from "lucide-react";
 import { resize } from "@/lib/photo-check";
 import { addInspectionPhoto, removeInspectionPhoto, saveInspectionItem } from "@/app/inspection-actions";
 import { PhotoZoom } from "./FileButton";
+import { fileUrl } from "@/lib/file-url";
 
 export type EditorItem = { id: number; area: string; item: string; condition: string; note: string | null; photoIds: number[]; deduction: number };
 export type Baseline = Record<string, { condition: string; note: string | null; photoIds: number[] }>;
@@ -97,9 +98,9 @@ function Row({ i, kind, editable, was, set, save, setErr }: {
       {was && was.photoIds.length > 0 && (
         <div className="flex gap-1.5">
           {was.photoIds.map((p) => (
-            <PhotoZoom key={p} src={`/api/files/${p}`} alt={`${i.item} at move-in`} className="h-10 w-12 shrink-0 overflow-hidden rounded-md opacity-80 ring-1 ring-stone-200">
+            <PhotoZoom key={p} src={fileUrl(p, 1600)} alt={`${i.item} at move-in`} className="h-10 w-12 shrink-0 overflow-hidden rounded-md opacity-80 ring-1 ring-stone-200">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/api/files/${p}`} alt="" className="h-full w-full object-cover" />
+              <img src={fileUrl(p, 160)} alt="" loading="lazy" className="h-full w-full object-cover" />
             </PhotoZoom>
           ))}
         </div>
@@ -120,9 +121,9 @@ function Row({ i, kind, editable, was, set, save, setErr }: {
       <div className="flex flex-wrap items-center gap-1.5">
         {i.photoIds.map((p) => (
           <span key={p} className="relative">
-            <PhotoZoom src={`/api/files/${p}`} alt={i.item} className="block h-14 w-16 overflow-hidden rounded-lg ring-1 ring-stone-200">
+            <PhotoZoom src={fileUrl(p, 1600)} alt={i.item} className="block h-14 w-16 overflow-hidden rounded-lg ring-1 ring-stone-200">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/api/files/${p}`} alt="" className="h-full w-full object-cover" />
+              <img src={fileUrl(p, 160)} alt="" loading="lazy" className="h-full w-full object-cover" />
             </PhotoZoom>
             {editable && (
               <button type="button" aria-label="Remove photo" onClick={() => start(async () => { const r = await removeInspectionPhoto(i.id, p); if ("ok" in r) set(i.id, { photoIds: i.photoIds.filter((x) => x !== p) }); })}

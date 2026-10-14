@@ -10,6 +10,7 @@ import { Photo } from "@/components/ui";
 import { PhotoZoom } from "@/components/FileButton";
 import { SaleCard } from "@/components/SaleCard";
 import { SaleEnquiryForm, SaleViewCounter, ShareButton } from "@/components/SaleClient";
+import { fileSrcSet, fileUrl } from "@/lib/file-url";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export default async function SaleListingPage({ params }: { params: Promise<{ id
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
           <div className="relative">
-            <Photo id={l.photoId} alt={l.title} className="h-72 w-full md:h-96 md:rounded-3xl" />
+            <Photo id={l.photoId} alt={l.title} className="h-72 w-full md:h-96 md:rounded-3xl" sizes="(min-width: 1024px) 66vw, 70vw" priority />
             <Link href="/sale" aria-label="Back to listings for sale" className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-brand-900 shadow-card backdrop-blur"><ArrowLeft className="h-5 w-5" /></Link>
             {l.photos.length > 1 && <span className="absolute bottom-8 right-4 rounded-full bg-black/55 px-2.5 py-1 text-xs font-medium text-white md:bottom-4">{l.photos.length} photos</span>}
           </div>
@@ -97,9 +98,9 @@ export default async function SaleListingPage({ params }: { params: Promise<{ id
                 <h2 className="h2">Photos <span className="text-xs font-normal text-stone-500">({l.photos.length})</span></h2>
                 <div className="-mx-4 mt-2 flex snap-x snap-mandatory gap-2 overflow-x-auto px-4 pb-2 md:mx-0 md:px-0">
                   {l.photos.map((p, i) => (
-                    <PhotoZoom key={p.id} src={`/api/files/${p.fileId}`} alt={`${l.title} — photo ${i + 1}`} className="relative w-64 shrink-0 snap-start overflow-hidden rounded-2xl bg-stone-100">
+                    <PhotoZoom key={p.id} src={fileUrl(p.fileId, 1600)} alt={`${l.title} — photo ${i + 1}`} className="relative w-64 shrink-0 snap-start overflow-hidden rounded-2xl bg-stone-100">
                       {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={`/api/files/${p.fileId}`} alt="" loading="lazy" className="h-44 w-full object-cover" />
+                      <img src={fileUrl(p.fileId, 640)} srcSet={fileSrcSet(p.fileId, [320, 640])} sizes="16rem" alt="" loading="lazy" decoding="async" className="h-44 w-full object-cover" />
                     </PhotoZoom>
                   ))}
                 </div>

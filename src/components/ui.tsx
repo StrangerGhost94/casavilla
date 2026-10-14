@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ChevronRight, Home } from "lucide-react";
+import { fileSrcSet, fileUrl } from "@/lib/file-url";
 
 /** The roofline from the CasaVilla logo (no lettering). Size it by height, e.g. "h-8". */
 export function LogoMark({ className = "h-8" }: { className?: string }) {
@@ -119,7 +120,13 @@ export function Avatar({ name, className = "h-10 w-10 text-sm", tone }: { name: 
   return <span className={`inline-flex shrink-0 items-center justify-center rounded-full font-semibold ${t} ${className}`}>{initials || "?"}</span>;
 }
 
-export function Photo({ id, alt, className = "" }: { id?: number | null; alt: string; className?: string }) {
+/**
+ * An uploaded photo. Loads the smallest copy that is sharp for its size on screen (`sizes`), only when it is
+ * about to scroll into view unless `priority` (use that for the big photo at the top of a page).
+ * The default `sizes` deliberately under-states the width on phones so 3× screens get a ~2× copy: still sharp,
+ * about a third of the data on slow mobile networks.
+ */
+export function Photo({ id, alt, className = "", sizes = "(min-width: 1024px) 400px, 55vw", priority = false }: { id?: number | null; alt: string; className?: string; sizes?: string; priority?: boolean }) {
   if (!id)
     return (
       <div className={`relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-brand-800 to-brand-950 ${className}`}>
@@ -128,7 +135,11 @@ export function Photo({ id, alt, className = "" }: { id?: number | null; alt: st
       </div>
     );
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src={`/api/files/${id}`} alt={alt} className={`object-cover ${className}`} />;
+  return (
+    <img src={fileUrl(id, 640)} srcSet={fileSrcSet(id)} sizes={sizes} alt={alt}
+      loading={priority ? "eager" : "lazy"} decoding="async" fetchPriority={priority ? "high" : "auto"}
+      className={`bg-brand-50 object-cover ${className}`} />
+  );
 }
 
 /** Line-art apartment blocks for hero backgrounds and photo placeholders. */

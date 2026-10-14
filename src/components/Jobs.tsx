@@ -12,6 +12,7 @@ import { addNote, assignProvider, providerRespond, cancelJob, reopenJob, decideQ
 import { JOB_LABEL, payerOf } from "@/lib/rules";
 import { providerStats, rankProviders } from "@/lib/insights";
 import { coverage, crumbText, trailFor } from "@/lib/geo";
+import { fileUrl } from "@/lib/file-url";
 
 const jobInclude = {
   requester: { select: { name: true, phone: true } },
@@ -92,7 +93,7 @@ export async function JobDetail({ id, viewer, back }: { id: number; viewer: User
           <div className="card">
             <div className="h2">Details</div>
             <p className="mt-2 whitespace-pre-line text-stone-700">{j.description}</p>
-            {j.photoId && <PhotoZoom src={`/api/files/${j.photoId}`} alt="Repair photo" className="block"><Photo id={j.photoId} alt="Job photo" className="mt-4 max-h-80 rounded-lg" /></PhotoZoom>}
+            {j.photoId && <PhotoZoom src={fileUrl(j.photoId, 1600)} alt="Repair photo" className="block"><Photo id={j.photoId} alt="Job photo" className="mt-4 max-h-80 rounded-lg" /></PhotoZoom>}
           </div>
 
           <div className="card">

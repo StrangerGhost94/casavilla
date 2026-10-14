@@ -22,6 +22,7 @@ import { crumbText, trailFor } from "@/lib/geo";
 import { marketRent, tenantScore } from "@/lib/insights";
 
 import { PROPERTY_TYPES } from "@/lib/property-types";
+import { fileUrl } from "@/lib/file-url";
 export { PROPERTY_TYPES };
 
 /** Editing an existing property's details (its own screen, not repeated on the property page). */
@@ -336,7 +337,7 @@ function PhotoSummary({ base, propertyId, photos, units }: { base: string; prope
         <Link href={href} className="mt-3 flex gap-2 overflow-hidden">
           {sorted.slice(0, 5).map((x) => (
             // eslint-disable-next-line @next/next/no-img-element
-            <img key={x.id} src={`/api/files/${x.fileId}`} alt={x.label} className="h-16 w-20 shrink-0 rounded-lg object-cover" />
+            <img key={x.id} src={fileUrl(x.fileId, 320)} loading="lazy" alt={x.label} className="h-16 w-20 shrink-0 rounded-lg object-cover" />
           ))}
           {sorted.length > 5 && <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-stone-100 text-sm font-semibold text-stone-600">+{sorted.length - 5}</span>}
         </Link>
