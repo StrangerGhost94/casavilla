@@ -35,7 +35,8 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
   if (!u) return { error: "Wrong email/phone or password." };
   if (u.status === "suspended") return { error: "This account is suspended. Contact CasaVilla." };
   await startSession(u, fd.get("remember") === "on");
-  redirect(safeNext(fd.get("next")) || homeFor(u.role));
+  // Tenants land on the marketplace (their rent and lease are one tap away at the top).
+  redirect(safeNext(fd.get("next")) || (u.role === "tenant" ? "/" : homeFor(u.role)));
 }
 
 const schema = z.object({
@@ -97,7 +98,7 @@ export async function register(prev: CodeState, fd: FormData): Promise<CodeState
   if (linking) await requestLink(u, d.landlordPhone!, d.unitNote || null);
   if (d.role === "landlord") await attachWaitingTenants(u);
   await startSession(u);
-  redirect(safeNext(fd.get("next")) || homeFor(u.role));
+  redirect(safeNext(fd.get("next")) || (u.role === "tenant" ? "/" : homeFor(u.role)));
 }
 
 const accountLabel = (u: { role: string; email: string; name: string }) =>

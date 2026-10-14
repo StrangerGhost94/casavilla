@@ -8,11 +8,11 @@ export type SaleRow = {
   sizeValue: number | null; sizeUnit: string | null; plotDims: string | null; bedrooms: number | null; titleStatus: string; titleVerified: boolean;
 };
 
-export function SaleCard({ l, href = `/sale/${l.id}` }: { l: SaleRow; href?: string }) {
+export function SaleCard({ l, href = `/sale/${l.id}`, className = "" }: { l: SaleRow; href?: string; className?: string }) {
   const size = sizeText(l);
   const pa = l.kind === "land" || l.kind === "farm" ? perAcre(l) : null;
   return (
-    <Link href={href} className="group block overflow-hidden rounded-2xl border border-stone-200/70 bg-white shadow-card transition hover:-translate-y-0.5 hover:shadow-float">
+    <Link href={href} className={`group block overflow-hidden rounded-2xl border border-stone-200/70 bg-white shadow-card transition hover:-translate-y-0.5 hover:shadow-float ${className}`}>
       <div className="relative">
         <Photo id={l.photoId} alt={l.title} className="h-48 w-full" />
         <span className="pill absolute left-3 top-3 bg-gold-400 uppercase tracking-wide text-brand-950">For sale</span>

@@ -13,14 +13,14 @@ export async function PublicHeader() {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <Link href="/"><Logo size="sm" /></Link>
           <nav className="hidden items-center gap-1 md:flex">
-            {[["/listings", "Discover homes"], ["/stays", "Short stays"], ["/services", "Services"], ["/shop", "Shop"]].map(([h, l]) => (
+            {[["/listings", "To rent"], ["/stays", "Short stays"], ["/sale", "For sale"], ["/services", "Services"], ["/shop", "Shop"]].map(([h, l]) => (
               <Link key={h} href={h} className="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100 hover:text-brand-900">{l}</Link>
             ))}
           </nav>
           <div className="flex items-center gap-2">
             {u ? (
               <Link href={homeFor(u.role)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-semibold text-brand-900 hover:bg-stone-100">
-                <Avatar name={u.name} className="h-8 w-8 text-xs ring-2 ring-gold-400/70" /> <span className="hidden sm:inline">My dashboard</span>
+                <Avatar name={u.name} className="h-8 w-8 text-xs ring-2 ring-gold-400/70" /> <span className="hidden sm:inline">{u.role === "tenant" ? "My home" : "My dashboard"}</span>
               </Link>
             ) : (
               <>

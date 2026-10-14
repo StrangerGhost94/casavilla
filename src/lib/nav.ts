@@ -8,7 +8,7 @@ export const roleName: Record<Role, string> = {
 
 export const menus: Record<Role, NavItem[]> = {
   tenant: [
-    { href: "/tenant", label: "Home", icon: "home" },
+    { href: "/tenant", label: "My home", icon: "key" },
     { href: "/tenant/rent", label: "Rent & receipts", icon: "wallet" },
     { href: "/tenant/requests", label: "Maintenance", icon: "wrench" },
     { href: "/tenant/lease", label: "Lease & documents", icon: "file" },
@@ -78,12 +78,13 @@ export type Tabs = { left: NavItem[]; action: NavItem; right: NavItem[] };
 
 export const tabs: Record<Role | "guest", Tabs> = {
   guest: {
-    left: [{ href: "/", label: "Home", icon: "home" }, { href: "/listings", label: "Discover", icon: "search" }],
+    left: [{ href: "/", label: "Home", icon: "home" }, { href: "/listings", label: "Search", icon: "search" }],
     action: { href: "/register", label: "Join", icon: "plus" },
-    right: [{ href: "/services", label: "Services", icon: "sparkles" }, { href: "/login", label: "Sign in", icon: "user" }],
+    right: [{ href: "/sale", label: "For sale", icon: "tag" }, { href: "/login", label: "Sign in", icon: "user" }],
   },
   tenant: {
-    left: [{ href: "/tenant", label: "Home", icon: "home" }, { href: "/listings", label: "Discover", icon: "search" }],
+    // Home is the marketplace; the tenant's own rent, lease and repairs live under "My home".
+    left: [{ href: "/", label: "Home", icon: "home" }, { href: "/tenant", label: "My home", icon: "key" }],
     action: { href: "/tenant/requests/new", label: "Report issue", icon: "plus" },
     right: [{ href: "/services", label: "Services", icon: "sparkles" }, { href: "/profile", label: "Profile", icon: "user" }],
   },
