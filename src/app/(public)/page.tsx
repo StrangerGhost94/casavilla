@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BedDouble, Building2, CalendarDays, ChevronRight, Home as HomeIcon, KeyRound, LayoutDashboard, MapPin, ShoppingBag, Sparkles, Store, Trees, UserRound, Wallet, Wrench } from "lucide-react";
+import { BedDouble, Building2, CalendarDays, ChevronRight, Home as HomeIcon, KeyRound, LayoutDashboard, MapPin, ShoppingBag, Sparkles, Store, Trees, Wallet } from "lucide-react";
 import { db, SERVICE_CATEGORIES, type User } from "@/db";
 import { getUser, homeFor } from "@/lib/auth";
 import { listedUnits } from "@/lib/queries";
@@ -180,27 +180,6 @@ export default async function Home() {
             ))}
           </div>
         </section>
-
-        {/* New here? */}
-        {!u && (
-          <section className="mt-8">
-            <h2 className="text-lg font-bold text-brand-950">New to CasaVilla?</h2>
-            <p className="muted mt-0.5">Create a free account — each person gets their own dashboard, and everything links together.</p>
-            <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-              {[
-                { id: "tenant", title: "Tenant", body: "Apply for homes, pay rent, report repairs", icon: UserRound, tone: "bg-brand-800 text-gold-300" },
-                { id: "landlord", title: "Landlord or seller", body: "Let or sell property, track income", icon: HomeIcon, tone: "bg-gold-400 text-brand-950" },
-                { id: "provider", title: "Service provider", body: "Offer your services, get hired", icon: Wrench, tone: "bg-brand-800 text-gold-300" },
-              ].map((r) => (
-                <Link key={r.id} href={`/register?role=${r.id}`} className="card flex items-center gap-4 p-4 transition hover:-translate-y-0.5 hover:border-brand-200">
-                  <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl ${r.tone}`}><r.icon className="h-5 w-5" /></span>
-                  <span className="min-w-0 flex-1"><span className="block font-semibold text-brand-950">{r.title}</span><span className="block text-xs text-stone-500">{r.body}</span></span>
-                  <ChevronRight className="h-4 w-4 text-stone-400" />
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
 
         <section id="contact" className="relative mt-10 overflow-hidden rounded-3xl bg-brand-900 p-7 text-white md:flex md:items-center md:justify-between md:p-10">
           <BuildingArt className="pointer-events-none absolute inset-x-0 bottom-0 h-40 w-full text-white/[0.06]" />
