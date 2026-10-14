@@ -89,3 +89,41 @@ input[type="file"]::file-selector-button {
 }
 input[type="file"]::file-selector-button:hover { background: #d9eae1; }
 details > summary::-webkit-details-marker { display: none; }
+
+/* ---------- "One home, one app" (components/Journey.tsx) ----------
+   Cards rise in one after another when the section comes into view, then each preview acts out its step
+   on a gentle 6-second loop. Loops pause off-screen; nothing moves for people who ask for reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .jny .jny-card { opacity: 0; transform: translateY(22px) scale(.98); }
+  .jny[data-in] .jny-card { animation: jny-rise .7s cubic-bezier(.2,.75,.25,1) both; animation-delay: calc(var(--i) * 120ms); }
+  .jny .jny-loop { animation-play-state: paused; }
+  .jny[data-in] .jny-loop {
+    animation-play-state: running; animation-duration: 6s; animation-iteration-count: infinite; animation-fill-mode: both;
+    animation-timing-function: cubic-bezier(.3,.7,.3,1); animation-delay: calc(var(--i, 0) * 120ms + .8s + var(--k, 0) * .45s);
+  }
+  .jny[data-in]:not([data-live]) .jny-loop { animation-play-state: paused; }
+  .jny-badge { animation-name: jny-pop; transform-origin: right center; }
+  .jny-shine { animation-name: jny-shine; }
+  .jny-tick { animation-name: jny-tick; }
+  .jny-tick svg { animation: inherit; animation-name: jny-check; }
+  .jny-sending { animation-name: jny-out; }
+  .jny-paid { animation-name: jny-in; }
+  .jny-bar { animation-name: jny-fill; transform-origin: left center; }
+  .jny-col { animation-name: jny-grow; transform-origin: bottom center; }
+  .jny-float { animation-name: jny-float; animation-timing-function: ease-in-out; }
+}
+@keyframes jny-rise { from { opacity: 0; transform: translateY(22px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes jny-pop { 0%, 6% { opacity: 0; transform: scale(.5); } 12% { opacity: 1; transform: scale(1.18); } 17%, 88% { opacity: 1; transform: scale(1); } 96%, 100% { opacity: 0; transform: scale(.8); } }
+@keyframes jny-shine { 0%, 20% { transform: translateX(-120%); } 45%, 100% { transform: translateX(220%); } }
+@keyframes jny-tick {
+  0%, 4% { background-color: transparent; border-color: #7fb59b; transform: scale(1); }
+  9% { background-color: #17523b; border-color: #17523b; transform: scale(1.22); }
+  13%, 80% { background-color: #17523b; border-color: #17523b; transform: scale(1); }
+  88%, 100% { background-color: transparent; border-color: #7fb59b; transform: scale(1); }
+}
+@keyframes jny-check { 0%, 6% { opacity: 0; } 11%, 80% { opacity: 1; } 88%, 100% { opacity: 0; } }
+@keyframes jny-out { 0%, 22% { opacity: 1; transform: none; } 27%, 92% { opacity: 0; transform: translateY(-4px); } 100% { opacity: 1; transform: none; } }
+@keyframes jny-in { 0%, 24% { opacity: 0; transform: scale(.6); } 31% { opacity: 1; transform: scale(1.15); } 35%, 90% { opacity: 1; transform: scale(1); } 96%, 100% { opacity: 0; transform: scale(.9); } }
+@keyframes jny-fill { 0% { transform: scaleX(.06); } 70%, 88% { transform: scaleX(1); } 96%, 100% { transform: scaleX(.06); } }
+@keyframes jny-grow { 0%, 2% { transform: scaleY(.12); } 16%, 86% { transform: scaleY(1); } 96%, 100% { transform: scaleY(.12); } }
+@keyframes jny-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
