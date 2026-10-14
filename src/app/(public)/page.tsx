@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, ClipboardCheck, KeyRound, LayoutDashboard, MessageCircle, Search, Wallet, Wrench, Building2 } from "lucide-react";
+import { ChevronRight, KeyRound, LayoutDashboard, Wallet } from "lucide-react";
 import { db, SERVICE_CATEGORIES, type User } from "@/db";
 import { getUser, homeFor } from "@/lib/auth";
 import { areaMatch, listedUnits } from "@/lib/queries";
@@ -9,6 +9,8 @@ import { Photo } from "@/components/ui";
 import { PropertyCard, StayCard } from "@/components/PropertyCard";
 import { SaleCard } from "@/components/SaleCard";
 import { MarketSearch } from "@/components/MarketSearch";
+import { Journey } from "@/components/Journey";
+import { MobileFooter } from "@/components/PublicHeader";
 import { AreaChips } from "@/components/AreaChips";
 import { chargesSummary } from "@/components/Ledger";
 import { activeLease } from "@/app/tenant/lib";
@@ -95,15 +97,6 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
   const hour = (new Date().getUTCHours() + 3) % 24;
   const hello = u ? `Good ${hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"}, ${u.name.split(" ")[0]}` : "Rent, stay or buy in Uganda";
   const nothing = !homes.length && !stays.length && !land.length && !buildings.length;
-  const tenant = u?.role === "tenant";
-  const join = (next: string) => (u ? next : `/register?role=tenant&next=${encodeURIComponent(next)}`);
-  const journey = [
-    { icon: Search, title: "Find", body: "Rent, book a stay or buy land. Look for the Verified badge.", href: "/listings" },
-    { icon: ClipboardCheck, title: "Move in", body: "Apply, sign the lease and record a move-in inspection in the app.", href: tenant ? "/tenant" : join("/tenant") },
-    { icon: Wallet, title: "Pay", body: "Rent and utility bills on Mobile Money, with receipts kept for you.", href: tenant ? "/tenant" : join("/tenant") },
-    { icon: Wrench, title: "Fix", body: "Report a repair and a vetted plumber, electrician or cleaner comes.", href: "/services" },
-    { icon: Building2, title: "Own", body: "List, sell, or let CasaVilla find tenants and collect rent for you.", href: "/list" },
-  ];
 
   return (
     <main>
@@ -163,29 +156,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
           </div>
         </section>
 
-        {/* The whole journey in one app: what happens after you find the place */}
-        <section className="mt-10 rounded-3xl bg-brand-950 p-5 text-white md:p-10">
-          <div className="text-xs font-semibold uppercase tracking-widest text-gold-300">One home, one app</div>
-          <h2 className="mt-1 text-xl font-bold md:text-2xl">From finding it to living in it</h2>
-          <ol className="relative mt-5 grid grid-cols-1 gap-0 md:grid-cols-5 md:gap-4">
-            {journey.map((j, i) => (
-              <li key={j.title} className="relative">
-                {i < journey.length - 1 && <span aria-hidden className="absolute left-5 top-11 h-[calc(100%-2.25rem)] w-px bg-white/15 md:left-11 md:top-5 md:h-px md:w-[calc(100%-1.75rem)]" />}
-                <Link href={j.href} className="relative flex gap-3 rounded-2xl py-2.5 pr-2 transition hover:bg-white/5 md:flex-col md:p-0">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-400 text-brand-950"><j.icon className="h-5 w-5" /></span>
-                  <span className="min-w-0">
-                    <span className="block font-semibold">{j.title}</span>
-                    <span className="block text-sm leading-snug text-white/65">{j.body}</span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ol>
-          <div className="mt-5 flex flex-wrap items-center gap-2 border-t border-white/10 pt-5">
-            {!u && <Link href="/register" className="btn-gold">Create a free account</Link>}
-            <a href="https://wa.me/256776593482" className="btn border border-white/25 text-white hover:bg-white/10"><MessageCircle className="h-4 w-4" /> WhatsApp CasaVilla</a>
-          </div>
-        </section>
+        <Journey signedIn={!!u} tenant={u?.role === "tenant"} />
+        <MobileFooter />
       </div>
     </main>
   );

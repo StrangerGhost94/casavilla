@@ -3,6 +3,8 @@ import { Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { getUser, homeFor } from "@/lib/auth";
 import { tabs } from "@/lib/nav";
 import { Avatar, Logo } from "./ui";
+import { SocialLinks } from "./SocialLinks";
+import { CONTACT } from "@/lib/social";
 import { BottomNav } from "./NavLinks";
 
 export async function PublicHeader() {
@@ -38,6 +40,22 @@ export async function PublicHeader() {
   );
 }
 
+/** Phones don't get the full footer (the tab bar does that job); the home page ends with this instead. */
+export function MobileFooter() {
+  return (
+    <footer className="no-print mt-10 border-t border-stone-200/80 pb-4 pt-6 text-center lg:hidden">
+      <div className="text-xs font-semibold uppercase tracking-widest text-stone-500">Follow CasaVilla</div>
+      <SocialLinks tone="light" className="mt-3 justify-center" />
+      <div className="mt-4 flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-xs text-stone-500">
+        <a href={`tel:${CONTACT.phones[0].replace(/\s/g, "")}`} className="font-semibold text-brand-800">{CONTACT.phones[0]}</a>
+        <span aria-hidden>·</span>
+        <a href={`mailto:${CONTACT.email}`} className="hover:text-brand-800">{CONTACT.email}</a>
+      </div>
+      <div className="mt-1 text-[11px] text-stone-400">Rubaga Road, Kampala · © {new Date().getFullYear()} CasaVilla</div>
+    </footer>
+  );
+}
+
 export function PublicFooter() {
   return (
     <footer className="no-print web-only mt-14 hidden bg-brand-950 text-white/70 lg:block">
@@ -45,13 +63,14 @@ export function PublicFooter() {
         <div>
           <Logo tone="light" />
           <p className="mt-4 max-w-xs">Connect. Manage. Grow. Property management for landlords, tenants and trusted service providers across Kampala.</p>
+          <div className="mt-5 text-xs font-semibold uppercase tracking-widest text-gold-300">Follow us</div>
+          <SocialLinks className="mt-2.5" />
         </div>
         <div className="space-y-2.5">
           <div className="font-semibold text-gold-300">Contact</div>
-          <a href="tel:+256776593482" className="flex items-center gap-2 hover:text-white"><Phone className="h-4 w-4" /> +256 776 593 482</a>
-          <a href="tel:+256756390089" className="flex items-center gap-2 hover:text-white"><Phone className="h-4 w-4" /> +256 756 390 089</a>
-          <a href="mailto:info.casavilla026@gmail.com" className="flex items-center gap-2 hover:text-white"><Mail className="h-4 w-4" /> info.casavilla026@gmail.com</a>
-          <div className="flex items-start gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /> P.O. Box 214887, Rubaga Road, Kampala, Uganda</div>
+          {CONTACT.phones.map((ph) => <a key={ph} href={`tel:${ph.replace(/\s/g, "")}`} className="flex items-center gap-2 hover:text-white"><Phone className="h-4 w-4" /> {ph}</a>)}
+          <a href={`mailto:${CONTACT.email}`} className="flex items-center gap-2 hover:text-white"><Mail className="h-4 w-4" /> {CONTACT.email}</a>
+          <div className="flex items-start gap-2"><MapPin className="mt-0.5 h-4 w-4 shrink-0" /> {CONTACT.address}</div>
         </div>
         <div className="space-y-2.5">
           <div className="font-semibold text-gold-300">Explore</div>
