@@ -78,7 +78,7 @@ export function SaleDetails({ d }: { d: Defaults }) {
           <label><span className="label">Bathrooms</span><input name="bathrooms" type="number" min={0} max={50} defaultValue={d.bathrooms ?? (kind === "commercial" ? "" : 2)} className="input" /></label>
         </div>
       )}
-      <div className="grid gap-2 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
         <label><span className="label">Land tenure</span>
           <select name="tenure" value={tenure} onChange={(e) => setTenure(e.target.value)} className="input">
             <option value="">Not sure / ask</option>
