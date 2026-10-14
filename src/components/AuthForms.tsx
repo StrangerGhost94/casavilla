@@ -112,7 +112,7 @@ export function RegisterForm({ role: initial, next, messaging = false }: { role?
       {verifying && <CodeStep state={state} pending={pending} onBack={() => setEditing(true)} backLabel="Change my details" />}
       {state?.error && <div role="alert" className="rounded-xl bg-maroon-50 p-3 text-sm text-maroon-600">{state.error}</div>}
       {!verifying && <button className="btn-primary btn-lg w-full" disabled={pending}>{pending ? "Please wait…" : "Get started"}</button>}
-      <p className="pt-1 text-center text-sm text-stone-500">Already registered? <Link href="/login" className="font-semibold text-brand-700 hover:underline">Sign in</Link></p>
+      <p className="pt-1 text-center text-sm text-stone-500">Already registered? <Link href={next ? `/login?next=${encodeURIComponent(next)}` : "/login"} className="font-semibold text-brand-700 hover:underline">Sign in</Link></p>
     </form>
   );
 }

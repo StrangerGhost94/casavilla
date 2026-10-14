@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BedDouble, Building2, CalendarDays, ChevronRight, Home as HomeIcon, KeyRound, LayoutDashboard, MapPin, ShoppingBag, Sparkles, Store, Trees, Wallet } from "lucide-react";
+import { Building2, ChevronRight, KeyRound, LayoutDashboard, MapPin, Wallet } from "lucide-react";
 import { db, SERVICE_CATEGORIES, type User } from "@/db";
 import { getUser, homeFor } from "@/lib/auth";
 import { listedUnits } from "@/lib/queries";
@@ -84,16 +84,6 @@ export default async function Home() {
   ]);
   const hour = (new Date().getUTCHours() + 3) % 24;
   const hello = u ? `Good ${hour < 12 ? "morning" : hour < 17 ? "afternoon" : "evening"}, ${u.name.split(" ")[0]}` : "Rent, stay or buy in Uganda";
-  const tiles = [
-    { href: "/listings", label: "Homes to rent", icon: HomeIcon },
-    { href: "/stays", label: "Short stays", icon: CalendarDays },
-    { href: "/sale?kind=land", label: "Land & plots", icon: Trees },
-    { href: "/sale?kind=house", label: "Houses for sale", icon: Building2 },
-    { href: "/listings?beds=1", label: "1-bedroom", icon: BedDouble },
-    { href: "/sale?kind=commercial", label: "Commercial", icon: Store },
-    { href: "/services", label: "Services", icon: Sparkles },
-    { href: "/shop", label: "Shop", icon: ShoppingBag },
-  ];
   const nothing = !homes.length && !stays.length && !land.length && !buildings.length;
 
   return (
@@ -113,18 +103,8 @@ export default async function Home() {
       <div className="relative z-10 mx-auto -mt-5 max-w-6xl rounded-t-3xl bg-cream px-4 pt-5 md:rounded-none md:pt-8">
         {u && <div className="mb-5"><MyStrip u={u} /></div>}
 
-        {/* Categories */}
-        <div className="grid grid-cols-4 gap-2 sm:grid-cols-8">
-          {tiles.map((t) => (
-            <Link key={t.href} href={t.href} className="flex flex-col items-center gap-1.5 rounded-2xl border border-stone-200/70 bg-white px-1 py-3 text-center shadow-card transition hover:border-brand-200">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><t.icon className="h-5 w-5" /></span>
-              <span className="text-[11px] font-medium leading-tight text-stone-700">{t.label}</span>
-            </Link>
-          ))}
-        </div>
-
         {/* Popular areas */}
-        <div className="-mx-4 mt-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+        <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
           <NearMe />
           {AREAS.map((a) => <Link key={a} href={`/listings?q=${encodeURIComponent(a)}`} className="chip"><MapPin className="h-3.5 w-3.5" /> {a}</Link>)}
         </div>
@@ -151,32 +131,15 @@ export default async function Home() {
         )}
         {nothing && <div className="card mt-8 text-center text-sm text-stone-500">New listings are coming soon — check back shortly.</div>}
 
-        {/* Sell or let with CasaVilla */}
-        <section className="mt-8 grid grid-cols-1 gap-3 md:grid-cols-2">
-          <Link href={u && (u.role === "landlord" || u.role === "manager") ? `/${u.role}/properties/new` : "/register?role=landlord"} className="card flex items-center gap-3 p-4 hover:border-brand-200">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gold-400 text-brand-950"><KeyRound className="h-5 w-5" /></span>
-            <span className="min-w-0 flex-1"><span className="block font-semibold text-brand-950">Rent out your property</span><span className="block text-xs text-stone-500">List units, collect rent on Mobile Money, manage tenants.</span></span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-stone-400" />
-          </Link>
-          <Link href={u && (u.role === "landlord" || u.role === "manager") ? `/${u.role}/sale/new` : "/register?role=landlord&next=/landlord/sale/new"} className="card flex items-center gap-3 p-4 hover:border-brand-200">
-            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-brand-800 text-gold-300"><Trees className="h-5 w-5" /></span>
-            <span className="min-w-0 flex-1"><span className="block font-semibold text-brand-950">Sell land or a property</span><span className="block text-xs text-stone-500">Reviewed by CasaVilla, with title verification for buyers.</span></span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-stone-400" />
-          </Link>
-        </section>
-
-        {/* Services */}
+        {/* Services — a short row; the Services tab has the full list */}
         <section className="mt-8">
           <div className="mb-3 flex items-end justify-between gap-3">
-            <h2 className="text-lg font-bold text-brand-950">Services for your property</h2>
+            <h2 className="text-lg font-bold text-brand-950">Services for your home</h2>
             <Link href="/services" className="flex shrink-0 items-center gap-0.5 text-sm font-semibold text-brand-700">See all <ChevronRight className="h-4 w-4" /></Link>
           </div>
-          <div className="grid grid-cols-4 gap-2.5 sm:grid-cols-6 lg:grid-cols-11">
-            {SERVICE_CATEGORIES.map((c) => (
-              <Link key={c} href={`/services?category=${encodeURIComponent(c)}`} className="flex flex-col items-center gap-2 rounded-2xl border border-stone-200/70 bg-white px-1 py-3 text-center shadow-card transition hover:border-brand-200">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><CategoryIcon category={c} /></span>
-                <span className="text-[11px] font-medium leading-tight text-stone-700">{categoryLabel[c] ?? c}</span>
-              </Link>
+          <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] md:mx-0 md:px-0">
+            {SERVICE_CATEGORIES.slice(0, 8).map((c) => (
+              <Link key={c} href={`/services?category=${encodeURIComponent(c)}`} className="chip shrink-0 py-2"><CategoryIcon category={c} /> {categoryLabel[c] ?? c}</Link>
             ))}
           </div>
         </section>
@@ -185,12 +148,12 @@ export default async function Home() {
           <BuildingArt className="pointer-events-none absolute inset-x-0 bottom-0 h-40 w-full text-white/[0.06]" />
           <div className="relative">
             <div className="flex items-center gap-2 text-gold-300"><Building2 className="h-5 w-5" /><span className="text-xs font-semibold uppercase tracking-widest">Better living starts here</span></div>
-            <div className="mt-2 text-2xl font-semibold">Want CasaVilla to manage your property?</div>
-            <p className="mt-1 text-sm text-white/70">Call, email or WhatsApp our team on Rubaga Road.</p>
+            <div className="mt-2 text-2xl font-semibold">Own property? Let us manage it.</div>
+            <p className="mt-1 text-sm text-white/70">List it for rent or sale yourself, or let our team on Rubaga Road find tenants and collect rent.</p>
           </div>
           <div className="relative mt-5 flex flex-wrap gap-2 md:mt-0">
-            <a href="https://wa.me/256776593482" className="btn-gold">WhatsApp us</a>
-            <a href="tel:+256776593482" className="btn border border-white/30 text-white hover:bg-white/10">+256 776 593 482</a>
+            <Link href="/list" className="btn-gold">List a property</Link>
+            <a href="https://wa.me/256776593482" className="btn border border-white/30 text-white hover:bg-white/10">WhatsApp us</a>
           </div>
         </section>
       </div>

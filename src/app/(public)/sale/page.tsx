@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { Prisma } from "@prisma/client";
 import { MapPin, Search, SlidersHorizontal } from "lucide-react";
 import { db } from "@/db";
-import { getUser } from "@/lib/auth";
 import { Empty } from "@/components/ui";
 import { DiscoverTabs } from "@/components/DiscoverTabs";
 import { SaleCard } from "@/components/SaleCard";
@@ -37,8 +36,6 @@ export default async function ForSale({ searchParams }: { searchParams: Promise<
     return `/sale${p.size ? `?${p}` : ""}`;
   };
   const total = counts.reduce((s, c) => s + c._count, 0);
-  const me = await getUser();
-  const listHref = me && (me.role === "landlord" || me.role === "manager") ? `/${me.role}/sale/new` : "/register?role=landlord&next=/landlord/sale/new";
   return (
     <main className="mx-auto max-w-6xl px-4 pt-6">
       <h1 className="text-2xl font-bold text-brand-950">Discover</h1>
@@ -89,13 +86,6 @@ export default async function ForSale({ searchParams }: { searchParams: Promise<
       </div>
       {!rows.length && <Empty title="Nothing for sale matches yet">Try another area or a higher budget.</Empty>}
 
-      <div className="card mt-8 flex flex-wrap items-center justify-between gap-3 bg-brand-950 text-white">
-        <div>
-          <div className="font-semibold">Selling land or a property?</div>
-          <div className="text-sm text-white/70">List it with CasaVilla — we review every listing and can verify the title for buyers.</div>
-        </div>
-        <Link href={listHref} className="btn-gold">List a property</Link>
-      </div>
     </main>
   );
 }

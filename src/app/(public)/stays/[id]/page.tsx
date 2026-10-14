@@ -60,7 +60,7 @@ export default async function StayPage({ params, searchParams }: { params: Promi
             ) : (
               <div className="space-y-2">
                 <Link href={`/register?role=tenant&next=/stays/${u.id}`} className="btn-primary btn-lg w-full">Sign up to book</Link>
-                <Link href={`/login?next=/stays/${u.id}`} className="btn-outline w-full">I already have an account</Link>
+                <p className="text-center text-xs text-stone-500">Free account · takes a minute</p>
               </div>
             )}
             <p className="mt-3 text-[11px] text-stone-500">Hosted by {p.landlord.name} · managed with CasaVilla</p>

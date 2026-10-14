@@ -80,9 +80,9 @@ export type Tabs = { left: NavItem[]; action: NavItem; right: NavItem[] };
 
 export const tabs: Record<Role | "guest", Tabs> = {
   guest: {
-    left: [{ href: "/", label: "Home", icon: "home" }, { href: "/listings", label: "Search", icon: "search" }],
-    action: { href: "/register", label: "Join", icon: "plus" },
-    right: [{ href: "/sale", label: "For sale", icon: "tag" }, { href: "/login", label: "Sign in", icon: "user" }],
+    left: [{ href: "/", label: "Home", icon: "home" }, { href: "/listings", label: "Explore", icon: "search" }],
+    action: { href: "/list", label: "List", icon: "plus" },
+    right: [{ href: "/services", label: "Services", icon: "sparkles" }, { href: "/login", label: "Sign in", icon: "user" }],
   },
   tenant: {
     // Home is the marketplace; the tenant's own rent, lease and repairs live under "My home".
