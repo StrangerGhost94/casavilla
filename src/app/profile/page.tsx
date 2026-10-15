@@ -1,6 +1,6 @@
 import { BadgeCheck, BellRing, ChevronRight, Clock, LogOut, MapPin, MessageCircle } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { menus, roleName } from "@/lib/nav";
+import { grouped, menus, roleName } from "@/lib/nav";
 import { logout, saveMessagePrefs } from "@/app/actions";
 import { PhoneCheck } from "@/components/AuthForms";
 import { messagingConfigured, otpMode } from "@/lib/messaging";
@@ -33,7 +33,7 @@ export default async function Profile() {
           </div>
         </div>
 
-        <div className="card mt-4 divide-y divide-stone-100 p-0">
+        <div className="card mt-4 divide-y divide-stone-100 p-0 empty:hidden">
           {u.role !== "manager" && (
             // Same row style as the menu below; the picker only opens when tapped.
             <details className="group">
@@ -77,10 +77,22 @@ export default async function Profile() {
               {!u.phoneVerifiedAt && otpMode() !== "off" && <div className="border-t border-stone-100 pt-3"><PhoneCheck /></div>}
             </div>
           </details>}
-          {items.map((i) => (
-            <ListRow key={i.href} href={i.href} title={i.label}
-              icon={<span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><NavIcon name={i.icon} className="h-[18px] w-[18px]" /></span>} />
-          ))}
+        </div>
+
+        {/* The full menu, in the same groups as the computer sidebar */}
+        {grouped(items).map((g, gi) => (
+          <section key={g.title ?? gi} className="mt-4">
+            {g.title && <h2 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">{g.title}</h2>}
+            <div className="card divide-y divide-stone-100 p-0">
+              {g.items.map((i) => (
+                <ListRow key={i.href} href={i.href} title={i.label}
+                  icon={<span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><NavIcon name={i.icon} className="h-[18px] w-[18px]" /></span>} />
+              ))}
+            </div>
+          </section>
+        ))}
+
+        <div className="card mt-4 p-0">
           <ListRow href="https://wa.me/256776593482" title="Contact CasaVilla" detail="WhatsApp +256 776 593 482"
             icon={<span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-50 text-gold-600"><MessageCircle className="h-[18px] w-[18px]" /></span>} />
         </div>

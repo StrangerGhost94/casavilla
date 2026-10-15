@@ -170,12 +170,12 @@ export function AttentionList({ rows }: { rows: { href: string; count: number; l
 }
 
 /** Label/value row used in "Income overview" style cards. */
-export function KeyRow({ icon, label, value, strong }: { icon?: React.ReactNode; label: string; value: React.ReactNode; strong?: boolean }) {
+export function KeyRow({ icon, label, value, strong }: { icon?: React.ReactNode; label: React.ReactNode; value: React.ReactNode; strong?: boolean }) {
   return (
     <div className="flex items-center gap-3 px-4 py-3 text-sm">
       {icon && <span className="text-stone-400">{icon}</span>}
       <span className="flex-1 text-stone-600">{label}</span>
-      <span className={strong ? "font-bold text-brand-950" : "font-semibold text-stone-800"}>{value}</span>
+      <span className={`text-right ${strong ? "font-bold text-brand-950" : "font-semibold text-stone-800"}`}>{value}</span>
     </div>
   );
 }

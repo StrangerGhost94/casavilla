@@ -55,9 +55,9 @@ export async function PortalShell({ user, children }: { user: User; children: Re
     <div className="portal-shell min-h-screen lg:flex">
       {/* Desktop sidebar */}
       <aside className="no-print hidden bg-brand-900 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col">
-        <Link href="/" className="px-5 pb-5 pt-6"><Logo tone="light" size="lg" /></Link>
+        <Link href="/" className="shrink-0 px-5 pb-4 pt-6"><Logo tone="light" size="lg" /></Link>
         <NavLinks items={items} />
-        <div className="mt-auto border-t border-white/10 p-4">
+        <div className="shrink-0 border-t border-white/10 p-4">
           <Link href="/profile" className="flex items-center gap-3 rounded-xl p-2 hover:bg-white/5">
             <Avatar name={user.name} className="h-9 w-9 text-xs ring-2 ring-gold-400/60" />
             <div className="min-w-0">

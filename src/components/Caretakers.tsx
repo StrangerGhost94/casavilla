@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ClipboardCheck, Receipt, UserCog, Wallet, Wrench, Zap } from "lucide-react";
 import { db, type User } from "@/db";
-import { fmtDate, ugx } from "@/lib/format";
+import { fmtDate, kampalaToday, ugx } from "@/lib/format";
 import { caretakerPropertyIds } from "@/lib/access";
 import { leaseBalance } from "@/lib/billing";
 import { Badge, Empty, Field, PageHeader } from "./ui";
@@ -96,7 +96,8 @@ export async function CaretakerHome({ viewer }: { viewer: User }) {
   if (!as.length) return <Empty title="No properties yet">Your landlord hasn&apos;t assigned you a property yet.</Empty>;
   const ids = as.map((a) => a.propertyId);
   const balanceIds = as.filter((a) => a.canSeeBalances).map((a) => a.propertyId);
-  const [overdue, jobs, drafts] = await Promise.all([
+  const monthStart = new Date(`${kampalaToday().slice(0, 7)}-01T00:00:00Z`);
+  const [overdue, jobs, drafts, toRead] = await Promise.all([
     balanceIds.length ? db.charge.findMany({
       where: { status: { not: "paid" }, dueDate: { lt: new Date() }, kind: { not: "deposit" }, lease: { status: "active", unit: { propertyId: { in: balanceIds } } } },
       include: { lease: { select: { id: true, tenant: { select: { name: true, phone: true } }, unit: { select: { label: true, property: { select: { name: true } } } } } } },
@@ -104,6 +105,8 @@ export async function CaretakerHome({ viewer }: { viewer: User }) {
     }) : [],
     db.job.count({ where: { propertyId: { in: ids }, status: { notIn: ["done", "cancelled"] } } }),
     db.inspection.count({ where: { status: "draft", unit: { propertyId: { in: ids } } } }),
+    // Meters with no reading yet this month (sub-meter bills depend on these).
+    db.meter.count({ where: { active: true, propertyId: { in: ids }, readings: { none: { readOn: { gte: monthStart } } } } }),
   ]);
   const owing = new Map<number, { name: string; phone: string; where: string; owed: number }>();
   for (const c of overdue) {
@@ -127,9 +130,10 @@ export async function CaretakerHome({ viewer }: { viewer: User }) {
           </Link>
         ))}
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <Link href="/caretaker/repairs" className="card p-4"><div className="text-xs text-stone-500">Open repairs</div><div className="text-xl font-bold text-brand-950">{jobs}</div></Link>
-        <Link href="/caretaker/inspections" className="card p-4"><div className="text-xs text-stone-500">Unfinished inspections</div><div className="text-xl font-bold text-brand-950">{drafts}</div></Link>
+      <div className="grid grid-cols-3 gap-2.5">
+        <Link href="/caretaker/repairs" className="card p-3.5"><div className="text-[11px] leading-tight text-stone-500">Open repairs</div><div className="mt-1 text-xl font-bold text-brand-950">{jobs}</div></Link>
+        <Link href="/caretaker/meters" className={`card p-3.5 ${toRead ? "border-gold-200 bg-gold-50/60" : ""}`}><div className="text-[11px] leading-tight text-stone-500">Meters to read this month</div><div className={`mt-1 text-xl font-bold ${toRead ? "text-gold-700" : "text-brand-950"}`}>{toRead}</div></Link>
+        <Link href="/caretaker/inspections" className="card p-3.5"><div className="text-[11px] leading-tight text-stone-500">Unfinished inspections</div><div className="mt-1 text-xl font-bold text-brand-950">{drafts}</div></Link>
       </div>
       {balanceIds.length > 0 && (
         <div className="card p-0">

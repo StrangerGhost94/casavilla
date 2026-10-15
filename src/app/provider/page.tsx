@@ -12,7 +12,7 @@ export default async function ProviderHome() {
   const weekAgo = new Date(Date.now() - 7 * 86400000);
   const count = (statuses: string[]) => db.job.count({ where: { providerId: u.id, status: { in: statuses } } });
   const [newJobs, active, done, svcs, weekJobs, weekOrders, openOrders] = await Promise.all([
-    count(["assigned"]), count(["accepted", "in_progress"]), count(["done"]),
+    count(["assigned"]), count(["accepted", "quoted", "in_progress"]), count(["done"]),
     db.service.findMany({ where: { providerId: u.id, active: true }, select: { category: true } }),
     db.job.aggregate({ _sum: { quote: true }, _count: true, where: { providerId: u.id, status: "done", completedAt: { gte: weekAgo } } }),
     db.order.aggregate({ _sum: { total: true }, where: { providerId: u.id, status: "delivered", createdAt: { gte: weekAgo } } }),
@@ -58,12 +58,21 @@ export default async function ProviderHome() {
         </p>
       )}
       <div className="mt-3 grid grid-cols-2 gap-3">
-        <Stat label="New jobs to accept" value={newJobs} href="/provider/jobs" />
+        <Stat label="Waiting for your answer" value={newJobs} href="/provider/jobs" />
         <Stat label="In progress" value={active} href="/provider/jobs" />
       </div>
 
-      <SectionTitle title="Today's jobs" href="/provider/jobs" />
-      <JobList where={{ providerId: u.id, status: { in: ["assigned", "accepted", "in_progress"] } }} base="/provider/jobs" empty="No active jobs right now" />
+      {/* New jobs first: a quick answer is what keeps a provider at the top of the list */}
+      {newJobs > 0 && (
+        <>
+          <SectionTitle title={`New job${newJobs > 1 ? "s" : ""} — accept or decline`} href="/provider/jobs" />
+          <p className="-mt-1 mb-2 text-xs text-stone-500">Open a job to accept it (you can add a quote) or decline it. Urgent jobs are at the top.</p>
+          <JobList where={{ providerId: u.id, status: "assigned" }} base="/provider/jobs" urgentFirst empty={null} />
+        </>
+      )}
+
+      <SectionTitle title="Your active jobs" href="/provider/jobs" />
+      <JobList where={{ providerId: u.id, status: { in: ["accepted", "quoted", "in_progress"] } }} base="/provider/jobs" urgentFirst empty="No active jobs right now" />
       {(openOrders._sum.total ?? 0) > 0 && <p className="mt-3 text-xs text-stone-500">Open shop orders worth {ugx(openOrders._sum.total)} — <Link href="/provider/orders" className="link">view orders</Link></p>}
     </div>
   );

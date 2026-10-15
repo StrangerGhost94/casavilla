@@ -8,6 +8,7 @@ import { chargesSummary } from "@/components/Ledger";
 import { CategoryIcon } from "@/lib/icons";
 import { activeLease } from "./lib";
 import { ConnectLandlordCard } from "@/components/Links";
+import { chargeLabel, payLabel } from "@/lib/rules";
 
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
@@ -60,7 +61,8 @@ export default async function TenantHome() {
   const { owed, next } = await chargesSummary(lease.l.id);
   const today = kampalaToday();
   const days = next ? daysBetween(today, ymd(next.dueDate)) : null;
-  const payments = await db.payment.findMany({ where: { leaseId: lease.l.id, status: "success" }, orderBy: { paidAt: "desc" }, take: 3 });
+  const payments = await db.payment.findMany({ where: { leaseId: lease.l.id, status: "success" }, orderBy: { paidAt: "desc" }, take: 3, include: { charge: { select: { kind: true, period: true } } } });
+  const leaseDays = daysBetween(today, ymd(lease.l.endDate));
 
   return (
     <div className="mx-auto max-w-2xl">
@@ -88,14 +90,25 @@ export default async function TenantHome() {
                 ? <span className="flex items-center gap-1 font-semibold text-maroon-600"><AlertCircle className="h-3.5 w-3.5" /> Overdue by {-days} day{days === -1 ? "" : "s"}</span>
                 : <span className="flex items-center gap-1 text-stone-600"><CalendarClock className="h-3.5 w-3.5 text-gold-600" /> Due in {days} day{days === 1 ? "" : "s"}</span>
             ) : <span className="flex items-center gap-1 font-semibold text-brand-700"><CheckCircle2 className="h-3.5 w-3.5" /> All paid up</span>}
-            {next && <div className="mt-0.5 text-stone-400">{fmtDate(next.dueDate)}</div>}
+            {next && <div className="mt-0.5 text-stone-400">{chargeLabel(next.kind, next.period)} · {fmtDate(next.dueDate)}</div>}
           </div>
         </div>
         <div className="mt-3 grid grid-cols-2 gap-2">
-          {next ? <Link href={`/tenant/pay/${next.id}`} className="btn-primary">Pay rent</Link> : <Link href="/tenant/rent" className="btn-primary">Receipts</Link>}
+          {next ? <Link href={`/tenant/pay/${next.id}`} className="btn-primary">{payLabel(next.kind)}</Link> : <Link href="/tenant/rent" className="btn-primary">Receipts</Link>}
           <Link href="/tenant/requests/new" className="btn-outline">Report issue</Link>
         </div>
       </div>
+
+      {/* Lease end: a nudge two months ahead, otherwise a quiet line */}
+      {leaseDays <= 60 ? (
+        <Link href="/tenant/lease" className={`mt-3 flex items-center gap-3 rounded-2xl border p-3.5 text-sm ${leaseDays < 0 ? "border-maroon-100 bg-maroon-50 text-maroon-700" : "border-gold-200 bg-gold-50/70 text-stone-700"}`}>
+          <CalendarClock className="h-5 w-5 shrink-0 text-gold-600" />
+          <span className="min-w-0 flex-1">{leaseDays < 0 ? <>Your lease ended on <b>{fmtDate(lease.l.endDate)}</b>. Talk to {lease.landlord} about renewing.</> : <>Your lease ends in <b>{leaseDays} day{leaseDays === 1 ? "" : "s"}</b> ({fmtDate(lease.l.endDate)}). Agree a renewal with {lease.landlord} in good time.</>}</span>
+          <span className="shrink-0 text-xs font-semibold text-brand-700">Lease</span>
+        </Link>
+      ) : (
+        <p className="mt-2 px-1 text-xs text-stone-500">Lease until {fmtDate(lease.l.endDate)} · landlord {lease.landlord}</p>
+      )}
 
       {/* Shortcuts */}
       <div className="mt-4 grid grid-cols-4 gap-2">
@@ -130,7 +143,7 @@ export default async function TenantHome() {
             {payments.map((p) => (
               <Link key={p.id} href={`/receipts/${p.id}`} className="flex items-center justify-between px-4 py-3 text-sm hover:bg-stone-50">
                 <div>
-                  <div className="font-medium text-stone-800">Rent payment received</div>
+                  <div className="font-medium text-stone-800">{chargeLabel(p.charge.kind, p.charge.period)}</div>
                   <div className="text-xs text-stone-500">{fmtDate(p.paidAt)} · {p.receiptNo}</div>
                 </div>
                 <div className="text-right">
@@ -142,8 +155,6 @@ export default async function TenantHome() {
           </div>
         </>
       )}
-
-      <FindHome />
     </div>
   );
 }

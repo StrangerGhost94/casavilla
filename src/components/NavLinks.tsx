@@ -6,6 +6,7 @@ import {
   CalendarDays, MapPinned, ShieldCheck, Store, User, Users, Wallet, Wrench, BarChart3, ClipboardCheck, Zap, UserCog, Receipt, MessageCircle, Tag, KeyRound, type LucideIcon,
 } from "lucide-react";
 import type { NavItem, Tabs } from "@/lib/nav";
+import { grouped } from "@/lib/nav";
 
 const icons: Record<string, LucideIcon> = {
   home: Home, wallet: Wallet, wrench: Wrench, file: FileText, clipboard: ClipboardList, search: Search, sparkles: Sparkles,
@@ -30,17 +31,22 @@ export function NavLinks({ items }: { items: NavItem[] }) {
   const path = usePathname();
   const hrefs = items.map((i) => i.href);
   return (
-    <nav className="space-y-0.5 px-3">
-      {items.map((i) => {
-        const active = isActive(path, i.href, hrefs);
-        return (
-          <Link key={i.href} href={i.href}
-            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition ${active ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/5 hover:text-white"}`}>
-            <NavIcon name={i.icon} className={`h-[18px] w-[18px] ${active ? "text-gold-300" : ""}`} />
-            {i.label}
-          </Link>
-        );
-      })}
+    <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-3 [scrollbar-width:none]">
+      {grouped(items).map((g, gi) => (
+        <div key={g.title ?? gi} className={g.title ? "pt-3" : ""}>
+          {g.title && <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">{g.title}</div>}
+          {g.items.map((i) => {
+            const active = isActive(path, i.href, hrefs);
+            return (
+              <Link key={i.href} href={i.href}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${active ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/5 hover:text-white"}`}>
+                <NavIcon name={i.icon} className={`h-[18px] w-[18px] ${active ? "text-gold-300" : ""}`} />
+                {i.label}
+              </Link>
+            );
+          })}
+        </div>
+      ))}
     </nav>
   );
 }

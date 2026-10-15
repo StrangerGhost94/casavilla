@@ -50,3 +50,14 @@ export const EXPENSE_CATEGORIES = ["Repairs & maintenance", "Security", "Garbage
  * with no expenses deducted. Companies are taxed differently (30% of net). Shown as an estimate only.
  */
 export const RENTAL_TAX = { rate: 0.12, threshold: 2_820_000 } as const;
+
+/** What a charge was for, in words: "Rent · September 2026", "Deposit", "Utility bill · October 2026". */
+export function chargeLabel(kind: string, period?: string | null) {
+  const base = CHARGE_KIND_LABEL[kind] ?? "Payment";
+  if (!period || !/^\d{4}-\d{2}$/.test(period)) return base;
+  const [y, m] = period.split("-").map(Number);
+  return `${base} · ${new Date(y, m - 1, 1).toLocaleDateString("en-GB", { month: "long", year: "numeric" })}`;
+}
+
+/** The pay button's wording for the next thing owed. */
+export const payLabel = (kind?: string) => (kind === "rent" ? "Pay rent" : kind === "deposit" ? "Pay deposit" : "Pay now");

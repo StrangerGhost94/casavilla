@@ -22,9 +22,10 @@ const jobInclude = {
   service: { select: { title: true } },
 } satisfies Prisma.JobInclude;
 
-export async function JobList({ where, base, empty = "No jobs yet" }: { where: Prisma.JobWhereInput; base: string; empty?: string }) {
-  const rows = await db.job.findMany({ where, include: jobInclude, orderBy: { updatedAt: "desc" } });
-  if (!rows.length) return <Empty title={empty} />;
+/** `urgentFirst` puts urgent jobs at the top ("urgent" > "normal" > "low" also sorts that way as text). `empty={null}` shows nothing when there are none. */
+export async function JobList({ where, base, empty = "No jobs yet", urgentFirst = false }: { where: Prisma.JobWhereInput; base: string; empty?: string | null; urgentFirst?: boolean }) {
+  const rows = await db.job.findMany({ where, include: jobInclude, orderBy: urgentFirst ? [{ priority: "desc" }, { updatedAt: "desc" }] : { updatedAt: "desc" } });
+  if (!rows.length) return empty === null ? null : <Empty title={empty} />;
   return (
     <div className="card divide-y divide-stone-100 p-0">
       {rows.map((j) => (

@@ -434,6 +434,36 @@ export async function ApplicationsTable({ where }: { where: Prisma.ApplicationWh
   );
 }
 
+/**
+ * The tenants page: current tenants first; then former tenants who still owe (debts don't disappear when
+ * someone moves out); then every past tenancy, folded away.
+ */
+export async function TenantsSections({ where, base }: { where: Prisma.LeaseWhereInput; base: string }) {
+  const pastWhere: Prisma.LeaseWhereInput = { ...where, status: { not: "active" } };
+  const [pastOwing, pastCount] = await Promise.all([
+    db.lease.count({ where: { ...pastWhere, charges: { some: { status: { not: "paid" } } } } }),
+    db.lease.count({ where: pastWhere }),
+  ]);
+  return (
+    <>
+      <TenantsTable where={{ ...where, status: "active" }} base={base} />
+      {pastOwing > 0 && (
+        <section id="former" className="scroll-mt-24">
+          <h2 className="h2 mb-1 mt-8">Former tenants who still owe</h2>
+          <p className="muted mb-3">They have moved out but left a balance. Open one to record a payment or settle it.</p>
+          <TenantsTable where={pastWhere} base={base} only="owing" />
+        </section>
+      )}
+      {pastCount > 0 && (
+        <details className="mt-8">
+          <summary className="cursor-pointer list-none text-sm font-semibold text-stone-600">Past tenancies ({pastCount})</summary>
+          <div className="mt-3"><TenantsTable where={pastWhere} base={base} /></div>
+        </details>
+      )}
+    </>
+  );
+}
+
 /** Leases with balances. `only` narrows to leases that owe anything, or that have overdue charges. */
 export async function TenantsTable({ where, base, only }: { where: Prisma.LeaseWhereInput; base: string; only?: "owing" | "overdue" }) {
   const today = kampalaToday();
@@ -450,7 +480,7 @@ export async function TenantsTable({ where, base, only }: { where: Prisma.LeaseW
     owed: l.charges.reduce((s, c) => s + c.amount - c.paid, 0),
     overdue: l.charges.filter((c) => ymd(c.dueDate) < today).reduce((s, c) => s + c.amount - c.paid, 0),
   })).filter((r) => (only === "owing" ? r.owed > 0 : only === "overdue" ? r.overdue > 0 : true));
-  if (!rows.length) return <Empty title={only ? "Nobody owes anything right now" : "No tenants yet"}>{only ? undefined : "Approve an application to create a lease."}</Empty>;
+  if (!rows.length) return <Empty title={only ? "Nobody owes anything right now" : "No current tenants"}>{only ? undefined : "Approve an application to create a lease."}</Empty>;
   return (
     <>
     <div className="card divide-y divide-stone-100 p-0 lg:hidden">
@@ -526,25 +556,38 @@ export async function LeaseDetail({ id, viewer, base }: { id: number; viewer: Us
   );
 }
 
-/** Headline numbers for one landlord, or for everyone when landlordId is omitted. */
+/**
+ * Headline numbers for one landlord, or for everyone when landlordId is omitted. Everything about "due" and
+ * "overdue" is for current tenants, so it matches the breakdowns (by age, by area, tenants list). What tenants
+ * who have moved out still owe is counted separately (`pastArrears`) instead of being mixed in.
+ */
 export async function portfolioStats(landlordId?: number) {
   const today = kampalaToday();
   const month = today.slice(0, 7);
   const monthStart = new Date(`${month}-01T00:00:00+03:00`);
   const byProp: Prisma.UnitWhereInput = { property: { archivedAt: null, ...(landlordId ? { landlordId } : {}) } };
   const byLease: Prisma.LeaseWhereInput = landlordId ? { landlordId } : {};
-  const [units, occupied, properties, collected, overdueCharges, dueMonth] = await Promise.all([
+  const current: Prisma.LeaseWhereInput = { ...byLease, status: "active" };
+  const past: Prisma.LeaseWhereInput = { ...byLease, status: { not: "active" } };
+  const late = { status: { not: "paid" }, dueDate: { lt: new Date(`${today}T00:00:00Z`) } };
+  const [units, occupied, properties, collected, overdueCharges, dueMonth, pastCharges] = await Promise.all([
     db.unit.count({ where: byProp }),
     db.unit.count({ where: { ...byProp, status: "occupied" } }),
     db.property.count({ where: { archivedAt: null, ...(landlordId ? { landlordId } : {}) } }),
     db.payment.aggregate({ _sum: { amount: true }, where: { status: "success", paidAt: { gte: monthStart }, lease: byLease } }),
-    db.charge.findMany({ where: { status: { not: "paid" }, dueDate: { lt: new Date(`${today}T00:00:00Z`) }, lease: byLease }, select: { amount: true, paid: true } }),
-    db.charge.aggregate({ _sum: { amount: true }, where: { period: month, lease: byLease } }),
+    db.charge.findMany({ where: { ...late, lease: current }, select: { amount: true, paid: true, leaseId: true } }),
+    db.charge.aggregate({ _sum: { amount: true, paid: true }, where: { period: month, lease: current } }),
+    db.charge.findMany({ where: { status: { not: "paid" }, lease: past }, select: { amount: true, paid: true, leaseId: true } }),
   ]);
+  const sum = (cs: { amount: number; paid: number }[]) => cs.reduce((t, c) => t + c.amount - c.paid, 0);
   return {
     units, occupied, properties,
     collected: collected._sum.amount ?? 0,
-    arrears: overdueCharges.reduce((s, c) => s + c.amount - c.paid, 0),
+    arrears: sum(overdueCharges),
+    lateTenants: new Set(overdueCharges.map((c) => c.leaseId)).size,
     due_month: dueMonth._sum.amount ?? 0,
+    left_month: (dueMonth._sum.amount ?? 0) - (dueMonth._sum.paid ?? 0),
+    pastArrears: sum(pastCharges),
+    pastTenants: new Set(pastCharges.map((c) => c.leaseId)).size,
   };
 }
