@@ -69,7 +69,7 @@ export async function financialReport(period: Period, scope: Scope = {}) {
       where: { status: "success", paidAt: { gte: start, lt: end }, lease: leaseWhere },
       orderBy: { paidAt: "asc" },
       select: {
-        id: true, amount: true, method: true, reference: true, receiptNo: true, paidAt: true,
+        id: true, amount: true, method: true, reference: true, receiptNo: true, paidAt: true, efris: { select: { fdn: true } },
         tenant: { select: { name: true } }, recordedBy: { select: { name: true, role: true } },
         lease: { select: { landlordId: true, unit: { select: { label: true, propertyId: true, property: { select: { name: true } } } } } },
         allocations: { select: { amount: true, charge: { select: { kind: true } } } },
@@ -204,8 +204,8 @@ export async function financialReport(period: Period, scope: Scope = {}) {
     byLandlord, byProperty, aging, debtors: [...debtors.values()].sort((a, b) => b.owed - a.owed),
     monthly: months.map((m) => ({ month: m, label: new Date(`${m}-15T00:00:00Z`).toLocaleDateString("en-GB", { month: "short", year: "2-digit", timeZone: "UTC" }), ...(monthly.get(m) ?? { billed: 0, collected: 0, expenses: 0 }) })),
     paymentRows: [
-      ...payments.map((p) => ({ date: p.paidAt!, receipt: p.receiptNo ?? "", payer: p.tenant.name, property: p.lease.unit.property.name, unit: p.lease.unit.label, method: METHOD[p.method] ?? p.method, reference: p.reference, amount: p.amount, recordedBy: p.recordedBy ? `${p.recordedBy.name} (${p.recordedBy.role})` : "Mobile Money (tenant)", forWhat: [...new Set(p.allocations.map((a) => KIND[a.charge.kind] ?? a.charge.kind))].join(", ") || "Credit" })),
-      ...bookings.map((b) => ({ date: b.paidAt!, receipt: b.receiptNo ?? "", payer: b.guest.name, property: b.unit.property.name, unit: b.unit.label, method: "Short-stay booking", reference: b.reference, amount: b.total, recordedBy: "Online booking", forWhat: "Short stay" })),
+      ...payments.map((p) => ({ date: p.paidAt!, receipt: p.receiptNo ?? "", payer: p.tenant.name, property: p.lease.unit.property.name, unit: p.lease.unit.label, method: METHOD[p.method] ?? p.method, reference: p.reference, amount: p.amount, recordedBy: p.recordedBy ? `${p.recordedBy.name} (${p.recordedBy.role})` : "Mobile Money (tenant)", forWhat: [...new Set(p.allocations.map((a) => KIND[a.charge.kind] ?? a.charge.kind))].join(", ") || "Credit", efris: p.efris?.fdn ?? "" })),
+      ...bookings.map((b) => ({ date: b.paidAt!, receipt: b.receiptNo ?? "", payer: b.guest.name, property: b.unit.property.name, unit: b.unit.label, method: "Short-stay booking", reference: b.reference, amount: b.total, recordedBy: "Online booking", forWhat: "Short stay", efris: "" })),
     ].sort((a, b) => a.date.getTime() - b.date.getTime()),
     expenseRows: expenses.map((e) => ({ date: e.spentOn, landlord: e.landlord.name, property: e.property?.name ?? "General", category: e.category, description: e.description, amount: e.amount, fromJob: !!e.jobId })),
   };

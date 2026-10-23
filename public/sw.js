@@ -1,7 +1,7 @@
 // CasaVilla service worker: makes the app installable, keeps app assets on the phone
 // so it opens fast, and copes with flaky connections (some networks drop or block requests).
 // Private pages (rent, payments, dashboards) always come fresh from the server and are never stored.
-const VERSION = "cv-v30";
+const VERSION = "cv-v31";
 const PAGES = "cv-pages-v1";
 const PHOTOS = "cv-photos-v1"; // public listing photos, kept on the phone so they open instantly next time
 const MAX_PHOTOS = 250;

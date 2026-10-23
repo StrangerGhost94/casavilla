@@ -62,5 +62,8 @@ export async function canSeeFile(u: User, fileId: number, ownerId: number | null
   });
   if (reading) return true;
   const expense = await db.expense.findFirst({ where: { receiptFileId: fileId, OR: [{ landlordId: u.id }, ...(props.length ? [{ propertyId: { in: props } }] : [])] }, select: { id: true } });
-  return !!expense;
+  if (expense) return true;
+  // URA's copy of an EFRIS receipt: the tenant who paid and their landlord.
+  const efris = await db.efrisReceipt.findFirst({ where: { fileId, payment: { lease: { OR: [{ tenantId: u.id }, { landlordId: u.id }] } } }, select: { id: true } });
+  return !!efris;
 }

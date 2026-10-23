@@ -5,6 +5,7 @@ import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { Badge } from "./ui";
 import { Submit } from "./client";
 import { waiveLeaseCharge } from "@/app/landlord/actions";
+import { EfrisBadge } from "./Efris";
 
 const methodLabel: Record<string, string> = { mtn: "MTN MoMo", airtel: "Airtel Money", cash: "Cash", bank: "Bank" };
 const MethodIcon = ({ m }: { m: string }) => {
@@ -17,10 +18,13 @@ const MethodIcon = ({ m }: { m: string }) => {
 /** Rent charges and payment history for one lease. */
 /** `manage` lets a landlord/manager waive part or all of an open charge. */
 export async function Ledger({ leaseId, payHref, recordCash, manage }: { leaseId: number; payHref?: (chargeId: number) => string; recordCash?: React.ReactNode; manage?: boolean }) {
-  const [cs, ps] = await Promise.all([
+  const [cs, ps, lease] = await Promise.all([
     db.charge.findMany({ where: { leaseId }, orderBy: { dueDate: "desc" } }),
-    db.payment.findMany({ where: { leaseId }, orderBy: { createdAt: "desc" } }),
+    db.payment.findMany({ where: { leaseId }, orderBy: { createdAt: "desc" }, include: { efris: { select: { id: true } }, charge: { select: { kind: true } } } }),
+    db.lease.findUnique({ where: { id: leaseId }, select: { landlord: { select: { efrisProfile: true } } } }),
   ]);
+  const efrisFrom = lease?.landlord.efrisProfile?.status === "registered" ? lease.landlord.efrisProfile.since : null;
+  const efrisState = (p: (typeof ps)[number]) => (p.status !== "success" ? null : p.efris ? "done" : efrisFrom && p.charge.kind !== "deposit" && p.paidAt && p.paidAt >= efrisFrom ? "missing" : null);
   const today = kampalaToday();
   const owed = cs.reduce((s, c) => s + (c.amount - c.paid), 0);
   return (
@@ -73,6 +77,7 @@ export async function Ledger({ leaseId, payHref, recordCash, manage }: { leaseId
                 <div className="min-w-0 flex-1">
                   <div className="text-sm font-medium text-stone-800">{fmtDate(p.paidAt || p.createdAt)}</div>
                   <div className="truncate text-xs text-stone-500">{methodLabel[p.method] ?? p.method}{p.receiptNo && <> · {p.receiptNo}</>}</div>
+                  <div className="mt-0.5 empty:hidden"><EfrisBadge state={efrisState(p)} /></div>
                 </div>
                 <div className="text-right">
                   <div className="text-sm font-semibold text-stone-800">{ugx(p.amount)}</div>

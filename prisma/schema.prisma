@@ -81,6 +81,8 @@ model User {
   utilityBills    UtilityBill[]
   saleListings    SaleListing[]
   saleEnquiries   SaleEnquiry[]
+  efrisProfile    EfrisProfile?
+  efrisRecorded   EfrisReceipt[] @relation("EfrisRecordedBy")
 
   @@map("users")
 }
@@ -288,6 +290,7 @@ model Payment {
   createdAt    DateTime  @default(now()) @map("created_at")
   paidAt       DateTime? @map("paid_at")
   allocations  Allocation[]
+  efris        EfrisReceipt?
 
   @@index([leaseId])
   @@index([chargeId])
@@ -953,4 +956,43 @@ model SaleEnquiry {
   @@index([listingId, status])
   @@index([phone, createdAt])
   @@map("sale_enquiries")
+}
+
+/// A landlord's URA EFRIS set-up. Rent receipts are issued under the landlord's own TIN.
+model EfrisProfile {
+  landlordId    Int      @id @map("landlord_id")
+  landlord      User     @relation(fields: [landlordId], references: [id], onDelete: Cascade)
+  tin           String?
+  /// registered: must issue EFRIS receipts · exempt: below URA's threshold or otherwise not required · unknown: not answered yet
+  status        String   @default("unknown")
+  /// VAT-registered landlords issue e-invoices (with VAT); others issue e-receipts.
+  vatRegistered Boolean  @default(false) @map("vat_registered")
+  /// Payments on or after this day need an EFRIS receipt.
+  since         DateTime @default(now()) @db.Date
+  /// record: receipts are issued in URA's EFRIS app/portal and their numbers recorded here · api: issued automatically (future)
+  mode          String   @default("record")
+  updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@map("efris_profiles")
+}
+
+/// The URA EFRIS e-receipt / e-invoice for one payment.
+model EfrisReceipt {
+  id               Int      @id @default(autoincrement())
+  paymentId        Int      @unique @map("payment_id")
+  payment          Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  /// Fiscal Document Number printed on the EFRIS document.
+  fdn              String   @unique
+  verificationCode String?  @map("verification_code")
+  kind             String   @default("receipt") // receipt | invoice
+  tin              String?
+  issuedOn         DateTime @map("issued_on") @db.Date
+  /// URA's own copy (PDF or photo), which carries its QR code.
+  fileId           Int?     @map("file_id")
+  source           String   @default("manual") // manual | api
+  recordedById     Int?     @map("recorded_by_id")
+  recordedBy       User?    @relation("EfrisRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("efris_receipts")
 }

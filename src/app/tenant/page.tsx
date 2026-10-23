@@ -9,6 +9,7 @@ import { CategoryIcon } from "@/lib/icons";
 import { activeLease } from "./lib";
 import { ConnectLandlordCard } from "@/components/Links";
 import { chargeLabel, payLabel } from "@/lib/rules";
+import { EfrisBadge } from "@/components/Efris";
 
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
@@ -61,7 +62,9 @@ export default async function TenantHome() {
   const { owed, next } = await chargesSummary(lease.l.id);
   const today = kampalaToday();
   const days = next ? daysBetween(today, ymd(next.dueDate)) : null;
-  const payments = await db.payment.findMany({ where: { leaseId: lease.l.id, status: "success" }, orderBy: { paidAt: "desc" }, take: 3, include: { charge: { select: { kind: true, period: true } } } });
+  const payments = await db.payment.findMany({ where: { leaseId: lease.l.id, status: "success" }, orderBy: { paidAt: "desc" }, take: 3, include: { charge: { select: { kind: true, period: true } }, efris: { select: { id: true } } } });
+  const efrisProf = await db.efrisProfile.findUnique({ where: { landlordId: lease.l.landlordId } });
+  const efrisState = (p: (typeof payments)[number]) => (p.efris ? "done" : p.charge.kind !== "deposit" && efrisProf?.status === "registered" && p.paidAt && p.paidAt >= efrisProf.since ? "missing" : null);
   const leaseDays = daysBetween(today, ymd(lease.l.endDate));
 
   return (
@@ -145,6 +148,7 @@ export default async function TenantHome() {
                 <div>
                   <div className="font-medium text-stone-800">{chargeLabel(p.charge.kind, p.charge.period)}</div>
                   <div className="text-xs text-stone-500">{fmtDate(p.paidAt)} · {p.receiptNo}</div>
+                  <div className="mt-0.5 empty:hidden"><EfrisBadge state={efrisState(p)} /></div>
                 </div>
                 <div className="text-right">
                   <div className="font-semibold text-stone-800">{ugx(p.amount)}</div>

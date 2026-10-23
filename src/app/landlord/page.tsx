@@ -8,17 +8,19 @@ import { AttentionList, KeyRow, SectionTitle, Stat } from "@/components/ui";
 import { portfolioStats, TenantsTable } from "@/components/Portfolio";
 import { SmartPanel } from "@/components/Insights";
 import { AreaReport } from "@/components/AreaReport";
+import { missingCount } from "@/lib/efris";
 
 export default async function LandlordHome() {
   const u = await requireUser("landlord");
   await ensureChargesFor("landlord", u.id);
   const s = await portfolioStats(u.id);
-  const [pendingApps, openJobs, vacant, rentRoll] = await Promise.all([
+  const [pendingApps, openJobs, vacant, rentRoll, efrisMissing] = await Promise.all([
     db.application.count({ where: { status: "pending", unit: { property: { landlordId: u.id } } } })
       .then(async (n) => n + await db.tenantLink.count({ where: { status: "pending", landlordId: u.id } })),
     db.job.count({ where: { landlordId: u.id, status: { notIn: ["done", "cancelled"] } } }),
     db.unit.count({ where: { status: "vacant", property: { landlordId: u.id } } }),
     db.lease.aggregate({ _sum: { rent: true }, where: { landlordId: u.id, status: "active" } }),
+    missingCount(u.id),
   ]);
   const occ = s.units ? Math.round((s.occupied / s.units) * 100) : 0;
   return (
@@ -53,6 +55,7 @@ export default async function LandlordHome() {
             { href: "/landlord/maintenance", count: openJobs, label: "Open maintenance requests", tone: "gold" },
             { href: "/landlord/applications", count: pendingApps, label: "Applications & tenants to confirm", tone: "blue" },
             { href: "/landlord/properties", count: vacant, label: "Vacant units", tone: "green" },
+            ...(efrisMissing ? [{ href: "/landlord/efris", count: efrisMissing, label: "Payments waiting for an EFRIS receipt", tone: "gold" as const }] : []),
           ]} />
         </div>
       </div>

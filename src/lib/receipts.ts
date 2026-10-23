@@ -34,8 +34,10 @@ export async function receiptData(paymentId: number, viewer?: User) {
   const open = await db.charge.findMany({ where: { leaseId: p.leaseId, status: { not: "paid" } }, select: { amount: true, paid: true } });
   const balance = open.reduce((s, c) => s + c.amount - c.paid, 0);
   const brand = await brandFor(p.lease.landlordId);
+  const [efris, efrisProf] = await Promise.all([db.efrisReceipt.findUnique({ where: { paymentId: p.id } }), db.efrisProfile.findUnique({ where: { landlordId: p.lease.landlordId } })]);
+  const efrisPending = !efris && p.charge.kind !== "deposit" && efrisProf?.status === "registered" && !!p.paidAt && p.paidAt >= efrisProf.since;
   return {
-    p, brand, lines, credit, balance,
+    p, brand, lines, credit, balance, efris, efrisPending,
     tenant: p.lease.tenant, landlord: p.lease.landlord,
     property: p.lease.unit.property.name, unit: p.lease.unit.label, address: p.lease.unit.property.location,
     method: METHODS[p.method] ?? p.method, recordedBy: p.recordedBy?.name ?? null,
@@ -73,6 +75,15 @@ export async function receiptPdf(r: ReceiptData) {
     ],
   });
   w.gap(10);
+  if (r.efris) {
+    w.text(`URA ${r.efris.kind === "invoice" ? "EFRIS e-invoice" : "EFRIS e-receipt"}`, { size: 9, bold: true, color: w.accent });
+    w.text(`FDN ${r.efris.fdn}${r.efris.verificationCode ? `   ·   Verification code ${r.efris.verificationCode}` : ""}   ·   Issued ${fmtDate(r.efris.issuedOn)}${r.efris.tin ? `   ·   Seller TIN ${r.efris.tin}` : ""}`, { size: 8.5 });
+    w.text("Check it in URA's EFRIS app or web portal using the FDN and the date it was issued.", { size: 7.5 });
+    w.gap(6);
+  } else if (r.efrisPending) {
+    w.text("EFRIS receipt to follow: this is CasaVilla's payment record; the landlord's URA EFRIS receipt will be issued separately.", { size: 8, italic: true });
+    w.gap(6);
+  }
   if (r.brand.footerNote) w.text(r.brand.footerNote, { size: 9, italic: true });
   if (r.recordedBy) w.text(`Recorded by ${r.recordedBy}.`, { size: 8, color: undefined });
   w.signature([{ label: r.brand.signatoryTitle || `For ${r.brand.displayName}`, name: r.brand.signatory ?? undefined }]);

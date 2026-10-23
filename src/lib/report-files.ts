@@ -129,7 +129,7 @@ export async function reportXlsx(r: FinancialReport, scopeLabel: string) {
 
   const Pay = wb.addWorksheet("Payments");
   header(Pay, [{ header: "Date", key: "date", width: 13, date: true }, { header: "Receipt", key: "receipt", width: 18 }, { header: "Paid by", key: "payer", width: 24 }, { header: "Property", key: "property", width: 24 }, { header: "Unit", key: "unit", width: 12 },
-    { header: "For", key: "forWhat", width: 22 }, { header: "Method", key: "method", width: 18 }, { header: "Reference", key: "reference", width: 22 }, { header: "Recorded by", key: "recordedBy", width: 24 }, { header: "Amount", key: "amount", width: 14, money: true }]);
+    { header: "For", key: "forWhat", width: 22 }, { header: "Method", key: "method", width: 18 }, { header: "Reference", key: "reference", width: 22 }, { header: "Recorded by", key: "recordedBy", width: 24 }, { header: "EFRIS FDN", key: "efris", width: 22 }, { header: "Amount", key: "amount", width: 14, money: true }]);
   for (const p of r.paymentRows) Pay.addRow({ ...p, date: new Date(day(p.date)) });
   totalRow(Pay, { date: null, payer: `${r.paymentRows.length} payments`, amount: r.paymentRows.reduce((x, p) => x + p.amount, 0) });
 

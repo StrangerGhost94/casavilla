@@ -10,16 +10,18 @@ import { SmartPanel } from "@/components/Insights";
 import { AreaReport } from "@/components/AreaReport";
 import { runChecks } from "@/lib/integrity";
 import { chargeLabel } from "@/lib/rules";
+import { missingCount } from "@/lib/efris";
 
 export default async function ManagerHome() {
   await requireUser("manager");
   await ensureChargesFor("all");
   const s = await portfolioStats();
-  const [pending, pendingApps, unassigned, recentRaw] = await Promise.all([
+  const [pending, pendingApps, unassigned, recentRaw, efrisMissing] = await Promise.all([
     db.user.count({ where: { status: "pending" } }),
     db.application.count({ where: { status: "pending" } }).then(async (n) => n + await db.tenantLink.count({ where: { status: "pending" } })),
     db.job.count({ where: { providerId: null, status: { notIn: ["done", "cancelled"] } } }),
     db.payment.findMany({ where: { status: "success" }, orderBy: { paidAt: "desc" }, take: 6, include: { tenant: { select: { name: true } }, charge: { select: { kind: true, period: true } } } }),
+    missingCount(),
   ]);
   const dataIssues = (await runChecks()).filter((c) => c.count > 0).length;
   const vacant = s.units - s.occupied;
@@ -53,6 +55,7 @@ export default async function ManagerHome() {
             { href: "/manager/people?status=pending", count: pending, label: "Landlords & providers to approve", tone: "blue" },
             { href: "/manager/applications", count: pendingApps, label: "Applications & tenants to connect", tone: "blue" },
             { href: "/manager/properties", count: vacant, label: "Vacant units", tone: "green" },
+            { href: "/manager/efris", count: efrisMissing, label: "Payments waiting for an EFRIS receipt", tone: "gold" },
             { href: "/manager/health", count: dataIssues, label: "Data checks needing attention", tone: "gold" },
           ]} />
         </div>
