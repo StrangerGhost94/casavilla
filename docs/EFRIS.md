@@ -17,19 +17,27 @@ CasaVilla's own receipt (CV-2026-…) is a payment record; the EFRIS document is
 
 Data: `efris_profiles` (one per landlord) and `efris_receipts` (one per payment, FDN unique).
 
-## Switching on automatic issuing later ("api" mode)
+## Automatic issuing ("api" mode)
 
-URA's system-to-system integration lets CasaVilla issue the receipt itself the moment a payment succeeds.
-It needs, **for each landlord TIN**:
+Landlords can be set to **Issue EFRIS receipts automatically** (EFRIS receipts → Your EFRIS details). Then, the
+moment a tenant pays, CasaVilla issues the document and the tenant's single CasaVilla receipt *becomes* the EFRIS
+e-receipt (FDN at the top, seller = landlord with TIN, verification code, QR). If URA can't be reached it retries
+hourly; if it still has no document, the landlord is reminded to record one.
 
-- URA approval for system-to-system integration (request via the URA touchpoint / EFRIS team);
-- the EFRIS device number URA assigns, and the key pair registered with URA;
+`EFRIS_MODE` (Railway variable) decides how:
+
+- `off` (default): automatic issuing unavailable; landlords record receipts by hand.
+- `sandbox`: TEST documents made locally, marked TEST on screen and in the PDF; nothing is sent to URA.
+- `ura`: URA's system-to-system interface — `uraIssue()` in `src/lib/efris.ts`.
+
+### Before `ura` can work
+
+URA must approve CasaVilla's system-to-system integration, and for **each landlord TIN** provide:
+
+- the EFRIS device number and the key pair registered with URA;
 - testing on URA's EFRIS test environment before production;
-- the landlord's rental service registered as a "product" in EFRIS (goods/services code).
+- the rental service registered as a "product" (goods/services code) in EFRIS.
 
-Once those exist, implement `issueAutomatically()` in `src/lib/efris.ts` against URA's interface
-specification (invoice upload, then store the returned FDN/verification code/QR in `efris_receipts` with
-`source = "api"`), call it from `completePayment()` in `src/lib/billing.ts` when the landlord's profile has
-`mode = "api"`, and keep "record" mode as the fallback when URA is unreachable (EFRIS allows issuing offline
-and uploading later). Credentials belong in environment variables or an encrypted store — never in the database
-in plain text.
+With those, implement `uraIssue()` against URA's interface specification (invoice upload → returned FDN,
+verification code and QR), keep keys in environment variables or an encrypted store (never plain in the database),
+then set `EFRIS_MODE=ura`.

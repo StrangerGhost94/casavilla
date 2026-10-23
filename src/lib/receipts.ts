@@ -3,6 +3,7 @@ import { db, type User } from "@/db";
 import { brandFor } from "./brand";
 import { fmtDate, periodLabel, ugx } from "./format";
 import { PdfWriter, embedLogo } from "./pdf";
+import QRCode from "qrcode";
 
 const METHODS: Record<string, string> = { mtn: "MTN Mobile Money", airtel: "Airtel Money", cash: "Cash", bank: "Bank transfer" };
 
@@ -57,8 +58,10 @@ export async function receiptPdf(r: ReceiptData) {
   for (const l of [r.brand.address, r.brand.phone, r.brand.email, r.brand.tin && `TIN: ${r.brand.tin}`].filter(Boolean) as string[]) w.text(l, { x: right, size: 8.5, color: undefined, align: "right" });
   w.y = Math.min(w.y, top - 70); w.rule(w.accent);
 
-  w.text("PAYMENT RECEIPT", { size: 9, bold: true, color: w.accent });
-  w.text(r.p.receiptNo ?? "", { size: 20, bold: true });
+  if (r.efris?.test) w.text("TEST RECEIPT — made in EFRIS test mode, not issued by URA", { size: 10, bold: true });
+  w.text(r.efris ? `${r.efris.test ? "TEST · " : ""}${r.efris.kind === "invoice" ? "EFRIS E-INVOICE" : "EFRIS E-RECEIPT"}` : "PAYMENT RECEIPT", { size: 9, bold: true, color: w.accent });
+  w.text(r.efris ? `FDN ${r.efris.fdn}` : r.p.receiptNo ?? "", { size: r.efris ? 16 : 20, bold: true });
+  if (r.efris) w.text(`CasaVilla receipt ${r.p.receiptNo}${r.efris.tin ? `  ·  Seller: ${r.landlord.name}, TIN ${r.efris.tin} — issued by CasaVilla on the landlord's behalf` : ""}`, { size: 8 });
   w.gap(4);
   w.facts([
     ["Date paid", fmtDate(r.p.paidAt)], ["Payment method", `${r.method}${r.p.phone ? ` · ${r.p.phone}` : ""}`],
@@ -78,7 +81,11 @@ export async function receiptPdf(r: ReceiptData) {
   if (r.efris) {
     w.text(`URA ${r.efris.kind === "invoice" ? "EFRIS e-invoice" : "EFRIS e-receipt"}`, { size: 9, bold: true, color: w.accent });
     w.text(`FDN ${r.efris.fdn}${r.efris.verificationCode ? `   ·   Verification code ${r.efris.verificationCode}` : ""}   ·   Issued ${fmtDate(r.efris.issuedOn)}${r.efris.tin ? `   ·   Seller TIN ${r.efris.tin}` : ""}`, { size: 8.5 });
-    w.text("Check it in URA's EFRIS app or web portal using the FDN and the date it was issued.", { size: 7.5 });
+    w.text(r.efris.test ? "Test document — it won't be found on URA's EFRIS." : "Check it in URA's EFRIS app or web portal using the FDN and the date it was issued.", { size: 7.5 });
+    if (r.efris.qr) {
+      const png = await QRCode.toBuffer(r.efris.qr, { margin: 1, width: 240 });
+      w.image(await w.doc.embedPng(png), 80, 80);
+    }
     w.gap(6);
   } else if (r.efrisPending) {
     w.text("EFRIS receipt to follow: this is CasaVilla's payment record; the landlord's URA EFRIS receipt will be issued separately.", { size: 8, italic: true });

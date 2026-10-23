@@ -26,11 +26,15 @@ export async function saveEfrisProfile(fd: FormData) {
   const since = (await date(fd, "since", "the date EFRIS receipts start", true)) ?? kampalaToday();
   if (since > kampalaToday()) return fail("The start date can't be in the future");
   if (since < "2020-01-01") return fail("Choose a start date from 2020 onwards");
-  const data = { tin: tin || null, status, vatRegistered: status === "registered" && fd.get("vat") === "on", since: new Date(`${since}T00:00:00Z`) };
+  const taxMode = await oneOf(fd, "taxMode", ["individual", "none"] as const, "how tax is handled", "individual");
+  const data = {
+    tin: tin || null, status, vatRegistered: status === "registered" && fd.get("vat") === "on", since: new Date(`${since}T00:00:00Z`),
+    taxMode, mode: status === "registered" && fd.get("auto") === "on" ? "api" : "record",
+  };
   await db.efrisProfile.upsert({ where: { landlordId }, create: { landlordId, ...data }, update: data });
   // Keep the TIN printed on CasaVilla receipts in step.
   if (tin) await db.brandProfile.updateMany({ where: { ownerId: landlordId }, data: { tin } });
-  await audit(u.id, "efris.profile", "user", landlordId, `${status}${tin ? ` · TIN ${tin}` : ""}${data.vatRegistered ? " · VAT" : ""} · from ${since}`);
+  await audit(u.id, "efris.profile", "user", landlordId, `${status}${tin ? ` · TIN ${tin}` : ""}${data.vatRegistered ? " · VAT" : ""} · from ${since} · tax ${taxMode} · ${data.mode}`);
   refresh();
 }
 

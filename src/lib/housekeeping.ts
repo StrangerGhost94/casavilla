@@ -6,6 +6,9 @@ import { fmtDate, kampalaToday, ugx, ymd } from "./format";
 import { sendQueuedEmails } from "./mail";
 import { appUrl, queueMessage, sendQueuedMessages } from "./messaging";
 import { expireStaleBookings } from "./stays";
+import { sendQueuedPayouts } from "./payouts";
+import { retryEfris } from "./efris";
+import { taxReminders } from "./tax";
 
 /**
  * Background routine that keeps the system moving without anyone pressing a button:
@@ -27,6 +30,9 @@ export async function runHousekeeping(force = false) {
     await expireStaleBookings().catch((e) => console.error("bookings sweep", e));
     await sendQueuedEmails().catch((e) => console.error("email sweep", e));
     await sendQueuedMessages().catch((e) => console.error("message sweep", e));
+    await sendQueuedPayouts().catch((e) => console.error("payout sweep", e));
+    await retryEfris().catch((e) => console.error("efris sweep", e));
+    await taxReminders().catch((e) => console.error("tax reminder", e));
     await db.marker.deleteMany({ where: { key: { startsWith: "sweep:" }, createdAt: { lt: new Date(Date.now() - 7 * 86400000) } } });
   } catch (e) {
     console.error("housekeeping failed", e);

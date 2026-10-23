@@ -50,3 +50,42 @@ export async function verifyCharge(reference: string, expectedAmount: number): P
     return "pending";
   }
 }
+
+/**
+ * Sends money to a landlord through Flutterwave Transfers (UGX). Mobile Money goes to the phone number
+ * (account_bank "MPS", number with 256); bank transfers need Flutterwave's code for the bank.
+ * `done` is true only when Flutterwave already reports the transfer as successful; otherwise check it later.
+ */
+export async function sendTransfer(o: {
+  reference: string; amount: number; method: "mtn" | "airtel" | "bank"; phone?: string | null; bankCode?: string | null; accountNumber?: string | null; name: string; narration: string;
+}): Promise<{ ok: true; id: string; done: boolean } | { ok: false; error: string }> {
+  const mobile = o.method !== "bank";
+  if (mobile && !o.phone) return { ok: false, error: "No Mobile Money number" };
+  if (!mobile && (!o.bankCode || !o.accountNumber)) return { ok: false, error: "Bank code or account number missing" };
+  try {
+    const res = await fetch(`${FLW}/transfers`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        account_bank: mobile ? "MPS" : o.bankCode,
+        account_number: mobile ? o.phone!.replace(/\D/g, "") : o.accountNumber,
+        amount: o.amount, currency: "UGX", beneficiary_name: o.name, narration: o.narration.slice(0, 100), reference: o.reference,
+      }),
+    });
+    const json = await res.json();
+    if (json.status !== "success" || !json.data?.id) return { ok: false, error: json.message || "Transfer could not be started" };
+    return { ok: true, id: String(json.data.id), done: json.data.status === "SUCCESSFUL" };
+  } catch {
+    return { ok: false, error: "Could not reach Flutterwave" };
+  }
+}
+
+export async function transferStatus(id: string): Promise<"paid" | "failed" | "pending"> {
+  try {
+    const res = await fetch(`${FLW}/transfers/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` }, cache: "no-store" });
+    const s = (await res.json()).data?.status;
+    return s === "SUCCESSFUL" ? "paid" : s === "FAILED" ? "failed" : "pending";
+  } catch {
+    return "pending";
+  }
+}

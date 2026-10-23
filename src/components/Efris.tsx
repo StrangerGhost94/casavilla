@@ -1,9 +1,10 @@
+import QRCode from "qrcode";
 import Link from "next/link";
 import { BadgeCheck, ChevronDown, Clock, FileCheck2, Info, ReceiptText } from "lucide-react";
 import { db, type User } from "@/db";
 import { fmtDate, kampalaToday, ugx } from "@/lib/format";
 import { chargeLabel } from "@/lib/rules";
-import { docName, EFRIS_STATUS, efrisApplies, efrisProfile, missingPayments } from "@/lib/efris";
+import { docName, EFRIS_STATUS, efrisApplies, efrisMode, efrisProfile, missingPayments } from "@/lib/efris";
 import { fileUrl } from "@/lib/file-url";
 import { recordEfris, removeEfris, saveEfrisProfile } from "@/app/efris-actions";
 import { Badge, Empty, PageHeader } from "./ui";
@@ -40,9 +41,27 @@ async function SetupForm({ landlordId, manager }: { landlordId: number; manager?
       </div>
       <label className="flex items-start gap-2.5 text-stone-700">
         <input type="checkbox" name="vat" defaultChecked={p.vatRegistered} className="mt-0.5 h-4 w-4 accent-brand-700" />
-        <span>VAT-registered<span className="block text-xs text-stone-500">VAT-registered landlords (e.g. commercial rent above UGX 300M a year) issue e-invoices with 18% VAT.</span></span>
+        <span>VAT-registered<span className="block text-xs text-stone-500">VAT-registered landlords (e.g. commercial rent above UGX 300M a year) issue e-invoices with 18% VAT. VAT is set aside on commercial property only; residential rent is exempt.</span></span>
       </label>
-      <Submit className="btn-primary btn-sm">Save EFRIS details</Submit>
+      <label className="flex items-start gap-2.5 text-stone-700">
+        <input type="checkbox" name="auto" defaultChecked={p.mode === "api"} className="mt-0.5 h-4 w-4 accent-brand-700" />
+        <span>Issue EFRIS receipts automatically
+          <span className="block text-xs text-stone-500">{efrisMode() === "ura" ? "Issued through URA the moment the tenant pays." : efrisMode() === "sandbox" ? "Test mode: a TEST receipt is made when the tenant pays — nothing is sent to URA." : "Available once URA approves CasaVilla's EFRIS connection. Until then, record receipts here."}</span>
+        </span>
+      </label>
+      <fieldset className="space-y-2 border-t border-stone-100 pt-3">
+        <legend className="label">Tax on rent</legend>
+        {[
+          ["individual", "CasaVilla sets it aside and pays URA", "12% rental income tax on rent above UGX 2.82M a year (individual landlords), taken before your payout."],
+          ["none", "I pay my own tax", "For example companies, which pay income tax on profit. Nothing is set aside (VAT is still set aside if VAT-registered)."],
+        ].map(([v, t, h]) => (
+          <label key={v} className="flex cursor-pointer items-start gap-2.5 rounded-xl border border-stone-200 p-3 has-[:checked]:border-brand-700 has-[:checked]:bg-brand-50/60">
+            <input type="radio" name="taxMode" value={v} defaultChecked={(p.taxMode ?? "individual") === v} className="mt-0.5 h-4 w-4 accent-brand-700" />
+            <span><span className="block font-semibold text-brand-950">{t}</span><span className="block text-xs text-stone-500">{h}</span></span>
+          </label>
+        ))}
+      </fieldset>
+      <Submit className="btn-primary btn-sm">Save EFRIS & tax details</Submit>
     </form>
   );
 }
@@ -97,8 +116,8 @@ export async function EfrisPage({ viewer }: { viewer: User }) {
       <div className="flex items-start gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-4 text-sm text-stone-700">
         <Info className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />
         <div className="space-y-1">
-          <p><b>How it works:</b> when rent comes in, issue the EFRIS e-receipt in URA&apos;s EFRIS app, desktop client or web portal under the landlord&apos;s TIN, then record its FDN here (and attach URA&apos;s PDF if you have it).</p>
-          <p className="text-xs text-stone-500">The tenant is told straight away, and the EFRIS number appears on their CasaVilla receipt. Sending receipts to URA automatically will be added once URA approves CasaVilla&apos;s system connection.</p>
+          <p><b>How it works:</b> landlords set to <b>automatic</b> get their EFRIS e-receipt issued the moment the tenant pays{efrisMode() === "off" ? " (available once URA approves CasaVilla's connection)" : efrisMode() === "sandbox" ? " (test mode right now: TEST receipts, nothing sent to URA)" : ""}. Otherwise, issue it in URA&apos;s EFRIS app or portal under the landlord&apos;s TIN and record its FDN here.</p>
+          <p className="text-xs text-stone-500">Either way the tenant gets one receipt — CasaVilla&apos;s — carrying the EFRIS number, and is told straight away.</p>
         </div>
       </div>
 
@@ -204,14 +223,18 @@ export async function EfrisOnReceipt({ paymentId, landlordId, paidAt, chargeKind
   }
   return (
     <div className="mt-6 rounded-xl border border-brand-100 bg-brand-50/50 p-4 text-sm">
-      <div className="flex items-center gap-2 font-semibold text-brand-900"><BadgeCheck className="h-4 w-4 text-brand-700" /> URA {docName(e.kind)}</div>
+      <div className="flex items-center gap-2 font-semibold text-brand-900"><BadgeCheck className="h-4 w-4 text-brand-700" /> {e.test ? "TEST " : "URA "}{docName(e.kind)}{e.source === "api" ? " · issued automatically" : ""}</div>
       <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
         <div><dt className="text-xs text-stone-500">Fiscal Document Number (FDN)</dt><dd className="break-all font-mono font-semibold text-stone-900">{e.fdn}</dd></div>
         {e.verificationCode && <div><dt className="text-xs text-stone-500">Verification code</dt><dd className="break-all font-mono font-semibold text-stone-900">{e.verificationCode}</dd></div>}
         <div><dt className="text-xs text-stone-500">Issued</dt><dd className="font-semibold text-stone-900">{fmtDate(e.issuedOn)}</dd></div>
         {e.tin && <div><dt className="text-xs text-stone-500">Seller TIN</dt><dd className="font-mono font-semibold text-stone-900">{e.tin}</dd></div>}
       </dl>
-      <p className="mt-2 text-[11px] text-stone-500">Check it in URA&apos;s EFRIS app or web portal using the FDN and the date it was issued.</p>
+      {e.qr && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={await QRCode.toDataURL(e.qr, { margin: 1, width: 240 })} alt="EFRIS QR code" className="mt-3 h-28 w-28 rounded-lg bg-white p-1 ring-1 ring-stone-200" />
+      )}
+      <p className="mt-2 text-[11px] text-stone-500">{e.test ? "Test document — it won't be found on URA's EFRIS." : "Check it in URA's EFRIS app or web portal using the FDN and the date it was issued."}</p>
       <div className="no-print mt-3 flex flex-wrap items-center gap-3">
         {e.fileId && <FileButton href={fileUrl(e.fileId)} name={`EFRIS-${e.fdn}`} className="btn-outline btn-sm">URA&apos;s copy</FileButton>}
         {canManage && (

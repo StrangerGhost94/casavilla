@@ -27,6 +27,7 @@ export default async function Receipt({ params }: { params: Promise<{ id: string
           <PrintButton />
         </div>
       </div>
+      {r.efris?.test && <div className="mb-3 rounded-xl bg-maroon-600 px-4 py-2.5 text-center text-sm font-bold text-white">TEST RECEIPT — made in EFRIS test mode, not issued by URA</div>}
       <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8 print:border-0 print:shadow-none">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 pb-5" style={{ borderColor: accent }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -39,15 +40,16 @@ export default async function Receipt({ params }: { params: Promise<{ id: string
         </div>
         <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: accent }}>Payment receipt</div>
-            <div className="text-2xl font-bold">{r.p.receiptNo}</div>
+            <div className="text-xs font-semibold uppercase tracking-widest" style={{ color: accent }}>{r.efris ? `${r.efris.test ? "TEST · " : ""}${r.efris.kind === "invoice" ? "EFRIS e-invoice" : "EFRIS e-receipt"}` : "Payment receipt"}</div>
+            <div className="text-2xl font-bold">{r.efris ? <span className="font-mono text-xl">FDN {r.efris.fdn}</span> : r.p.receiptNo}</div>
+            {r.efris && <div className="mt-0.5 text-xs text-stone-500">CasaVilla receipt {r.p.receiptNo}</div>}
           </div>
           <div className="text-right text-sm"><div className="text-stone-500">Date paid</div><div className="font-semibold">{fmtDate(r.p.paidAt)}</div></div>
         </div>
         <dl className="mt-6 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
           <div><dt className="text-stone-500">Received from</dt><dd className="font-semibold">{r.tenant.name}</dd><dd className="text-stone-500">{r.tenant.phone}</dd></div>
           <div><dt className="text-stone-500">Property</dt><dd className="font-semibold">{r.property} · {r.unit}</dd><dd className="text-stone-500">{r.address}</dd></div>
-          <div><dt className="text-stone-500">Landlord</dt><dd className="font-semibold">{r.landlord.name}</dd></div>
+          <div><dt className="text-stone-500">{r.efris ? "Seller (landlord)" : "Landlord"}</dt><dd className="font-semibold">{r.landlord.name}</dd>{r.efris?.tin && <dd className="text-stone-500">TIN {r.efris.tin} · issued by CasaVilla on the landlord&apos;s behalf</dd>}</div>
           <div><dt className="text-stone-500">Payment method</dt><dd className="font-semibold">{r.method}</dd><dd className="break-all text-stone-500">Ref: {r.p.reference}</dd></div>
         </dl>
         <div className="mt-6 overflow-hidden rounded-xl border border-stone-200">

@@ -10,7 +10,8 @@ import { verifyCharge, provider } from "./momo";
 import { brandFor } from "./brand";
 import { emailHtml, queueEmail } from "./mail";
 import { appUrl, queueMessage } from "./messaging";
-import { needsEfris } from "./efris";
+import { autoIssueEfris, needsEfris } from "./efris";
+import { afterPayment } from "./payouts";
 
 type Tx = Prisma.TransactionClient;
 
@@ -165,7 +166,6 @@ export async function completePayment(paymentId: number) {
   const extra = left > 0 ? ` ${ugx(left)} kept as credit for your next rent.` : balance > 0 ? ` Remaining balance ${ugx(balance)}.` : " You're fully paid up.";
   await notify(p.tenantId, `Payment of ${ugx(p.amount)} received. Receipt ${receiptNo}.${extra}`, `/receipts/${p.id}`);
   await notify(lease.landlordId, `${lease.tenant.name} paid ${ugx(p.amount)} for ${lease.unit.property.name} · ${lease.unit.label}.`, `/receipts/${p.id}`);
-  if (await needsEfris(p.id)) await notify(lease.landlordId, `Issue an EFRIS receipt to ${lease.tenant.name} for ${ugx(p.amount)}, then record its FDN.`, "/landlord/efris");
   // Email the receipt (queued; delivered once an email provider is set up).
   if (lease.tenant.emailReceipts) {
     const brand = await brandFor(lease.landlordId);
@@ -180,6 +180,12 @@ export async function completePayment(paymentId: number) {
   const msg = `Payment received: ${ugx(p.amount)} for ${lease.unit.property.name} · ${lease.unit.label}. Receipt ${receiptNo}`;
   await queueMessage({ userId: lease.tenantId, kind: "notice", dedupeKey: `receipt:${p.id}`, params: [first, `${msg}: ${appUrl(`/receipts/${p.id}`)}`], text: `Hello ${first}, ${msg}: ${appUrl(`/receipts/${p.id}`)} — CasaVilla` });
   await audit(p.recordedById ?? p.tenantId, "payment.received", "payment", p.id, `${ugx(p.amount)} via ${p.method}${left ? `, ${ugx(left)} to credit` : ""}`);
+  // Split the money (commission, tax set aside, landlord's share), pay the landlord, and issue the EFRIS receipt.
+  // Neither can undo or block the payment itself.
+  await afterPayment(p.id);
+  await autoIssueEfris(p.id);
+  // Still no EFRIS document (landlord records them by hand, or automatic issuing couldn't reach URA): remind them.
+  if (await needsEfris(p.id)) await notify(lease.landlordId, `Issue an EFRIS receipt to ${lease.tenant.name} for ${ugx(p.amount)}, then record its FDN.`, "/landlord/efris");
 }
 
 export async function failPayment(paymentId: number) {
