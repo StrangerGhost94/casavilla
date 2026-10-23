@@ -30,14 +30,62 @@ hourly; if it still has no document, the landlord is reminded to record one.
 - `sandbox`: TEST documents made locally, marked TEST on screen and in the PDF; nothing is sent to URA.
 - `ura`: URA's system-to-system interface — `uraIssue()` in `src/lib/efris.ts`.
 
-### Before `ura` can work
+- `ura`: URA's system-to-system interface (`src/lib/efris-ura.ts`), with **each landlord's own TIN, device and key**.
 
-URA must approve CasaVilla's system-to-system integration, and for **each landlord TIN** provide:
+## Direct URA system-to-system (`EFRIS_MODE=ura`)
 
-- the EFRIS device number and the key pair registered with URA;
-- testing on URA's EFRIS test environment before production;
-- the rental service registered as a "product" (goods/services code) in EFRIS.
+When a tenant's payment succeeds, CasaVilla builds the invoice for the **amount actually paid** and submits it to
+URA (T109) under the landlord's TIN. It then saves the returned FDN, verification code and QR on the tenant's receipt.
 
-With those, implement `uraIssue()` against URA's interface specification (invoice upload → returned FDN,
-verification code and QR), keep keys in environment variables or an encrypted store (never plain in the database),
-then set `EFRIS_MODE=ura`.
+**One EFRIS connection per landlord.** No global key: each landlord's EFRIS profile holds:
+
+| Field | Notes |
+|---|---|
+| URA TIN | 10 digits (landlord's EFRIS details) |
+| EFRIS device number | the system-to-system device URA registers for that TIN |
+| Private key | uploaded (.pfx/.p12/.pem/.key, with its password) or made here; stored AES-256-GCM-encrypted with `EFRIS_KEY_SECRET`, never shown again (only its fingerprint and public key) |
+| Environment | URA test (`efristest.ura.go.ug`) or live |
+| Commodity codes | URA goods & services category for residential / commercial rent |
+| Measure unit | chosen from URA's list (loaded by "Test connection") |
+| Seller names, address | filled from URA's login, editable |
+
+Every call is built from the profile of the payment's landlord, so TINs never mix.
+
+**Rent as a service line.** Each unit's charges are registered with URA (T130) the first time they're receipted.
+For example, `Residential Rent - Unit 3B` has the code `CV12-RENT`, and late fees, utilities and repairs each get their own line.
+Rows live in `efris_goods`.
+
+**Tax on the document.**
+- Not VAT-registered: e-receipt (invoiceKind 2), out of scope (OOS), no tax details.
+- VAT-registered: e-invoice (invoiceKind 1). Commercial rent is standard-rated (18% inside the rent); residential rent is exempt.
+- Deposits are never fiscalised.
+
+**When URA can't be reached** the payment goes to `efris_attempts` and is retried hourly. After 6 tries it stops and
+asks for it to be recorded by hand.
+
+**When URA took it but the answer was lost**, the payment is marked *uncertain*. Before anything is sent again,
+CasaVilla asks URA (T106 by the CasaVilla receipt number, then T108) whether the document already exists, so no
+payment gets two FDNs. Uncertain payments are never given up automatically. Managers see all of these under
+"Automatic issuing needs attention", with "Try now".
+
+Landlords are only told to issue by hand when automatic issuing isn't working for them, so they never issue a
+second document alongside CasaVilla's.
+
+### Switching it on
+
+1. In Railway → casavilla → Variables, add `EFRIS_KEY_SECRET`: a long random value (40+ characters) that you make
+   yourself. Never change it afterwards, because stored keys can only be opened with it.
+2. Set `EFRIS_MODE=ura`.
+3. For each landlord, on **EFRIS receipts → Landlords → (name) → URA connection**:
+   - enter the device number and commodity code(s);
+   - upload their key, or **Make a new key pair** and upload the shown public key in URA's EFRIS portal for that device;
+   - choose **URA environment: Test** and press **Test connection**;
+   - pick the measure unit, save, and tick **Issue EFRIS receipts automatically** in their EFRIS details.
+4. Make a test payment and check the FDN on URA's test portal. Then switch that landlord to **Live EFRIS** and test the connection again.
+
+`EFRIS_TEST_URL` (optional, test environment only) points at a local mock of URA for development.
+
+### Not covered yet
+
+Credit notes (refunds) and B2B buyers are not handled. Tenants are sent as B2C buyers, and a buyer with a TIN is
+only sent as B2B where one is supplied.

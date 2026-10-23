@@ -978,7 +978,31 @@ model EfrisProfile {
   mode          String   @default("record")
   /// Tax set aside from each payment: individual = 12% rental tax above the yearly threshold · none = the landlord pays their own
   taxMode       String   @default("individual") @map("tax_mode")
+  /// URA system-to-system connection (set by CasaVilla). One device and key pair per landlord TIN.
+  deviceNo      String?  @map("device_no")
+  /// test: URA's EFRIS test environment · production: live EFRIS
+  environment   String   @default("test")
+  /// The landlord's EFRIS private key, AES-256-GCM encrypted with EFRIS_KEY_SECRET. Never stored plain.
+  keyEnc        String?  @map("key_enc")
+  keyFingerprint String? @map("key_fingerprint")
+  keyAddedAt    DateTime? @map("key_added_at")
+  /// Seller names and address as URA has them (filled from URA at "Test connection", editable).
+  legalName     String?  @map("legal_name")
+  businessName  String?  @map("business_name")
+  sellerAddress String?  @map("seller_address")
+  /// EFRIS measure unit for the rent services, and the commodity (goods & services) codes they're registered under.
+  unitCode      String?  @map("unit_code")
+  commodityResidential     String? @map("commodity_residential")
+  commodityResidentialName String? @map("commodity_residential_name")
+  commodityCommercial      String? @map("commodity_commercial")
+  commodityCommercialName  String? @map("commodity_commercial_name")
+  /// Parts of URA's dictionary (T115) we need: measure units, payment modes, the UGX currency code.
+  uraDict       Json?    @map("ura_dict")
+  checkedAt     DateTime? @map("checked_at")
+  checkOk       Boolean? @map("check_ok")
+  checkMessage  String?  @map("check_message")
   updatedAt     DateTime @default(now()) @updatedAt @map("updated_at")
+  goods         EfrisGood[]
 
   @@map("efris_profiles")
 }
@@ -1001,11 +1025,47 @@ model EfrisReceipt {
   /// Issued in test mode (EFRIS_MODE=sandbox): not a real URA document.
   test             Boolean  @default(false)
   source           String   @default("manual") // manual | api
+  /// URA's internal id for the document (from T109), needed for credit notes.
+  invoiceId        String?  @map("invoice_id")
   recordedById     Int?     @map("recorded_by_id")
   recordedBy       User?    @relation("EfrisRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
   createdAt        DateTime @default(now()) @map("created_at")
 
   @@map("efris_receipts")
+}
+
+/// A service line registered with URA for a landlord (T130), e.g. "Residential Rent - Unit 3B".
+model EfrisGood {
+  id         Int          @id @default(autoincrement())
+  landlordId Int          @map("landlord_id")
+  profile    EfrisProfile @relation(fields: [landlordId], references: [landlordId], onDelete: Cascade)
+  unitId     Int?         @map("unit_id")
+  kind       String
+  code       String
+  name       String
+  /// registered | failed
+  status     String
+  error      String?
+  environment String      @default("test")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([landlordId, environment, code])
+  @@map("efris_goods")
+}
+
+/// Automatic EFRIS issuing that hasn't worked yet for a payment.
+model EfrisAttempt {
+  paymentId Int      @id @map("payment_id")
+  /// failed: URA said no or couldn't be reached — retried · uncertain: sent but no answer, so it may exist at URA —
+  /// checked with URA before anything is sent again · stopped: given up, record it by hand
+  status    String
+  attempts  Int      @default(0)
+  error     String?
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("efris_attempts")
 }
 
 /// Where a landlord's money is sent.

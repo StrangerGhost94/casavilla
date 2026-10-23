@@ -5,6 +5,7 @@ import { FileButton } from "@/components/FileButton";
 import { homeFor, requireUser } from "@/lib/auth";
 import { fmtDate, ugx } from "@/lib/format";
 import { receiptData } from "@/lib/receipts";
+import { testLine } from "@/lib/efris";
 import { mailConfigured } from "@/lib/mail";
 import { Logo } from "@/components/ui";
 import { PrintButton, Submit } from "@/components/client";
@@ -27,7 +28,7 @@ export default async function Receipt({ params }: { params: Promise<{ id: string
           <PrintButton />
         </div>
       </div>
-      {r.efris?.test && <div className="mb-3 rounded-xl bg-maroon-600 px-4 py-2.5 text-center text-sm font-bold text-white">TEST RECEIPT — made in EFRIS test mode, not issued by URA</div>}
+      {r.efris?.test && <div className="mb-3 rounded-xl bg-maroon-600 px-4 py-2.5 text-center text-sm font-bold text-white">{testLine(r.efris)}</div>}
       <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8 print:border-0 print:shadow-none">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 pb-5" style={{ borderColor: accent }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}

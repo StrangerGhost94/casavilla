@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/db";
 import { kampalaToday } from "./format";
+import { notify, notifyManagers } from "./notify";
 
 /**
  * URA EFRIS (Electronic Fiscal Receipting and Invoicing Solution).
@@ -17,8 +18,8 @@ import { kampalaToday } from "./format";
  *   unreachable. EFRIS_MODE decides how:
  *     off (default) — automatic issuing is unavailable; "api" landlords fall back to recording;
  *     sandbox       — a TEST document is made locally (marked TEST everywhere; nothing is sent to URA);
- *     ura           — URA's system-to-system interface (`uraIssue`), once URA has approved CasaVilla and issued
- *                     the device number and keys for the landlord's TIN. See docs/EFRIS.md.
+ *     ura           — URA's system-to-system interface (lib/efris-ura.ts), using each landlord's own EFRIS device
+ *                     and key (set by CasaVilla on the EFRIS page; the key is stored encrypted). See docs/EFRIS.md.
  * The tenant gets one receipt: CasaVilla's, carrying the EFRIS details (FDN, verification code, QR).
  */
 
@@ -35,7 +36,9 @@ export const docName = (kind: string) => (kind === "invoice" ? "EFRIS e-invoice"
 
 /** A landlord's profile, or the default ("unknown") when they haven't set it up yet. */
 export async function efrisProfile(landlordId: number) {
-  return (await db.efrisProfile.findUnique({ where: { landlordId } })) ?? { landlordId, tin: null, status: "unknown", vatRegistered: false, since: new Date(`${kampalaToday()}T00:00:00Z`), mode: "record", taxMode: "individual", updatedAt: new Date() };
+  return (await db.efrisProfile.findUnique({ where: { landlordId } })) ?? { landlordId, tin: null, status: "unknown", vatRegistered: false, since: new Date(`${kampalaToday()}T00:00:00Z`), mode: "record", taxMode: "individual", updatedAt: new Date(),
+    deviceNo: null, environment: "test", keyEnc: null, keyFingerprint: null, keyAddedAt: null, legalName: null, businessName: null, sellerAddress: null, unitCode: null,
+    commodityResidential: null, commodityResidentialName: null, commodityCommercial: null, commodityCommercialName: null, uraDict: null, checkedAt: null, checkOk: null, checkMessage: null };
 }
 
 /** Successful payments that need an EFRIS document and don't have one yet (optionally for one landlord). */
@@ -91,15 +94,7 @@ export function efrisMode(): EfrisMode {
   return m === "sandbox" || m === "ura" ? m : "off";
 }
 
-type Issued = { ok: true; fdn: string; verificationCode: string | null; qr: string | null; test: boolean } | { ok: false; error: string };
-
-/**
- * URA system-to-system issuing. Needs URA's approval for CasaVilla's integration and, for the landlord's TIN,
- * the EFRIS device number and keys (EFRIS_DEVICE_* settings). Until those exist nothing is sent to URA.
- */
-async function uraIssue(_paymentId: number): Promise<Issued> {
-  return { ok: false, error: "URA hasn't approved CasaVilla's EFRIS connection yet, so receipts can't be issued automatically. Record them for now." };
-}
+type Issued = { ok: true; fdn: string; verificationCode: string | null; qr: string | null; test: boolean; invoiceId?: string | null } | { ok: false; error: string; uncertain?: boolean; fixable?: boolean };
 
 /** Test mode: a local document that looks like the real flow, clearly marked TEST. */
 async function sandboxIssue(paymentId: number): Promise<Issued> {
@@ -107,20 +102,68 @@ async function sandboxIssue(paymentId: number): Promise<Issued> {
   return { ok: true, fdn: n, verificationCode: `T${Math.random().toString(36).slice(2, 12).toUpperCase()}`, qr: `EFRIS TEST · FDN ${n} · not a URA document`, test: true };
 }
 
-/** Issue the EFRIS document for a payment straight away, for landlords set to automatic. Never throws. */
+/** After this many failed tries (about six hours of hourly retries) CasaVilla stops and asks for it to be recorded by hand. */
+const MAX_TRIES = 6;
+
+/** Is automatic issuing working for this landlord right now? (If so, nobody should issue it by hand meanwhile.) */
+export async function autoActive(landlordId: number) {
+  const mode = efrisMode();
+  if (mode === "off") return false;
+  const prof = await db.efrisProfile.findUnique({ where: { landlordId } });
+  if (!prof || prof.status !== "registered" || prof.mode !== "api") return false;
+  return mode === "sandbox" || !!(prof.deviceNo && prof.keyEnc && prof.checkOk);
+}
+
+/** Should the landlord be told to issue this payment's EFRIS receipt by hand? */
+export async function needsManualEfris(paymentId: number) {
+  if (!(await needsEfris(paymentId))) return false;
+  const p = await db.payment.findUniqueOrThrow({ where: { id: paymentId }, select: { lease: { select: { landlordId: true } } } });
+  if (!(await autoActive(p.lease.landlordId))) return true;
+  const a = await db.efrisAttempt.findUnique({ where: { paymentId } });
+  return a?.status === "stopped";
+}
+
+/**
+ * Issue the EFRIS document for a payment straight away, for landlords set to automatic. Never throws.
+ * Failures are kept in efris_attempts and retried hourly; a document that may already exist at URA ("uncertain")
+ * is looked up before anything is sent again.
+ */
 export async function autoIssueEfris(paymentId: number) {
   try {
     const mode = efrisMode();
     if (mode === "off" || !(await needsEfris(paymentId))) return null;
-    const p = await db.payment.findUniqueOrThrow({ where: { id: paymentId }, select: { tenantId: true, lease: { select: { landlordId: true } } } });
+    const p = await db.payment.findUniqueOrThrow({ where: { id: paymentId }, select: { tenantId: true, lease: { select: { landlordId: true, landlord: { select: { name: true } } } } } });
     const prof = await efrisProfile(p.lease.landlordId);
     if (prof.mode !== "api") return null;
-    const r = mode === "sandbox" ? await sandboxIssue(paymentId) : await uraIssue(paymentId);
-    if (!r.ok) { console.error("efris issue", paymentId, r.error); return null; }
-    const today = new Date(`${kampalaToday()}T00:00:00Z`);
+    // Not connected yet: the landlord was told to issue it by hand, so don't also send it.
+    if (!(await autoActive(p.lease.landlordId))) return null;
+    const before = await db.efrisAttempt.findUnique({ where: { paymentId } });
+    if (before?.status === "stopped") return null;
+    let r: Issued;
+    if (mode === "sandbox") r = await sandboxIssue(paymentId);
+    else {
+      const { uraIssue } = await import("./efris-ura");
+      r = await uraIssue(paymentId, before?.status === "uncertain");
+    }
+    if (!r.ok) {
+      const attempts = (before?.attempts ?? 0) + 1;
+      // An uncertain one is never given up on automatically: it must be checked with URA first.
+      const status = r.uncertain ? "uncertain" : attempts >= MAX_TRIES || r.fixable ? "stopped" : "failed";
+      await db.efrisAttempt.upsert({ where: { paymentId }, create: { paymentId, status, attempts, error: r.error.slice(0, 500) }, update: { status, attempts, error: r.error.slice(0, 500) } });
+      console.error("efris issue", paymentId, status, r.error);
+      if (status === "stopped") {
+        await notifyManagers(`EFRIS receipt for ${p.lease.landlord.name}'s payment couldn't be issued automatically: ${r.error}`, "/manager/efris");
+        await notify(p.lease.landlordId, "An EFRIS receipt couldn't be issued automatically. Issue it in URA's EFRIS app, then record its FDN.", "/landlord/efris");
+      } else if (status === "uncertain" && before?.status !== "uncertain") {
+        await notifyManagers(`URA didn't confirm an EFRIS receipt for ${p.lease.landlord.name}. CasaVilla will check with URA before sending it again — don't issue it by hand.`, "/manager/efris");
+      }
+      return null;
+    }
     const row = await db.efrisReceipt.create({
-      data: { paymentId, fdn: r.fdn, verificationCode: r.verificationCode, qr: r.qr, test: r.test, kind: prof.vatRegistered ? "invoice" : "receipt", tin: prof.tin, issuedOn: today, source: "api" },
+      data: { paymentId, fdn: r.fdn, verificationCode: r.verificationCode, qr: r.qr, test: r.test, invoiceId: r.invoiceId ?? null, kind: prof.vatRegistered ? "invoice" : "receipt", tin: prof.tin, issuedOn: new Date(`${kampalaToday()}T00:00:00Z`), source: "api" },
     });
+    await db.efrisAttempt.deleteMany({ where: { paymentId } });
+    if (before) await notify(p.tenantId, `Your ${docName(row.kind)} is ready (FDN ${row.fdn}).`, `/receipts/${paymentId}`);
     return row;
   } catch (e) {
     console.error("efris auto", paymentId, e);
@@ -131,8 +174,30 @@ export async function autoIssueEfris(paymentId: number) {
 /** Hourly: try again for automatic landlords' payments still without an EFRIS document (e.g. URA was down). */
 export async function retryEfris() {
   if (efrisMode() === "off") return 0;
-  const rows = await db.payment.findMany({ where: { ...missingWhere(), lease: { landlord: { efrisProfile: { is: { status: "registered", mode: "api" } } } } }, select: { id: true }, take: 50, orderBy: { paidAt: "desc" } });
+  const stopped = await db.efrisAttempt.findMany({ where: { status: "stopped" }, select: { paymentId: true } });
+  const rows = await db.payment.findMany({
+    where: { ...missingWhere(), id: { notIn: stopped.map((s) => s.paymentId) }, lease: { landlord: { efrisProfile: { is: { status: "registered", mode: "api" } } } } },
+    select: { id: true }, take: 50, orderBy: { paidAt: "desc" },
+  });
   let n = 0;
   for (const r of rows) if (await autoIssueEfris(r.id)) n++;
   return n;
 }
+
+/** Payments where automatic issuing is stuck, for the manager's EFRIS page. */
+export function efrisProblems(landlordId?: number) {
+  return db.efrisAttempt.findMany({ orderBy: { updatedAt: "desc" }, take: 100 }).then(async (rows) => {
+    if (!rows.length) return [];
+    const pays = await db.payment.findMany({
+      where: { id: { in: rows.map((r) => r.paymentId) }, efris: null, ...(landlordId ? { lease: { landlordId } } : {}) },
+      select: { id: true, amount: true, paidAt: true, tenant: { select: { name: true } }, lease: { select: { landlord: { select: { name: true } }, unit: { select: { label: true } } } } },
+    });
+    return rows.flatMap((r) => { const p = pays.find((x) => x.id === r.paymentId); return p ? [{ ...r, payment: p }] : []; });
+  });
+}
+
+/** The warning printed on a test document: our own sandbox, or URA's EFRIS test environment. */
+export const testLine = (e: { source: string; qr: string | null } | null | undefined) =>
+  e?.source === "api" && !e.qr?.startsWith("EFRIS TEST")
+    ? "TEST RECEIPT — issued on URA's EFRIS test environment, not a live fiscal receipt"
+    : "TEST RECEIPT — made in EFRIS test mode, not issued by URA";

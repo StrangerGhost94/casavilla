@@ -1,3 +1,4 @@
+import { testLine } from "./efris";
 import "server-only";
 import { db, type User } from "@/db";
 import { brandFor } from "./brand";
@@ -58,7 +59,7 @@ export async function receiptPdf(r: ReceiptData) {
   for (const l of [r.brand.address, r.brand.phone, r.brand.email, r.brand.tin && `TIN: ${r.brand.tin}`].filter(Boolean) as string[]) w.text(l, { x: right, size: 8.5, color: undefined, align: "right" });
   w.y = Math.min(w.y, top - 70); w.rule(w.accent);
 
-  if (r.efris?.test) w.text("TEST RECEIPT — made in EFRIS test mode, not issued by URA", { size: 10, bold: true });
+  if (r.efris?.test) w.text(testLine(r.efris), { size: 10, bold: true });
   w.text(r.efris ? `${r.efris.test ? "TEST · " : ""}${r.efris.kind === "invoice" ? "EFRIS E-INVOICE" : "EFRIS E-RECEIPT"}` : "PAYMENT RECEIPT", { size: 9, bold: true, color: w.accent });
   w.text(r.efris ? `FDN ${r.efris.fdn}` : r.p.receiptNo ?? "", { size: r.efris ? 16 : 20, bold: true });
   if (r.efris) w.text(`CasaVilla receipt ${r.p.receiptNo}${r.efris.tin ? `  ·  Seller: ${r.landlord.name}, TIN ${r.efris.tin} — issued by CasaVilla on the landlord's behalf` : ""}`, { size: 8 });

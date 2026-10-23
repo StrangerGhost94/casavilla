@@ -1,12 +1,13 @@
 import QRCode from "qrcode";
 import Link from "next/link";
-import { BadgeCheck, ChevronDown, Clock, FileCheck2, Info, ReceiptText } from "lucide-react";
+import { AlertTriangle, BadgeCheck, ChevronDown, Clock, FileCheck2, Info, KeyRound, PlugZap, ReceiptText } from "lucide-react";
 import { db, type User } from "@/db";
 import { fmtDate, kampalaToday, ugx } from "@/lib/format";
 import { chargeLabel } from "@/lib/rules";
-import { docName, EFRIS_STATUS, efrisApplies, efrisMode, efrisProfile, missingPayments } from "@/lib/efris";
+import { autoActive, docName, EFRIS_STATUS, efrisApplies, efrisMode, efrisProblems, efrisProfile, missingPayments } from "@/lib/efris";
+import { canStoreKeys, openKey, publicKeyPem } from "@/lib/efris-crypto";
 import { fileUrl } from "@/lib/file-url";
-import { recordEfris, removeEfris, saveEfrisProfile } from "@/app/efris-actions";
+import { generateEfrisKey, recordEfris, removeEfris, retryEfrisPayment, saveEfrisConnection, saveEfrisProfile, testEfrisConnection } from "@/app/efris-actions";
 import { Badge, Empty, PageHeader } from "./ui";
 import { ConfirmSubmit, Submit } from "./client";
 import { FileButton } from "./FileButton";
@@ -66,6 +67,89 @@ async function SetupForm({ landlordId, manager }: { landlordId: number; manager?
   );
 }
 
+/** CasaVilla only: the landlord's own URA system-to-system connection (device, key, service-line settings). */
+async function ConnectionForm({ landlordId }: { landlordId: number }) {
+  const p = await efrisProfile(landlordId);
+  if (p.status !== "registered" || !p.tin) return <p className="text-xs text-stone-500">Save the landlord as registered on EFRIS, with their TIN, to connect them to URA.</p>;
+  let pub: string | null = null;
+  try { pub = p.keyEnc ? publicKeyPem(openKey(p.keyEnc)) : null; } catch { pub = null; }
+  const dict = (p.uraDict ?? {}) as { units?: { value: string; name: string }[] };
+  const units = dict.units ?? [];
+  return (
+    <div className="space-y-3 text-sm">
+      <div className={`rounded-xl border p-3 text-xs ${p.checkOk ? "border-brand-100 bg-brand-50/60 text-brand-900" : p.checkOk === false ? "border-maroon-100 bg-maroon-50/50 text-maroon-700" : "border-stone-200 bg-white text-stone-600"}`}>
+        <div className="flex items-center gap-2 font-semibold"><PlugZap className="h-4 w-4" /> {p.checkOk ? "Connected to URA" : p.checkOk === false ? "Connection failed" : "Not tested yet"}{p.checkedAt ? <span className="font-normal text-stone-500">· {fmtDate(p.checkedAt)}</span> : null}</div>
+        {p.checkMessage && <p className="mt-1">{p.checkMessage}</p>}
+        {efrisMode() !== "ura" && <p className="mt-1 text-stone-500">EFRIS_MODE isn&apos;t <b>ura</b> yet, so nothing is sent to URA.</p>}
+      </div>
+      <form action={saveEfrisConnection} className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <input type="hidden" name="landlordId" value={landlordId} />
+        <label className="block"><span className="label">EFRIS device number</span>
+          <input name="deviceNo" required defaultValue={p.deviceNo ?? ""} autoComplete="off" className="input font-mono" placeholder={`e.g. ${p.tin}_02`} />
+        </label>
+        <label className="block"><span className="label">URA environment</span>
+          <select name="environment" defaultValue={p.environment} className="input">
+            <option value="test">Test (efristest.ura.go.ug)</option>
+            <option value="production">Live EFRIS</option>
+          </select>
+        </label>
+        <label className="block"><span className="label">Commodity code — residential rent</span>
+          <input name="commodityResidential" inputMode="numeric" defaultValue={p.commodityResidential ?? ""} className="input font-mono" placeholder="From URA's commodity list" />
+        </label>
+        <label className="block"><span className="label">Its name</span>
+          <input name="commodityResidentialName" defaultValue={p.commodityResidentialName ?? ""} className="input" placeholder="As URA lists it" />
+        </label>
+        <label className="block"><span className="label">Commodity code — commercial rent</span>
+          <input name="commodityCommercial" inputMode="numeric" defaultValue={p.commodityCommercial ?? ""} className="input font-mono" placeholder="Only if they let shops/offices" />
+        </label>
+        <label className="block"><span className="label">Its name</span>
+          <input name="commodityCommercialName" defaultValue={p.commodityCommercialName ?? ""} className="input" />
+        </label>
+        <label className="block"><span className="label">Measure unit for rent</span>
+          {units.length ? (
+            <select name="unitCode" defaultValue={p.unitCode ?? ""} className="input">
+              <option value="">Choose…</option>
+              {units.map((u) => <option key={u.value} value={u.value}>{u.name} ({u.value})</option>)}
+            </select>
+          ) : <input name="unitCode" defaultValue={p.unitCode ?? ""} className="input font-mono" placeholder="Loads from URA after a test" />}
+        </label>
+        <label className="block"><span className="label">Seller legal name</span>
+          <input name="legalName" defaultValue={p.legalName ?? ""} className="input" placeholder="Filled from URA after a test" />
+        </label>
+        <label className="block"><span className="label">Seller business name</span>
+          <input name="businessName" defaultValue={p.businessName ?? ""} className="input" />
+        </label>
+        <label className="block"><span className="label">Seller address</span>
+          <input name="sellerAddress" defaultValue={p.sellerAddress ?? ""} className="input" />
+        </label>
+        <fieldset className="space-y-2 rounded-xl border border-stone-200 bg-white p-3 sm:col-span-2">
+          <legend className="label flex items-center gap-1.5 px-1"><KeyRound className="h-3.5 w-3.5" /> Private key</legend>
+          <p className="text-xs text-stone-500">{p.keyEnc ? <>Stored encrypted · fingerprint <span className="font-mono">{p.keyFingerprint}</span>{p.keyAddedAt ? ` · added ${fmtDate(p.keyAddedAt)}` : ""}. Upload a file only to replace it.</> : "None yet. Upload the key file for this TIN's EFRIS device (.pfx, .p12, .pem or .key), or make a new key pair below."}</p>
+          {!canStoreKeys() && <p className="text-xs font-semibold text-maroon-600">EFRIS_KEY_SECRET isn&apos;t set in Railway, so keys can&apos;t be stored yet.</p>}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <input name="keyFile" type="file" accept=".pfx,.p12,.pem,.key,.der" className="input py-2 text-xs" />
+            <input name="keyPassword" type="password" autoComplete="new-password" className="input" placeholder="Key file password (if it has one)" />
+          </div>
+        </fieldset>
+        <div className="sm:col-span-2"><Submit className="btn-primary btn-sm">Save URA connection</Submit></div>
+      </form>
+      <div className="flex flex-wrap items-center gap-2">
+        <form action={testEfrisConnection}><input type="hidden" name="landlordId" value={landlordId} /><Submit className="btn-outline btn-sm">Test connection</Submit></form>
+        <form action={generateEfrisKey}><input type="hidden" name="landlordId" value={landlordId} />
+          <ConfirmSubmit message={p.keyEnc ? "Replace the stored key with a new key pair? The current key stops working with URA until the new public key is uploaded." : "Make a new key pair for this landlord?"} className="btn-ghost btn-sm">Make a new key pair</ConfirmSubmit>
+        </form>
+      </div>
+      {pub && (
+        <details className="text-xs">
+          <summary className="cursor-pointer font-semibold text-brand-700">Public key (to upload in URA&apos;s EFRIS portal)</summary>
+          <pre className="mt-2 max-h-48 overflow-auto rounded-lg bg-stone-900 p-3 font-mono text-[10px] leading-relaxed text-stone-100">{pub}</pre>
+          <a download={`efris-public-key-${p.tin}.pem`} href={`data:application/x-pem-file;charset=utf-8,${encodeURIComponent(pub)}`} className="mt-2 inline-block font-semibold text-brand-700">Download public key</a>
+        </details>
+      )}
+    </div>
+  );
+}
+
 /** The form for recording one EFRIS document against a payment. */
 function RecordForm({ paymentId, paidOn }: { paymentId: number; paidOn: string }) {
   return (
@@ -109,6 +193,7 @@ export async function EfrisPage({ viewer }: { viewer: User }) {
     manager ? db.user.findMany({ where: { role: "landlord" }, orderBy: { name: "asc" }, select: { id: true, name: true, status: true, efrisProfile: true } }) : Promise.resolve([]),
   ]);
   const own = manager ? null : await efrisProfile(viewer.id);
+  const [problems, ownAuto] = await Promise.all([efrisProblems(landlordId), own ? autoActive(viewer.id) : Promise.resolve(false)]);
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <PageHeader title="EFRIS receipts" subtitle="URA's fiscal receipts for rent, issued under each landlord's TIN." />
@@ -126,7 +211,7 @@ export async function EfrisPage({ viewer }: { viewer: User }) {
         <details className="card group" open={own.status === "unknown"}>
           <summary className="flex cursor-pointer list-none items-center gap-3">
             <ReceiptText className="h-5 w-5 text-brand-700" />
-            <span className="min-w-0 flex-1"><span className="block font-semibold text-brand-950">Your EFRIS details</span><span className="block text-xs text-stone-500">{EFRIS_STATUS[own.status]}{own.tin ? ` · TIN ${own.tin}` : ""}{own.status === "registered" ? ` · from ${fmtDate(own.since)}` : ""}</span></span>
+            <span className="min-w-0 flex-1"><span className="block font-semibold text-brand-950">Your EFRIS details</span><span className="block text-xs text-stone-500">{EFRIS_STATUS[own.status]}{own.tin ? ` · TIN ${own.tin}` : ""}{own.status === "registered" ? ` · from ${fmtDate(own.since)}` : ""}{ownAuto ? " · issued automatically" : own.mode === "api" ? " · automatic once CasaVilla connects you to URA" : ""}</span></span>
             <ChevronDown className="h-4 w-4 text-stone-400 transition group-open:rotate-180" />
           </summary>
           <div className="mt-4 border-t border-stone-100 pt-4"><SetupForm landlordId={viewer.id} /></div>
@@ -139,14 +224,41 @@ export async function EfrisPage({ viewer }: { viewer: User }) {
             {landlords.map((l) => (
               <details key={l.id} className="group">
                 <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 hover:bg-stone-50">
-                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-stone-800">{l.name}</span><span className="block truncate text-xs text-stone-500">{l.efrisProfile?.tin ? `TIN ${l.efrisProfile.tin}` : "No TIN yet"}{l.efrisProfile?.vatRegistered ? " · VAT" : ""}</span></span>
+                  <span className="min-w-0 flex-1"><span className="block truncate text-sm font-semibold text-stone-800">{l.name}</span><span className="block truncate text-xs text-stone-500">{l.efrisProfile?.tin ? `TIN ${l.efrisProfile.tin}` : "No TIN yet"}{l.efrisProfile?.vatRegistered ? " · VAT" : ""}{l.efrisProfile?.checkOk ? ` · URA connected${l.efrisProfile.environment === "test" ? " (test)" : ""}` : ""}</span></span>
                   <Badge color={l.efrisProfile?.status === "registered" ? "green" : l.efrisProfile?.status === "exempt" ? "gray" : "amber"}>{EFRIS_STATUS[l.efrisProfile?.status ?? "unknown"]}</Badge>
                   <ChevronDown className="h-4 w-4 shrink-0 text-stone-400 transition group-open:rotate-180" />
                 </summary>
-                <div className="border-t border-stone-100 bg-stone-50/60 px-4 py-4"><SetupForm landlordId={l.id} manager /></div>
+                <div className="space-y-5 border-t border-stone-100 bg-stone-50/60 px-4 py-4">
+                  <SetupForm landlordId={l.id} manager />
+                  <div className="border-t border-stone-200 pt-4">
+                    <h3 className="mb-2 text-sm font-semibold text-brand-950">URA connection (system-to-system)</h3>
+                    <ConnectionForm landlordId={l.id} />
+                  </div>
+                </div>
               </details>
             ))}
             {!landlords.length && <div className="px-4 py-4 text-sm text-stone-500">No landlords yet.</div>}
+          </div>
+        </section>
+      )}
+
+      {problems.length > 0 && (
+        <section>
+          <h2 className="h2 mb-2">Automatic issuing needs attention</h2>
+          <div className="card divide-y divide-stone-100 p-0">
+            {problems.map((a) => (
+              <div key={a.paymentId} className="flex items-start gap-3 px-4 py-3">
+                <AlertTriangle className={`mt-0.5 h-5 w-5 shrink-0 ${a.status === "uncertain" ? "text-gold-600" : "text-maroon-500"}`} />
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-sm font-semibold text-stone-800">{a.payment.tenant.name} · {a.payment.lease.unit.label} · {ugx(a.payment.amount)}{manager ? ` · ${a.payment.lease.landlord.name}` : ""}</div>
+                  <div className="text-xs text-stone-500">{a.status === "uncertain" ? "Sent to URA without an answer — CasaVilla checks with URA before sending again. Don't issue it by hand." : a.status === "stopped" ? "Stopped — record it by hand, or try again once fixed." : `Retrying hourly (${a.attempts} tries).`}</div>
+                  {a.error && <div className="mt-0.5 break-words text-[11px] text-stone-400">{a.error}</div>}
+                </div>
+                {manager && (
+                  <form action={retryEfrisPayment}><input type="hidden" name="paymentId" value={a.paymentId} /><Submit className="btn-outline btn-sm">Try now</Submit></form>
+                )}
+              </div>
+            ))}
           </div>
         </section>
       )}
@@ -234,7 +346,7 @@ export async function EfrisOnReceipt({ paymentId, landlordId, paidAt, chargeKind
         // eslint-disable-next-line @next/next/no-img-element
         <img src={await QRCode.toDataURL(e.qr, { margin: 1, width: 240 })} alt="EFRIS QR code" className="mt-3 h-28 w-28 rounded-lg bg-white p-1 ring-1 ring-stone-200" />
       )}
-      <p className="mt-2 text-[11px] text-stone-500">{e.test ? "Test document — it won't be found on URA's EFRIS." : "Check it in URA's EFRIS app or web portal using the FDN and the date it was issued."}</p>
+      <p className="mt-2 text-[11px] text-stone-500">{e.test ? "Test document — not a real fiscal receipt." : "Check it in URA's EFRIS app or web portal using the FDN and the date it was issued."}</p>
       <div className="no-print mt-3 flex flex-wrap items-center gap-3">
         {e.fileId && <FileButton href={fileUrl(e.fileId)} name={`EFRIS-${e.fdn}`} className="btn-outline btn-sm">URA&apos;s copy</FileButton>}
         {canManage && (

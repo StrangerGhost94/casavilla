@@ -10,7 +10,7 @@ import { verifyCharge, provider } from "./momo";
 import { brandFor } from "./brand";
 import { emailHtml, queueEmail } from "./mail";
 import { appUrl, queueMessage } from "./messaging";
-import { autoIssueEfris, needsEfris } from "./efris";
+import { autoIssueEfris, needsManualEfris } from "./efris";
 import { afterPayment } from "./payouts";
 
 type Tx = Prisma.TransactionClient;
@@ -185,7 +185,7 @@ export async function completePayment(paymentId: number) {
   await afterPayment(p.id);
   await autoIssueEfris(p.id);
   // Still no EFRIS document (landlord records them by hand, or automatic issuing couldn't reach URA): remind them.
-  if (await needsEfris(p.id)) await notify(lease.landlordId, `Issue an EFRIS receipt to ${lease.tenant.name} for ${ugx(p.amount)}, then record its FDN.`, "/landlord/efris");
+  if (await needsManualEfris(p.id)) await notify(lease.landlordId, `Issue an EFRIS receipt to ${lease.tenant.name} for ${ugx(p.amount)}, then record its FDN.`, "/landlord/efris");
 }
 
 export async function failPayment(paymentId: number) {
