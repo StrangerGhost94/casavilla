@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { ClipboardCheck, Receipt, UserCog, Wallet, Wrench, Zap } from "lucide-react";
+import { CheckCircle2, ClipboardCheck, MessageCircle, Phone, Receipt, UserCog, Wallet, Wrench, Zap } from "lucide-react";
 import { db, type User } from "@/db";
 import { fmtDate, kampalaToday, ugx } from "@/lib/format";
 import { caretakerPropertyIds } from "@/lib/access";
 import { leaseBalance } from "@/lib/billing";
-import { Badge, Empty, Field, PageHeader } from "./ui";
+import { Avatar, Badge, Empty, Field, PageHeader } from "./ui";
 import { ConfirmSubmit, Submit } from "./client";
 import { CashForm } from "./LeaseTools";
 import { JobList, jobsFor } from "./Jobs";
@@ -120,40 +120,65 @@ export async function CaretakerHome({ viewer }: { viewer: User }) {
     { href: "/caretaker/inspections", label: "Inspection", icon: ClipboardCheck, show: true },
     { href: "/caretaker/expenses", label: "Add expense", icon: Receipt, show: true },
   ].filter((t) => t.show);
+  const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Africa/Kampala" });
+  const owedTotal = [...owing.values()].reduce((t, o) => t + o.owed, 0);
+  const tel = (p: string) => p.replace(/\D/g, "");
+  const landlords = [...new Map(as.map((a) => [a.property.landlord.phone, a.property.landlord])).values()];
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <PageHeader title={`Hello ${viewer.name.split(" ")[0]}`} subtitle={as.map((a) => a.property.name).join(" · ")} />
+      {/* Today at a glance */}
+      <div className="rounded-3xl bg-brand-900 p-5 text-white shadow-card">
+        <div className="text-[11px] font-semibold uppercase tracking-wide text-white/60">{today}</div>
+        <div className="mt-1 text-xl font-bold">Hello {viewer.name.split(" ")[0]}</div>
+        <div className="truncate text-sm text-white/70">{as.map((a) => a.property.name).join(" · ")}</div>
+        <div className="mt-4 grid grid-cols-3 gap-2 text-center">
+          {([["/caretaker/repairs", jobs, "Open repairs", false], ["/caretaker/meters", toRead, "Meters to read", toRead > 0], ["/caretaker/inspections", drafts, "Unfinished inspections", drafts > 0]] as const).map(([href, n, label, warn]) => (
+            <Link key={href} href={href} className="rounded-2xl bg-white/5 px-2 py-3 transition hover:bg-white/10">
+              <div className={`text-xl font-bold ${warn ? "text-gold-300" : ""}`}>{n}</div>
+              <div className="text-[10px] leading-tight text-white/60">{label}</div>
+            </Link>
+          ))}
+        </div>
+      </div>
+
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
         {tiles.map((t) => (
-          <Link key={t.href} href={t.href} className="card flex flex-col items-center gap-1.5 p-3 text-center text-xs font-semibold text-brand-950 hover:shadow-md">
+          <Link key={t.href} href={t.href} className="flex flex-col items-center gap-1.5 rounded-2xl border border-stone-200/70 bg-white p-3 text-center text-[11px] font-semibold text-brand-950 shadow-card transition hover:-translate-y-0.5 hover:border-brand-200">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><t.icon className="h-5 w-5" /></span>{t.label}
           </Link>
         ))}
       </div>
-      <div className="grid grid-cols-3 gap-2.5">
-        <Link href="/caretaker/repairs" className="card p-3.5"><div className="text-[11px] leading-tight text-stone-500">Open repairs</div><div className="mt-1 text-xl font-bold text-brand-950">{jobs}</div></Link>
-        <Link href="/caretaker/meters" className={`card p-3.5 ${toRead ? "border-gold-200 bg-gold-50/60" : ""}`}><div className="text-[11px] leading-tight text-stone-500">Meters to read this month</div><div className={`mt-1 text-xl font-bold ${toRead ? "text-gold-700" : "text-brand-950"}`}>{toRead}</div></Link>
-        <Link href="/caretaker/inspections" className="card p-3.5"><div className="text-[11px] leading-tight text-stone-500">Unfinished inspections</div><div className="mt-1 text-xl font-bold text-brand-950">{drafts}</div></Link>
-      </div>
+
       {balanceIds.length > 0 && (
         <div className="card p-0">
-          <div className="px-4 pb-2 pt-4 font-semibold text-brand-950">Behind on rent</div>
+          <div className="flex items-center justify-between px-4 pb-2 pt-4">
+            <div className="font-semibold text-brand-950">Behind on rent</div>
+            {owedTotal > 0 && <span className="text-sm font-bold text-maroon-600">{ugx(owedTotal)}</span>}
+          </div>
           {owing.size ? (
             <div className="divide-y divide-stone-100 border-t border-stone-100">
               {[...owing.entries()].sort((a, b) => b[1].owed - a[1].owed).map(([lid, o]) => (
                 <div key={lid} className="flex items-center gap-3 px-4 py-2.5 text-sm">
+                  <Avatar name={o.name} className="h-9 w-9 text-xs" />
                   <div className="min-w-0 flex-1"><div className="truncate font-medium">{o.name}</div><div className="truncate text-xs text-stone-500">{o.where}</div></div>
                   <span className="font-semibold text-maroon-600">{ugx(o.owed)}</span>
-                  <a href={`tel:${o.phone}`} className="btn-ghost btn-sm">Call</a>
+                  <a href={`tel:+${tel(o.phone)}`} aria-label={`Call ${o.name}`} className="btn-outline btn-sm px-2.5"><Phone className="h-4 w-4" /></a>
+                  <a href={`https://wa.me/${tel(o.phone)}`} aria-label={`WhatsApp ${o.name}`} className="btn-outline btn-sm hidden px-2.5 sm:inline-flex"><MessageCircle className="h-4 w-4" /></a>
                 </div>
               ))}
             </div>
-          ) : <p className="px-4 pb-4 text-sm text-stone-500">Everyone is up to date.</p>}
+          ) : <p className="flex items-center gap-2 px-4 pb-4 text-sm text-brand-700"><CheckCircle2 className="h-4 w-4" /> Everyone is up to date.</p>}
         </div>
       )}
-      <div className="card text-sm text-stone-600">
-        {as.map((a) => <div key={a.id}>{a.property.name}: landlord {a.property.landlord.name} · <a href={`tel:${a.property.landlord.phone}`} className="link">{a.property.landlord.phone}</a></div>)}
-      </div>
+
+      {landlords.map((l) => (
+        <div key={l.phone} className="card flex items-center gap-3 p-4">
+          <Avatar name={l.name} className="h-10 w-10 text-xs" />
+          <div className="min-w-0 flex-1"><div className="text-[11px] text-stone-500">Landlord</div><div className="truncate text-sm font-semibold text-brand-950">{l.name}</div></div>
+          <a href={`tel:+${tel(l.phone)}`} aria-label={`Call ${l.name}`} className="btn-outline btn-sm px-2.5"><Phone className="h-4 w-4" /></a>
+          <a href={`https://wa.me/${tel(l.phone)}`} aria-label={`WhatsApp ${l.name}`} className="btn-outline btn-sm px-2.5"><MessageCircle className="h-4 w-4" /></a>
+        </div>
+      ))}
     </div>
   );
 }
@@ -197,6 +222,10 @@ export async function CaretakerRepairs({ viewer }: { viewer: User }) {
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       <PageHeader title="Repairs" subtitle="Report problems on site. Your landlord and CasaVilla are told, and a provider is found." />
+      <a href="#new" className="flex items-center gap-4 rounded-3xl bg-brand-900 p-4 text-white shadow-card transition hover:bg-brand-950">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gold-400 text-brand-950"><Wrench className="h-5 w-5" /></span>
+        <span className="min-w-0 flex-1"><span className="block font-semibold">Report a repair</span><span className="block text-xs text-white/70">Take a photo on site. It goes straight to the landlord.</span></span>
+      </a>
       <JobList where={jobsFor.caretaker(ids)} base="/caretaker/repairs" empty="No repairs reported" />
       <form id="new" action={caretakerJob} encType="multipart/form-data" className="card scroll-mt-20 space-y-2.5">
         <div className="font-semibold text-brand-950">Report a repair</div>

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgeCheck, Check, ChevronDown, Plus, ShieldCheck } from "lucide-react";
+import { BadgeCheck, Check, ChevronDown, MessageCircle, Phone, Plus, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 import type { Prisma, Property } from "@prisma/client";
 import { db, type User } from "@/db";
@@ -464,46 +464,79 @@ export async function ApplicationsTable({ where }: { where: Prisma.ApplicationWh
   }
   const rivals = (unitId: number) => pending.filter((x) => x.unitId === unitId).length;
   const nextYear = `${Number(today.slice(0, 4)) + 1}${today.slice(4)}`;
+  const decided = rows.filter((a) => a.status !== "pending");
+  const tel = (p: string) => p.replace(/\D/g, "");
   return (
-    <div className="space-y-4">
-      {rows.map((a) => (
-        <div key={a.id} className="card">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <div className="font-semibold">{a.tenant.name} <span className="font-normal text-stone-500">→ {a.unit.property.name} · {a.unit.label}</span></div>
-              <div className="text-sm text-stone-500">{a.tenant.phone} · {a.tenant.email} · applied {fmtDate(a.createdAt)}{a.moveIn && ` · wants to move in ${fmtDate(a.moveIn)}`}</div>
-              {a.message && <p className="mt-2 text-sm text-stone-700">“{a.message}”</p>}
-              {a.status === "pending" && (
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {scores.get(a.tenantId) && <ScorePill s={scores.get(a.tenantId)!} />}
-                  {best.get(a.unitId) === a.id && rivals(a.unitId) > 1 && <span className="pill bg-gold-100 text-gold-700">★ Most reliable of {rivals(a.unitId)} applicants</span>}
-                  {housed.find((h) => h.tenantId === a.tenantId) && (() => { const h = housed.find((x) => x.tenantId === a.tenantId)!; return <span className="pill bg-amber-50 text-amber-700">Currently renting {h.unit.property.name} · {h.unit.label} — that lease must end first</span>; })()}
+    <div className="space-y-6">
+      <section>
+        <h2 className="h2 mb-3">Waiting for a decision <span className="ml-1 rounded-full bg-gold-100 px-2 py-0.5 text-xs text-gold-700">{pending.length}</span></h2>
+        {!pending.length ? <Empty title="Nothing waiting">New applications for your listed units show up here.</Empty> : (
+          <div className="space-y-3">
+            {pending.map((a) => {
+              const h = housed.find((x) => x.tenantId === a.tenantId);
+              return (
+                <div key={a.id} className="card p-4">
+                  <div className="flex items-start gap-3">
+                    <Avatar name={a.tenant.name} className="h-11 w-11 text-sm" />
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-brand-950">{a.tenant.name}</div>
+                      <div className="text-sm text-stone-600">wants <b>{a.unit.property.name} · {a.unit.label}</b> · {ugx(a.unit.rent)}/mo</div>
+                      <div className="text-xs text-stone-500">Applied {fmtDate(a.createdAt)}{a.moveIn && ` · move in ${fmtDate(a.moveIn)}`}</div>
+                    </div>
+                    <a href={`tel:+${tel(a.tenant.phone)}`} aria-label={`Call ${a.tenant.name}`} className="btn-outline btn-sm px-2.5"><Phone className="h-4 w-4" /></a>
+                    <a href={`https://wa.me/${tel(a.tenant.phone)}`} aria-label={`WhatsApp ${a.tenant.name}`} className="btn-outline btn-sm px-2.5"><MessageCircle className="h-4 w-4" /></a>
+                  </div>
+                  {a.message && <p className="mt-3 rounded-xl bg-stone-50 p-3 text-sm text-stone-700">“{a.message}”</p>}
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    {scores.get(a.tenantId) && <ScorePill s={scores.get(a.tenantId)!} />}
+                    {best.get(a.unitId) === a.id && rivals(a.unitId) > 1 && <span className="pill bg-gold-100 text-gold-700">★ Most reliable of {rivals(a.unitId)} applicants</span>}
+                    {rivals(a.unitId) > 1 && best.get(a.unitId) !== a.id && <span className="pill bg-stone-100 text-stone-600">{rivals(a.unitId)} people applied for this unit</span>}
+                    {h && <span className="pill bg-amber-50 text-amber-700">Renting {h.unit.property.name} · {h.unit.label}: that lease must end first</span>}
+                  </div>
+                  <div className="mt-4 flex items-start gap-3 border-t border-stone-100 pt-4">
+                  <details className="group/ap min-w-0 flex-1">
+                    <summary className="flex cursor-pointer list-none flex-wrap items-center gap-2">
+                      <span className="btn-primary btn-sm group-open/ap:hidden"><Check className="h-4 w-4" /> Approve…</span>
+                      <span className="hidden text-sm font-semibold text-brand-950 group-open/ap:inline">Lease terms</span>
+                    </summary>
+                    <form action={decideApplication} className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
+                      <input type="hidden" name="id" value={a.id} /><input type="hidden" name="decision" value="approve" />
+                      <div className="col-span-1 sm:col-span-1"><Field label="Start"><input type="date" name="startDate" defaultValue={a.moveIn ? ymd(a.moveIn) : today} className="input" required /></Field></div>
+                      <div className="col-span-1 sm:col-span-1"><Field label="End"><input type="date" name="endDate" defaultValue={nextYear} className="input" required /></Field></div>
+                      <Field label="Rent / month"><input type="number" name="rent" defaultValue={a.unit.rent} className="input" /></Field>
+                      <Field label="Deposit (max 1 month)"><input type="number" name="deposit" defaultValue={a.unit.rent} max={a.unit.rent} className="input" /></Field>
+                      <Field label="Due day"><input type="number" name="dueDay" min={1} max={28} defaultValue={5} className="input" /></Field>
+                      <Field label="Late fee %"><input type="number" name="lateFeePct" min={0} max={50} defaultValue={0} className="input" title="Added once rent is 7+ days late. 0 = off" /></Field>
+                      <div className="col-span-2 sm:col-span-6"><Field label="Special terms for the tenancy agreement (optional)"><textarea name="specialTerms" rows={2} maxLength={3000} className="input" placeholder="e.g. No pets. Parking for one car included. Tenant maintains the garden." /></Field></div>
+                      <div className="col-span-2 sm:col-span-6"><Submit className="btn-primary w-full sm:w-auto">Approve & create lease</Submit></div>
+                    </form>
+                  </details>
+                  <form action={decideApplication} className="shrink-0">
+                    <input type="hidden" name="id" value={a.id} /><input type="hidden" name="decision" value="reject" />
+                    <ConfirmSubmit message="Decline this application?" className="btn-ghost btn-sm text-maroon-600">Decline</ConfirmSubmit>
+                  </form>
+                  </div>
                 </div>
-              )}
-            </div>
-            <Badge>{a.status}</Badge>
+              );
+            })}
           </div>
-          {a.status === "pending" && (
-            <div className="mt-4 flex flex-wrap items-end gap-3 border-t border-stone-100 pt-4">
-              <form action={decideApplication} className="grid flex-1 grid-cols-2 gap-2 sm:grid-cols-7">
-                <input type="hidden" name="id" value={a.id} /><input type="hidden" name="decision" value="approve" />
-                <div className="col-span-2 sm:col-span-1"><Field label="Start"><input type="date" name="startDate" defaultValue={a.moveIn ? ymd(a.moveIn) : today} className="input" required /></Field></div>
-                <div className="col-span-2 sm:col-span-1"><Field label="End"><input type="date" name="endDate" defaultValue={nextYear} className="input" required /></Field></div>
-                <Field label="Rent / month"><input type="number" name="rent" defaultValue={a.unit.rent} className="input" /></Field>
-                <Field label="Deposit (max 1 month)"><input type="number" name="deposit" defaultValue={a.unit.rent} max={a.unit.rent} className="input" /></Field>
-                <Field label="Due day"><input type="number" name="dueDay" min={1} max={28} defaultValue={5} className="input" /></Field>
-                <Field label="Late fee %"><input type="number" name="lateFeePct" min={0} max={50} defaultValue={0} className="input" title="Added once rent is 7+ days late. 0 = off" /></Field>
-                <div className="col-span-2 sm:col-span-7"><Field label="Special terms for the tenancy agreement (optional)"><textarea name="specialTerms" rows={2} maxLength={3000} className="input" placeholder="e.g. No pets. Parking for one car included. Tenant maintains the garden." /></Field></div>
-                <div className="flex items-end"><Submit className="btn-primary w-full">Approve & create lease</Submit></div>
-              </form>
-              <form action={decideApplication}>
-                <input type="hidden" name="id" value={a.id} /><input type="hidden" name="decision" value="reject" />
-                <ConfirmSubmit message="Decline this application?" className="btn-outline">Decline</ConfirmSubmit>
-              </form>
-            </div>
-          )}
-        </div>
-      ))}
+        )}
+      </section>
+
+      {decided.length > 0 && (
+        <details className="card p-0">
+          <summary className="cursor-pointer list-none px-4 py-3 text-sm font-semibold text-stone-600">Decided ({decided.length})</summary>
+          <div className="divide-y divide-stone-100 border-t border-stone-100">
+            {decided.map((a) => (
+              <div key={a.id} className="flex items-center gap-3 px-4 py-3 text-sm">
+                <Avatar name={a.tenant.name} className="h-8 w-8 text-[10px]" />
+                <div className="min-w-0 flex-1"><div className="truncate font-medium text-stone-800">{a.tenant.name}</div><div className="truncate text-xs text-stone-500">{a.unit.property.name} · {a.unit.label} · {fmtDate(a.createdAt)}</div></div>
+                <Badge>{a.status}</Badge>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
     </div>
   );
 }

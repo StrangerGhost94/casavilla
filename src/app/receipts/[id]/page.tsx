@@ -45,7 +45,12 @@ export default async function Receipt({ params }: { params: Promise<{ id: string
             <div className="text-2xl font-bold">{r.efris ? <span className="font-mono text-xl">FDN {r.efris.fdn}</span> : r.p.receiptNo}</div>
             {r.efris && <div className="mt-0.5 text-xs text-stone-500">CasaVilla receipt {r.p.receiptNo}</div>}
           </div>
-          <div className="text-right text-sm"><div className="text-stone-500">Date paid</div><div className="font-semibold">{fmtDate(r.p.paidAt)}</div></div>
+          <div className="text-sm sm:text-right"><div className="text-stone-500">Date paid</div><div className="font-semibold">{fmtDate(r.p.paidAt)}</div></div>
+        </div>
+        {/* The one number people look for, stamped paid */}
+        <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border-2 border-dashed p-4" style={{ borderColor: accent }}>
+          <div><div className="text-xs text-stone-500">Amount paid</div><div className="whitespace-nowrap text-2xl font-bold" style={{ color: accent }}>{ugx(r.p.amount)}</div></div>
+          <span className="-rotate-6 rounded-lg border-2 px-3 py-1 text-sm font-black uppercase tracking-[0.2em]" style={{ borderColor: accent, color: accent }}>Paid</span>
         </div>
         <dl className="mt-6 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
           <div><dt className="text-stone-500">Received from</dt><dd className="font-semibold">{r.tenant.name}</dd><dd className="text-stone-500">{r.tenant.phone}</dd></div>
@@ -55,14 +60,14 @@ export default async function Receipt({ params }: { params: Promise<{ id: string
         </dl>
         <div className="mt-6 overflow-hidden rounded-xl border border-stone-200">
           <table className="w-full text-sm">
-            <thead className="bg-stone-50 text-xs text-stone-500"><tr><th className="px-3 py-2 text-left font-semibold">Description</th><th className="px-3 py-2 text-left font-semibold">Period</th><th className="px-3 py-2 text-right font-semibold">Amount</th></tr></thead>
+            <thead className="bg-stone-50 text-xs text-stone-500"><tr><th className="px-3 py-2 text-left font-semibold">Description</th><th className="hidden px-3 py-2 text-left font-semibold sm:table-cell">Period</th><th className="px-3 py-2 text-right font-semibold">Amount</th></tr></thead>
             <tbody>
-              {r.lines.map((l, i) => <tr key={i} className="border-t border-stone-100"><td className="px-3 py-2">{l.description}</td><td className="px-3 py-2 text-stone-500">{l.period}</td><td className="px-3 py-2 text-right">{ugx(l.amount)}</td></tr>)}
-              {r.credit > 0 && <tr className="border-t border-stone-100"><td className="px-3 py-2" colSpan={2}>Kept as credit for upcoming rent</td><td className="px-3 py-2 text-right">{ugx(r.credit)}</td></tr>}
+              {r.lines.map((l, i) => <tr key={i} className="border-t border-stone-100"><td className="px-3 py-2">{l.description}<div className="text-xs text-stone-500 sm:hidden">{l.period}</div></td><td className="hidden px-3 py-2 text-stone-500 sm:table-cell">{l.period}</td><td className="whitespace-nowrap px-3 py-2 text-right">{ugx(l.amount)}</td></tr>)}
+              {r.credit > 0 && <tr className="border-t border-stone-100"><td className="hidden sm:table-cell" /><td className="px-3 py-2">Kept as credit for upcoming rent</td><td className="whitespace-nowrap px-3 py-2 text-right">{ugx(r.credit)}</td></tr>}
             </tbody>
             <tfoot>
-              <tr className="border-t border-stone-200"><td colSpan={2} className="px-3 pt-3 text-right font-semibold">Total paid</td><td className="px-3 pt-3 text-right text-lg font-bold" style={{ color: accent }}>{ugx(r.p.amount)}</td></tr>
-              <tr><td colSpan={2} className="px-3 pb-3 text-right text-stone-500">Balance still owed</td><td className="px-3 pb-3 text-right text-stone-500">{ugx(r.balance)}</td></tr>
+              <tr className="border-t border-stone-200"><td className="hidden sm:table-cell" /><td className="px-3 pt-3 text-right font-semibold">Total paid</td><td className="whitespace-nowrap px-3 pt-3 text-right text-base font-bold sm:text-lg" style={{ color: accent }}>{ugx(r.p.amount)}</td></tr>
+              <tr><td className="hidden sm:table-cell" /><td className="px-3 pb-3 text-right text-stone-500">Balance still owed</td><td className="whitespace-nowrap px-3 pb-3 text-right text-stone-500">{ugx(r.balance)}</td></tr>
             </tfoot>
           </table>
         </div>
@@ -74,7 +79,7 @@ export default async function Receipt({ params }: { params: Promise<{ id: string
       {me.id === r.tenant.id && (
         <form action={emailMyReceipt} className="no-print mt-4 flex items-center justify-between gap-3 rounded-2xl bg-white p-4 text-sm shadow-card">
           <input type="hidden" name="id" value={r.p.id} />
-          <span className="flex items-center gap-2 text-stone-600"><Mail className="h-4 w-4 text-brand-700" /> {mailConfigured() ? `Send a copy to ${me.email}` : `Email a copy to ${me.email} (sent once email is switched on)`}</span>
+          <span className="flex min-w-0 items-center gap-2 text-stone-600"><Mail className="h-4 w-4 shrink-0 text-brand-700" /> {mailConfigured() ? `Send a copy to ${me.email}` : `Email a copy to ${me.email} (sent once email is switched on)`}</span>
           <Submit className="btn-outline btn-sm" doneText="Queued">Email me</Submit>
         </form>
       )}

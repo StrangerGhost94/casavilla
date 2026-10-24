@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgeCheck, Clock, Star } from "lucide-react";
+import { BadgeCheck, Clock, Eye, Package, ShoppingBag, Star, Wrench } from "lucide-react";
 import { providerStats } from "@/lib/insights";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
@@ -34,6 +34,14 @@ export default async function ProviderHome() {
             : <span className="pill mt-1 bg-gold-50 text-gold-700"><Clock className="h-3.5 w-3.5" /> Awaiting approval</span>}
           {st?.rating && <span className="pill ml-1.5 mt-1 bg-gold-50 text-gold-700"><Star className="h-3.5 w-3.5 fill-gold-400 text-gold-400" /> {st.rating} · {st.ratings} review{st.ratings > 1 ? "s" : ""}</span>}
         </div>
+      </div>
+
+      <div className="mt-3 grid grid-cols-4 gap-2">
+        {([["/provider/services#add", "Add service", Wrench], ["/provider/products", "Add item", Package], ["/provider/orders", "Orders", ShoppingBag], [`/services/${u.id}`, "Public profile", Eye]] as const).map(([href, label, I]) => (
+          <Link key={label} href={href} className="flex flex-col items-center gap-1.5 rounded-2xl border border-stone-200/70 bg-white py-3 text-[11px] font-medium text-stone-700 shadow-card transition hover:-translate-y-0.5 hover:border-brand-200">
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><I className="h-[18px] w-[18px]" /></span>{label}
+          </Link>
+        ))}
       </div>
 
       {svcs.length === 0 && (
