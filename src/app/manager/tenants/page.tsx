@@ -4,13 +4,13 @@ import { Submit } from "@/components/client";
 import { TenantsSections } from "@/components/Portfolio";
 import { generateCharges } from "../actions";
 
-export default async function ManagerTenants() {
+export default async function ManagerTenants({ searchParams }: { searchParams: Promise<{ show?: string }> }) {
   await requireUser("manager");
   return (
     <>
       <PageHeader title="Leases & rent" subtitle="Rent charges are raised automatically each month on the lease's due day."
         actions={<form action={generateCharges}><Submit className="btn-outline">Refresh rent charges</Submit></form>} />
-      <TenantsSections where={{}} base="/manager/tenants" />
+      <TenantsSections where={{}} base="/manager/tenants" show={(await searchParams).show} />
     </>
   );
 }

@@ -73,7 +73,7 @@ export async function PropertyList({ where, base }: { where: Prisma.PropertyWher
   const [rows, archived] = await Promise.all([
     db.property.findMany({
       where: { ...where, archivedAt: null }, orderBy: { createdAt: "desc" },
-      include: { landlord: { select: { name: true } }, units: { select: { status: true } } },
+      include: { landlord: { select: { name: true } }, units: { select: { status: true, rent: true, mode: true, listed: true } }, _count: { select: { photos: true } } },
     }),
     db.property.findMany({ where: { ...where, archivedAt: { not: null } }, orderBy: { archivedAt: "desc" }, select: { id: true, name: true, location: true, archivedAt: true } }),
   ]);
@@ -91,24 +91,42 @@ export async function PropertyList({ where, base }: { where: Prisma.PropertyWher
     </details>
   );
   if (!rows.length) return <><Empty title="No properties yet">Add your first property, then its units.</Empty>{archivedList}</>;
+  const units = rows.flatMap((p) => p.units);
+  const occ = units.filter((u) => u.status === "occupied");
+  const roll = occ.reduce((t, u) => t + (u.mode === "short" ? 0 : u.rent), 0);
+  const vacant = units.length - occ.length;
   return (
     <>
+    <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+      <div className="card p-4"><div className="text-xl font-bold text-brand-950">{rows.length}</div><div className="text-xs text-stone-500">Propert{rows.length === 1 ? "y" : "ies"} · {units.length} units</div></div>
+      <div className="card p-4"><div className="text-xl font-bold text-brand-950">{units.length ? Math.round((occ.length / units.length) * 100) : 0}%</div><div className="text-xs text-stone-500">Let · {occ.length} of {units.length}</div></div>
+      <div className="card p-4"><div className={`text-xl font-bold ${vacant ? "text-gold-700" : "text-brand-950"}`}>{vacant}</div><div className="text-xs text-stone-500">Vacant unit{vacant === 1 ? "" : "s"}</div></div>
+      <div className="card p-4"><div className="truncate text-base font-bold text-brand-950 sm:text-xl">{ugx(roll)}</div><div className="text-xs text-stone-500">Rent from let units / month</div></div>
+    </div>
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {rows.map((p) => {
         const total = p.units.length;
         const occupied = p.units.filter((u) => u.status === "occupied").length;
+        const free = total - occupied;
+        const listed = p.units.filter((u) => u.status === "vacant" && u.listed).length;
+        const rent = p.units.filter((u) => u.status === "occupied" && u.mode !== "short").reduce((t, u) => t + u.rent, 0);
         return (
-          <Link key={p.id} href={`${base}/${p.id}`} className="card overflow-hidden p-0 hover:shadow-md">
-            <Photo id={p.photoId} alt={p.name} className="h-36 w-full" />
+          <Link key={p.id} href={`${base}/${p.id}`} className="card group overflow-hidden p-0 transition hover:-translate-y-0.5 hover:shadow-float">
+            <div className="relative h-40 overflow-hidden">
+              <Photo id={p.photoId} alt={p.name} className="absolute inset-0 h-full w-full transition duration-500 group-hover:scale-[1.04]" />
+              <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+              <span className={`pill absolute left-3 top-3 shadow-sm ${free ? "bg-gold-400 text-brand-950" : "bg-white/95 text-brand-800"}`}>{free ? `${free} vacant` : "Fully let"}</span>
+              {p._count.photos > 0 && <span className="pill absolute bottom-3 right-3 bg-black/55 text-[11px] text-white">{p._count.photos} photo{p._count.photos === 1 ? "" : "s"}</span>}
+              <div className="absolute bottom-3 left-3 right-16 truncate text-lg font-bold text-white drop-shadow">{p.name}</div>
+            </div>
             <div className="p-4">
-              <div className="font-semibold text-stone-900">{p.name}</div>
-              <div className="muted">{p.location} · {p.type}</div>
+              <div className="truncate text-xs text-stone-500">{p.location} · {p.type}</div>
               {!p.locationId && <div className="mt-1 text-[11px] font-semibold text-gold-700">Location not verified</div>}
-              <div className="mt-2 flex items-center justify-between text-sm">
-                <span>{occupied}/{total} units occupied</span>
-                <span className="text-xs text-stone-500">{p.landlord.name}</span>
+              <div className="mt-3 flex items-end justify-between gap-2">
+                <div><div className="text-sm font-semibold text-stone-800">{occupied} of {total} let</div><div className="text-[11px] text-stone-500">{listed ? `${listed} listed for tenants` : free ? "Vacant units not listed" : p.landlord.name}</div></div>
+                <div className="text-right"><div className="text-sm font-bold text-brand-800">{ugx(rent)}</div><div className="text-[11px] text-stone-500">/ month</div></div>
               </div>
-              <div className="mt-2 h-1.5 rounded bg-stone-100"><div className="h-1.5 rounded bg-brand-500" style={{ width: `${total ? (occupied / total) * 100 : 0}%` }} /></div>
+              <div className="mt-2 h-1.5 rounded-full bg-stone-100"><div className="h-1.5 rounded-full bg-brand-500" style={{ width: `${total ? (occupied / total) * 100 : 0}%` }} /></div>
             </div>
           </Link>
         );
@@ -494,15 +512,37 @@ export async function ApplicationsTable({ where }: { where: Prisma.ApplicationWh
  * The tenants page: current tenants first; then former tenants who still owe (debts don't disappear when
  * someone moves out); then every past tenancy, folded away.
  */
-export async function TenantsSections({ where, base }: { where: Prisma.LeaseWhereInput; base: string }) {
+export async function TenantsSections({ where, base, show }: { where: Prisma.LeaseWhereInput; base: string; show?: string }) {
   const pastWhere: Prisma.LeaseWhereInput = { ...where, status: { not: "active" } };
-  const [pastOwing, pastCount] = await Promise.all([
+  const today = kampalaToday();
+  const [pastOwing, pastCount, current] = await Promise.all([
     db.lease.count({ where: { ...pastWhere, charges: { some: { status: { not: "paid" } } } } }),
     db.lease.count({ where: pastWhere }),
+    db.lease.findMany({ where: { ...where, status: "active" }, select: { rent: true, charges: { where: { status: { not: "paid" } }, select: { amount: true, paid: true, dueDate: true } } } }),
   ]);
+  // One pass over current tenants for the summary and the filter counts.
+  const sums = current.map((l) => ({
+    owed: l.charges.reduce((t, c) => t + c.amount - c.paid, 0),
+    overdue: l.charges.filter((c) => ymd(c.dueDate) < today).reduce((t, c) => t + c.amount - c.paid, 0),
+  }));
+  const n = { all: current.length, overdue: sums.filter((x) => x.overdue > 0).length, owing: sums.filter((x) => x.owed > 0).length, paid: sums.filter((x) => x.owed === 0).length };
+  const overdueTotal = sums.reduce((t, x) => t + x.overdue, 0);
+  const roll = current.reduce((t, l) => t + l.rent, 0);
+  const only = show === "overdue" || show === "owing" || show === "paid" ? show : undefined;
   return (
     <>
-      <TenantsTable where={{ ...where, status: "active" }} base={base} />
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="card p-4"><div className="text-xl font-bold text-brand-950">{n.all}</div><div className="text-xs text-stone-500">Current tenants</div></div>
+        <div className="card p-4"><div className="truncate text-base font-bold text-brand-950 sm:text-xl">{ugx(roll)}</div><div className="text-xs text-stone-500">Rent per month</div></div>
+        <Link href={`${base}?show=overdue`} className={`card p-4 transition hover:-translate-y-0.5 ${overdueTotal ? "border-maroon-100 bg-maroon-50/40" : ""}`}><div className={`truncate text-base font-bold sm:text-xl ${overdueTotal ? "text-maroon-600" : "text-brand-950"}`}>{ugx(overdueTotal)}</div><div className="text-xs text-stone-500">Overdue · {n.overdue} tenant{n.overdue === 1 ? "" : "s"}</div></Link>
+        <Link href={`${base}?show=paid`} className="card p-4 transition hover:-translate-y-0.5"><div className="text-xl font-bold text-brand-700">{n.paid}</div><div className="text-xs text-stone-500">Paid up</div></Link>
+      </div>
+      <div className="-mx-4 my-4 flex gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none] lg:mx-0 lg:px-0">
+        {([["", "All", n.all], ["overdue", "Overdue", n.overdue], ["owing", "Owing", n.owing], ["paid", "Paid up", n.paid]] as const).map(([k, label, c]) => (
+          <Link key={label} href={k ? `${base}?show=${k}` : base} className={(only ?? "") === k ? "chip-active" : "chip"}>{label} <span className="opacity-60">{c}</span></Link>
+        ))}
+      </div>
+      <TenantsTable where={{ ...where, status: "active" }} base={base} only={only} />
       {pastOwing > 0 && (
         <section id="former" className="scroll-mt-24">
           <h2 className="h2 mb-1 mt-8">Former tenants who still owe</h2>
@@ -521,7 +561,7 @@ export async function TenantsSections({ where, base }: { where: Prisma.LeaseWher
 }
 
 /** Leases with balances. `only` narrows to leases that owe anything, or that have overdue charges. */
-export async function TenantsTable({ where, base, only }: { where: Prisma.LeaseWhereInput; base: string; only?: "owing" | "overdue" }) {
+export async function TenantsTable({ where, base, only }: { where: Prisma.LeaseWhereInput; base: string; only?: "owing" | "overdue" | "paid" }) {
   const today = kampalaToday();
   const leases = await db.lease.findMany({
     where, orderBy: [{ status: "asc" }, { unit: { property: { name: "asc" } } }, { unit: { label: "asc" } }],
@@ -535,8 +575,13 @@ export async function TenantsTable({ where, base, only }: { where: Prisma.LeaseW
     l,
     owed: l.charges.reduce((s, c) => s + c.amount - c.paid, 0),
     overdue: l.charges.filter((c) => ymd(c.dueDate) < today).reduce((s, c) => s + c.amount - c.paid, 0),
-  })).filter((r) => (only === "owing" ? r.owed > 0 : only === "overdue" ? r.overdue > 0 : true));
-  if (!rows.length) return <Empty title={only ? "Nobody owes anything right now" : "No current tenants"}>{only ? undefined : "Approve an application to create a lease."}</Empty>;
+  })).filter((r) => (only === "owing" ? r.owed > 0 : only === "overdue" ? r.overdue > 0 : only === "paid" ? r.owed === 0 : true));
+  if (!rows.length) return <Empty title={only === "paid" ? "Nobody is fully paid up yet" : only ? "Nobody owes anything right now" : "No current tenants"}>{only ? undefined : "Approve an application to create a lease."}</Empty>;
+  const pill = (owed: number, overdue: number, status: string) =>
+    status !== "active" ? <Badge>{status}</Badge>
+      : overdue > 0 ? <span className="pill bg-maroon-50 text-maroon-600">Overdue</span>
+      : owed > 0 ? <span className="pill bg-gold-50 text-gold-700">Due</span>
+      : <span className="pill bg-brand-50 text-brand-700">Paid up</span>;
   return (
     <>
     <div className="card divide-y divide-stone-100 p-0 lg:hidden">
@@ -549,7 +594,7 @@ export async function TenantsTable({ where, base, only }: { where: Prisma.LeaseW
           </div>
           <div className="text-right">
             <div className={`text-sm font-semibold ${overdue > 0 ? "text-maroon-600" : owed > 0 ? "text-stone-800" : "text-brand-700"}`}>{ugx(owed)}</div>
-            {overdue > 0 ? <Badge>overdue</Badge> : <Badge>{l.status}</Badge>}
+            {pill(owed, overdue, l.status)}
           </div>
         </Link>
       ))}
@@ -560,13 +605,13 @@ export async function TenantsTable({ where, base, only }: { where: Prisma.LeaseW
         <tbody>
           {rows.map(({ l, owed, overdue }) => (
             <tr key={l.id}>
-              <td><Link href={`${base}/${l.id}`} className="link">{l.tenant.name}</Link><div className="text-xs text-stone-500">{l.tenant.phone}</div></td>
+              <td><Link href={`${base}/${l.id}`} className="flex items-center gap-2.5"><Avatar name={l.tenant.name} className="h-8 w-8 text-[10px]" /><span><span className="link block">{l.tenant.name}</span><span className="block text-xs text-stone-500">{l.tenant.phone}</span></span></Link></td>
               <td>{l.unit.property.name} · {l.unit.label}<div className="text-xs text-stone-500">{l.landlord.name}</div></td>
               <td>{ugx(l.rent)}</td>
               <td className="whitespace-nowrap text-xs">{fmtDate(l.startDate)} – {fmtDate(l.endDate)}</td>
               <td className={`text-right ${overdue > 0 ? "font-semibold text-maroon-600" : ""}`}>{ugx(overdue)}</td>
               <td className="text-right">{ugx(owed)}</td>
-              <td><Badge>{l.status}</Badge></td>
+              <td>{pill(owed, overdue, l.status)}</td>
             </tr>
           ))}
         </tbody>
