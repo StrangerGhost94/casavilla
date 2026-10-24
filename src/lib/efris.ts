@@ -71,7 +71,9 @@ export async function missingPayments(landlordId?: number, take = 200) {
 }
 
 export async function missingCount(landlordId?: number) {
-  return (await missingPayments(landlordId, 1000)).length;
+  // Only the two dates needed, so it's cheap enough to run on every page (sidebar badge).
+  const rows = await db.payment.findMany({ where: missingWhere(landlordId), select: { paidAt: true, lease: { select: { landlord: { select: { efrisProfile: { select: { since: true } } } } } } } });
+  return rows.filter((p) => p.paidAt && p.lease.landlord.efrisProfile && p.paidAt >= p.lease.landlord.efrisProfile.since).length;
 }
 
 /** Does this payment need an EFRIS document? (its landlord issues them and it was paid on/after their start date) */
@@ -201,3 +203,30 @@ export const testLine = (e: { source: string; qr: string | null } | null | undef
   e?.source === "api" && !e.qr?.startsWith("EFRIS TEST")
     ? "TEST RECEIPT — issued on URA's EFRIS test environment, not a live fiscal receipt"
     : "TEST RECEIPT — made in EFRIS test mode, not issued by URA";
+
+export type EfrisStep = { key: "details" | "connection" | "tested" | "automatic"; label: string; done: boolean };
+
+/**
+ * How far a landlord is with automatic EFRIS, in the order it's set up, plus the one thing to do next.
+ * `next` is null when there's nothing to do (fully automatic, or EFRIS doesn't apply).
+ */
+export function efrisSetup(p: { status: string; tin: string | null; mode: string; deviceNo: string | null; keyEnc: string | null; checkOk: boolean | null }) {
+  const sandbox = efrisMode() === "sandbox";
+  const steps: EfrisStep[] = [
+    { key: "details", label: "TIN & details", done: p.status === "registered" && !!p.tin },
+    { key: "connection", label: "Device & key", done: sandbox || !!(p.deviceNo && p.keyEnc) },
+    { key: "tested", label: "Tested with URA", done: sandbox || !!p.checkOk },
+    { key: "automatic", label: "Automatic on", done: p.mode === "api" },
+  ];
+  if (p.status === "exempt") return { steps, done: steps.length, next: null };
+  const nextStep = steps.find((s) => !s.done);
+  const next = !nextStep ? null
+    : nextStep.key === "details" ? (p.status === "unknown" ? "Say whether they're on EFRIS and add their TIN" : "Add their 10-digit URA TIN")
+    : nextStep.key === "connection" ? (!p.deviceNo ? "Enter their EFRIS device number and key" : "Upload or make their private key")
+    : nextStep.key === "tested" ? (p.checkOk === false ? "Connection failed: fix it and test again" : "Press Test connection")
+    : "Tick “Issue EFRIS receipts automatically”";
+  return { steps, done: steps.filter((s) => s.done).length, next };
+}
+
+/** Whole days since a date (Kampala calendar is close enough for "waiting N days"). */
+export const daysSince = (d: Date | null) => (d ? Math.max(0, Math.floor((Date.now() - d.getTime()) / 86_400_000)) : 0);

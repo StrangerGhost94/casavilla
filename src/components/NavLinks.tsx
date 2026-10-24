@@ -26,8 +26,8 @@ function isActive(path: string, href: string, all: string[]) {
   return !all.some((h) => h !== href && h.startsWith(href + "/") && (path === h || path.startsWith(h + "/")));
 }
 
-/** Desktop sidebar links (dark green background). */
-export function NavLinks({ items }: { items: NavItem[] }) {
+/** Desktop sidebar links (dark green background). `counts` puts a "needs doing" badge on a link, keyed by href. */
+export function NavLinks({ items, counts = {} }: { items: NavItem[]; counts?: Record<string, number> }) {
   const path = usePathname();
   const hrefs = items.map((i) => i.href);
   return (
@@ -41,7 +41,8 @@ export function NavLinks({ items }: { items: NavItem[] }) {
               <Link key={i.href} href={i.href}
                 className={`flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition ${active ? "bg-white/10 text-white" : "text-white/65 hover:bg-white/5 hover:text-white"}`}>
                 <NavIcon name={i.icon} className={`h-[18px] w-[18px] ${active ? "text-gold-300" : ""}`} />
-                {i.label}
+                <span className="min-w-0 flex-1 truncate">{i.label}</span>
+                {counts[i.href] ? <span className="rounded-full bg-gold-400 px-1.5 py-0.5 text-[10px] font-bold leading-none text-brand-950">{counts[i.href] > 99 ? "99+" : counts[i.href]}</span> : null}
               </Link>
             );
           })}

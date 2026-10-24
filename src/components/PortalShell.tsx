@@ -11,6 +11,31 @@ import { Avatar, Logo } from "./ui";
 import { BottomNav, MobileTitle, NavLinks } from "./NavLinks";
 import { InstallPrompt } from "./InstallApp";
 import { AutoCloseDetails } from "./client";
+import { autoActive, efrisProblems, missingCount } from "@/lib/efris";
+
+/** Sidebar badges: how many things wait behind each link. Kept to cheap counts, as this runs on every page. */
+async function navCounts(user: User): Promise<Record<string, number>> {
+  if (user.role === "manager") {
+    const [people, apps, links, jobs, efris, stuck] = await Promise.all([
+      db.user.count({ where: { status: "pending" } }),
+      db.application.count({ where: { status: "pending" } }),
+      db.tenantLink.count({ where: { status: "pending" } }),
+      db.job.count({ where: { providerId: null, status: { notIn: ["done", "cancelled"] } } }),
+      missingCount(),
+      efrisProblems().then((r) => r.length),
+    ]);
+    return { "/manager/people": people, "/manager/applications": apps + links, "/manager/jobs": jobs, "/manager/efris": efris + stuck };
+  }
+  if (user.role === "landlord") {
+    // Automatic landlords have nothing to record by hand, so no badge for them.
+    const [apps, efris] = await Promise.all([
+      db.application.count({ where: { status: "pending", unit: { property: { landlordId: user.id } } } }),
+      autoActive(user.id).then((auto) => (auto ? 0 : missingCount(user.id))),
+    ]);
+    return { "/landlord/applications": apps, "/landlord/efris": efris };
+  }
+  return {};
+}
 
 export function greetingNow() {
   const h = Number(new Date().toLocaleString("en-GB", { hour: "2-digit", hour12: false, timeZone: "Africa/Kampala" }));
@@ -46,6 +71,7 @@ async function Notifications({ user, tone }: { user: User; tone: "light" | "dark
 
 export async function PortalShell({ user, children }: { user: User; children: React.ReactNode }) {
   const items = menus[user.role];
+  const counts = await navCounts(user).catch(() => ({}));
   // Keeps rent charges, late fees, reminders and escalations moving without anyone pressing a button.
   // Runs after the page is sent, at most once an hour across all users.
   after(() => runHousekeeping().catch((e) => console.error("housekeeping", e)));
@@ -56,7 +82,7 @@ export async function PortalShell({ user, children }: { user: User; children: Re
       {/* Desktop sidebar */}
       <aside className="no-print hidden bg-brand-900 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col">
         <Link href="/" className="shrink-0 px-5 pb-4 pt-6"><Logo tone="light" size="lg" /></Link>
-        <NavLinks items={items} />
+        <NavLinks items={items} counts={counts} />
         <div className="shrink-0 border-t border-white/10 p-4">
           <Link href="/profile" className="flex items-center gap-3 rounded-xl p-2 hover:bg-white/5">
             <Avatar name={user.name} className="h-9 w-9 text-xs ring-2 ring-gold-400/60" />
