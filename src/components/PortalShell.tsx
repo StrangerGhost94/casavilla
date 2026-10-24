@@ -81,7 +81,8 @@ export async function PortalShell({ user, children }: { user: User; children: Re
     <div className="portal-shell min-h-screen lg:flex">
       {/* Desktop sidebar */}
       <aside className="no-print hidden bg-brand-900 lg:sticky lg:top-0 lg:flex lg:h-screen lg:w-64 lg:shrink-0 lg:flex-col">
-        <Link href="/" className="shrink-0 px-5 pb-4 pt-6"><Logo tone="light" size="lg" /></Link>
+        {/* The logo's red and green need a light ground to read on the dark sidebar. */}
+        <Link href="/" className="mx-4 mb-3 mt-5 flex shrink-0 justify-center rounded-2xl bg-cream px-4 py-2.5 ring-1 ring-white/10 transition hover:bg-white"><Logo size="md" /></Link>
         <NavLinks items={items} counts={counts} />
         <div className="shrink-0 border-t border-white/10 p-4">
           <Link href="/profile" className="flex items-center gap-3 rounded-xl p-2 hover:bg-white/5">
