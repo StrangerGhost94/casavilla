@@ -46,3 +46,14 @@ export function networkFor(phone: string): "mtn" | "airtel" | null {
   if (["070", "074", "075"].includes(p)) return "airtel";
   return null;
 }
+
+/** "just now", "5 min ago", "3 h ago", "yesterday", then the date. */
+export function timeAgo(d: Date) {
+  const s = Math.max(0, (Date.now() - d.getTime()) / 1000);
+  if (s < 60) return "just now";
+  if (s < 3600) return `${Math.floor(s / 60)} min ago`;
+  if (s < 86400) return `${Math.floor(s / 3600)} h ago`;
+  if (s < 172800) return "yesterday";
+  if (s < 604800) return `${Math.floor(s / 86400)} days ago`;
+  return fmtDate(d);
+}

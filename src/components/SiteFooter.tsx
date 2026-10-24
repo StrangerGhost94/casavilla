@@ -30,7 +30,7 @@ export function PublicFooter() {
 
         <div className="grid grid-cols-[1.4fr_1fr_1fr_1.3fr] gap-10 py-12 text-sm">
           <div>
-            <Logo tone="light" />
+            <Logo tile />
             <p className="mt-4 max-w-xs leading-relaxed">Connect. Manage. Grow. Homes, land and trusted service providers — and everything after you move in.</p>
             <div className="mt-6 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">Follow us</div>
             <SocialLinks className="mt-3" />
@@ -73,7 +73,7 @@ export function MobileFooter() {
     <footer className="no-print relative mt-12 overflow-hidden rounded-3xl bg-brand-950 px-5 pb-6 pt-7 text-white lg:hidden">
       <BuildingArt className="pointer-events-none absolute inset-x-0 bottom-0 h-32 w-full text-white/[0.05]" />
       <div className="relative">
-        <Logo tone="light" size="sm" />
+        <Logo tile size="sm" />
         <p className="mt-3 text-sm leading-relaxed text-white/65">Homes, land and trusted services in Uganda — and everything after you move in.</p>
 
         <div className="mt-6 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">Follow us</div>

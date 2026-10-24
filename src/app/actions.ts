@@ -15,6 +15,20 @@ export async function markAllRead() {
   revalidatePath("/", "layout");
 }
 
+/** Removes one of your own notifications. */
+export async function deleteNotification(fd: FormData) {
+  const u = await requireUser();
+  await db.notification.deleteMany({ where: { id: Number(fd.get("id")) || 0, userId: u.id } });
+  revalidatePath("/", "layout");
+}
+
+/** Removes every notification you've already read (unread ones stay). */
+export async function clearReadNotifications() {
+  const u = await requireUser();
+  await db.notification.deleteMany({ where: { userId: u.id, read: true } });
+  revalidatePath("/", "layout");
+}
+
 /** WhatsApp/SMS preferences from the profile. */
 export async function saveMessagePrefs(fd: FormData) {
   const u = await requireUser();

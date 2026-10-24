@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronRight, KeyRound, LayoutDashboard, Wallet } from "lucide-react";
+import { BadgeCheck, BedDouble, Building2, ChevronRight, KeyRound, LayoutDashboard, ShoppingBag, Trees, Wallet, Wrench } from "lucide-react";
 import { db, SERVICE_CATEGORIES, type User } from "@/db";
 import { getUser, homeFor } from "@/lib/auth";
 import { areaMatch, listedUnits } from "@/lib/queries";
@@ -83,7 +83,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
     where: { status: { in: ["active", "under_offer"] }, kind: { in: kinds }, ...(where ? { OR: where } : {}) },
     orderBy: [{ status: "asc" }, { publishedAt: "desc" }], take: 10,
   });
-  const [homes, stays, land, buildings] = await Promise.all([
+  const liveLandlord = { archivedAt: null, landlord: { status: "active" as const } };
+  const [homes, stays, land, buildings, counts, products] = await Promise.all([
     listedUnits({ limit: 10, q: area }),
     db.unit.findMany({
       where: { mode: "short", listed: true, nightlyRate: { not: null }, property: { archivedAt: null, landlord: { status: "active" }, ...(where ? { OR: where } : {}) } },
@@ -91,7 +92,25 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
     }),
     forSale(["land", "farm"]),
     forSale(["house", "apartment", "commercial"]),
+    Promise.all([
+      db.unit.count({ where: { listed: true, status: "vacant", mode: "long", property: liveLandlord } }),
+      db.unit.count({ where: { mode: "short", listed: true, nightlyRate: { not: null }, property: liveLandlord } }),
+      db.saleListing.count({ where: { status: { in: ["active", "under_offer"] }, kind: { in: ["land", "farm"] } } }),
+      db.saleListing.count({ where: { status: { in: ["active", "under_offer"] }, kind: { in: ["house", "apartment", "commercial"] } } }),
+      db.user.count({ where: { role: "provider", status: "active" } }),
+      db.product.count({ where: { active: true, stock: { gt: 0 }, provider: { status: "active" } } }),
+    ]),
+    db.product.findMany({ where: { active: true, stock: { gt: 0 }, provider: { status: "active" } }, orderBy: { id: "desc" }, take: 8, select: { id: true, name: true, price: true, photoId: true } }),
   ]);
+  const [nRent, nStays, nLand, nHouses, nPros, nShop] = counts;
+  const categories: [string, string, React.ComponentType<{ className?: string }>, number, string][] = [
+    ["/listings", "Homes to rent", KeyRound, nRent, "home"],
+    ["/stays", "Short stays", BedDouble, nStays, "stay"],
+    ["/sale?kind=land", "Land & plots", Trees, nLand, "plot"],
+    ["/sale", "Houses for sale", Building2, nHouses, "listing"],
+    ["/services", "Home services", Wrench, nPros, "provider"],
+    ["/shop", "Shop", ShoppingBag, nShop, "item"],
+  ];
   const inArea = area ? ` in ${area}` : "";
   const q = area ? `q=${encodeURIComponent(area)}` : "";
   const hour = (new Date().getUTCHours() + 3) % 24;
@@ -109,11 +128,28 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
           <h1 className="text-xl font-bold md:text-4xl">{hello}</h1>
           <p className="mt-0.5 hidden text-white/75 md:block">{u ? "What are you looking for today?" : "Homes, short stays, land and property — and everything after you move in."}</p>
           <div className="mt-3 md:mt-5"><MarketSearch /></div>
+          {!u && (
+            <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-white/80 md:mt-4 md:text-sm">
+              {["Verified landlords & listings", "Pay rent by MTN or Airtel MoMo", "Repairs handled after you move in"].map((t) => (
+                <li key={t} className="flex items-center gap-1.5"><BadgeCheck className="h-3.5 w-3.5 text-gold-300 md:h-4 md:w-4" />{t}</li>
+              ))}
+            </ul>
+          )}
         </div>
       </section>
 
       <div className="relative z-10 mx-auto -mt-5 max-w-6xl rounded-t-3xl bg-cream px-4 pt-4 md:rounded-none md:pt-8">
         {u && <div className="mb-4"><MyStrip u={u} /></div>}
+
+        <nav aria-label="Browse the marketplace" className="mb-5 grid grid-cols-3 gap-2 md:grid-cols-6 md:gap-3">
+          {categories.map(([href, label, I, n, unit]) => (
+            <Link key={href} href={href} className="card flex flex-col items-center gap-1.5 px-2 py-3 text-center transition hover:-translate-y-0.5 hover:border-brand-200 md:py-4">
+              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><I className="h-5 w-5" /></span>
+              <span className="text-xs font-semibold leading-tight text-brand-950 md:text-sm">{label}</span>
+              <span className="text-[10px] text-stone-500 md:text-xs">{n ? `${n} ${unit}${n === 1 ? "" : "s"}` : "Coming soon"}</span>
+            </Link>
+          ))}
+        </nav>
 
         <AreaChips areas={AREAS} active={area} />
 
@@ -141,6 +177,20 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
           <div className="card mt-6 text-center text-sm text-stone-500">
             {area ? <>Nothing listed{inArea} yet. <Link href="/" scroll={false} className="link">See all areas</Link> or <a href="https://wa.me/256776593482" className="link">ask us on WhatsApp</a> — we often have homes before they&apos;re listed.</> : "New listings are coming soon — check back shortly."}
           </div>
+        )}
+
+        {products.length > 0 && (
+          <Rail title="Shop for your home" href="/shop">
+            {products.map((p) => (
+              <Link key={p.id} href="/shop" className="card w-[42vw] max-w-[11rem] shrink-0 snap-start overflow-hidden p-0 transition hover:-translate-y-0.5">
+                <Photo id={p.photoId} alt={p.name} className="h-28 w-full" sizes="(min-width: 768px) 240px, 42vw" />
+                <div className="p-3">
+                  <div className="truncate text-sm font-semibold text-stone-800">{p.name}</div>
+                  <div className="text-sm font-bold text-brand-700">{ugx(p.price)}</div>
+                </div>
+              </Link>
+            ))}
+          </Rail>
         )}
 
         {/* Services — a short row; the Services tab has the full list */}

@@ -86,6 +86,7 @@ const titleOverrides: [RegExp, string][] = [
   [/^\/tenant\/requests\/new/, "Report Maintenance"],
   [/\/properties\/new$/, "Add Property"],
   [/^\/profile/, "Profile"],
+  [/^\/notifications/, "Notifications"],
 ];
 
 /** Where the header back arrow leads from a given screen. */

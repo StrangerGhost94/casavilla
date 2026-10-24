@@ -12,8 +12,16 @@ export function LogoMark({ className = "h-8" }: { className?: string }) {
  * The CasaVilla logo, no box behind it. `tone="light"` is for dark backgrounds and photos:
  * same logo with the "property management" line in white so it stays readable.
  */
-export function Logo({ tone = "dark", size = "md", className = "" }: { tone?: "light" | "dark"; stacked?: boolean; size?: "sm" | "md" | "lg" | "xl"; className?: string }) {
+export function Logo({ tone = "dark", size = "md", className = "", tile = false }: { tone?: "light" | "dark"; stacked?: boolean; size?: "sm" | "md" | "lg" | "xl"; className?: string; tile?: boolean }) {
   const h = { sm: "h-9", md: "h-12", lg: "h-20", xl: "h-32" }[size];
+  // On dark green the logo's own red and green get lost at small sizes, so it sits on a light tile.
+  if (tile)
+    return (
+      <span className={`inline-flex items-center rounded-xl bg-cream px-2.5 py-1 shadow-sm ring-1 ring-black/5 ${className}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="CasaVilla Property Management" draggable={false} className={`${h} w-auto select-none`} />
+      </span>
+    );
   const light = tone === "light";
   return (
     <span className={`inline-flex ${className}`}>
