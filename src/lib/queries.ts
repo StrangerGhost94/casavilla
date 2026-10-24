@@ -76,12 +76,16 @@ export async function activeProviders(category?: string, inId?: string) {
     include: { services: { where: { active: true } }, serviceAreas: { include: { location: { select: { name: true } } } } },
     orderBy: { id: "asc" },
   });
+  // Track record: finished jobs and their average star rating.
+  const stats = list.length ? await db.job.groupBy({ by: ["providerId"], where: { providerId: { in: list.map((p) => p.id) }, status: "done" }, _count: { _all: true, rating: true }, _avg: { rating: true } }) : [];
   return list.map((p) => {
     const prices = p.services.map((s) => s.priceFrom).filter((n): n is number => n != null);
+    const st = stats.find((x) => x.providerId === p.id);
     return {
       id: p.id, name: p.businessName || p.name, area: p.serviceAreas.length ? p.serviceAreas.map((a) => a.location.name).join(", ") : p.area, bio: p.bio,
       categories: new Set(p.services.map((s) => s.category)),
       from: prices.length ? Math.min(...prices) : null,
+      jobsDone: st?._count._all ?? 0, ratings: st?._count.rating ?? 0, rating: st?._avg.rating ?? null,
     };
   });
 }
