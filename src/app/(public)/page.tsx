@@ -81,7 +81,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
   const where = area ? await areaMatch(area) : null;
   const forSale = (kinds: string[]) => db.saleListing.findMany({
     where: { status: { in: ["active", "under_offer"] }, kind: { in: kinds }, ...(where ? { OR: where } : {}) },
-    orderBy: [{ status: "asc" }, { publishedAt: "desc" }], take: 10,
+    orderBy: [{ status: "asc" }, { publishedAt: "desc" }], take: 10, include: { _count: { select: { photos: true } } },
   });
   const liveLandlord = { archivedAt: null, landlord: { status: "active" as const } };
   const [homes, stays, land, buildings, counts, products] = await Promise.all([

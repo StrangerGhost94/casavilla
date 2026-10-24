@@ -80,13 +80,13 @@ export function PropertyCard({ h, wide = false, className = "" }: { h: Listing; 
 
 export type Stay = {
   id: number; label: string; nightlyRate: number | null; bedrooms: number; maxGuests: number; minNights?: number;
-  property: { name: string; location: string; photoId: number | null; verifiedAt?: Date | null };
+  property: { name: string; location: string; photoId: number | null; verifiedAt?: Date | null; _count?: { photos: number } };
 };
 
 /** Short-stay card (nightly price). */
 export function StayCard({ u, href = `/stays/${u.id}`, total, className = "" }: { u: Stay; href?: string; total?: number; className?: string }) {
   return (
-    <CardShell href={href} photoId={u.property.photoId} alt={u.property.name} tag="Short stay" tagTone="bg-white/95 text-brand-900" verified={!!u.property.verifiedAt && "Verified"} className={className}>
+    <CardShell href={href} photoId={u.property.photoId} alt={u.property.name} tag="Short stay" tagTone="bg-white/95 text-brand-900" verified={!!u.property.verifiedAt && "Verified"} photos={u.property._count?.photos} className={className}>
       <Price amount={ugx(u.nightlyRate ?? 0)} per="/ night" note={total ? <span className="text-xs font-semibold text-stone-600">· {ugx(total)} total</span> : null} />
       <div className="mt-1 truncate text-sm font-semibold text-stone-800">{u.property.name} · {u.label}</div>
       <Where text={u.property.location} />

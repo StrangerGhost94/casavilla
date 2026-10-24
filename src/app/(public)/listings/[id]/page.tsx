@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ListingPhotos } from "@/components/Gallery";
-import { ArrowLeft, Bath, BadgeCheck, BedDouble, Building2, Check, ChevronRight, DoorOpen, MapPin, MessageCircle, Phone, Ruler, Share2, Sofa } from "lucide-react";
+import { ActionBar, Checklist, FactTiles, PhotoButtons, shareLink } from "@/components/ListingParts";
+import { Bath, BadgeCheck, BedDouble, Building2, ChevronRight, DoorOpen, MapPin, MessageCircle, Phone, Ruler, Sofa } from "lucide-react";
 import { db } from "@/db";
 import { getUser } from "@/lib/auth";
 import { ugx } from "@/lib/format";
@@ -43,8 +44,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     .filter((h) => h.rent >= unit.rent * 0.65)
     .sort((a, b) => Math.abs(a.rent - unit.rent) - Math.abs(b.rent - unit.rent)).slice(0, 3);
   const title = homeTitle(unit.bedrooms, property.type);
-  const pageUrl = `${process.env.APP_URL ?? ""}/listings/${unit.id}`;
-  const share = `https://wa.me/?text=${encodeURIComponent(`${title} at ${property.name}, ${property.location}: ${ugx(unit.rent)} / month ${pageUrl}`)}`;
+  const share = shareLink(`${title} at ${property.name}, ${property.location}: ${ugx(unit.rent)} / month`, `/listings/${unit.id}`);
   const facts: [typeof BedDouble, string, string][] = [
     [BedDouble, unit.bedrooms ? String(unit.bedrooms) : "Studio", unit.bedrooms === 1 ? "Bedroom" : unit.bedrooms ? "Bedrooms" : "Layout"],
     [Bath, String(unit.bathrooms), unit.bathrooms === 1 ? "Bathroom" : "Bathrooms"],
@@ -59,16 +59,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     <main className="mx-auto max-w-6xl md:px-4 md:pt-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
-          <ListingPhotos propertyId={property.id} unitId={unit.id} coverId={property.photoId} alt={property.name} overlay={
-            <>
-              <Link href="/listings" aria-label="Back to homes" className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-brand-900 shadow-card backdrop-blur">
-                <ArrowLeft className="h-5 w-5" />
-              </Link>
-              <a href={share} target="_blank" rel="noreferrer" aria-label="Share on WhatsApp" className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-brand-900 shadow-card backdrop-blur">
-                <Share2 className="h-5 w-5" />
-              </a>
-            </>
-          } />
+          <ListingPhotos propertyId={property.id} unitId={unit.id} coverId={property.photoId} alt={property.name} overlay={<PhotoButtons back="/listings" backLabel="Back to homes" share={share} />} />
           <div className="relative -mt-6 rounded-t-3xl bg-cream px-4 pt-5 md:mt-0 md:bg-transparent md:px-0">
             <div className="flex flex-wrap gap-1.5">
               <span className="pill bg-brand-800 uppercase tracking-wide text-white">For rent</span>
@@ -81,15 +72,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             {property.landmark && <div className="mt-1 break-words text-xs text-stone-500">Landmark: {property.landmark}</div>}
             <div className="mt-3 text-2xl font-bold text-brand-900 lg:hidden">{ugx(unit.rent)} <span className="text-sm font-normal text-stone-500">/ month</span></div>
 
-            <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {facts.map(([Icon, v, l]) => (
-                <div key={l} className="flex flex-col items-center gap-1 rounded-2xl border border-stone-200/70 bg-white px-2 py-3 text-center">
-                  <Icon className="h-5 w-5 text-brand-700" />
-                  <span className="text-sm font-semibold capitalize text-brand-950">{v}</span>
-                  <span className="text-[10px] text-stone-500">{l}</span>
-                </div>
-              ))}
-            </div>
+            <FactTiles facts={facts} />
             {property.verifiedAt && (
               <div className="mt-4 flex items-start gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-3 text-sm">
                 <BadgeCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />
@@ -97,14 +80,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               </div>
             )}
 
-            {amenities.length > 0 && (
-              <section className="mt-6">
-                <h2 className="h2">What this home offers</h2>
-                <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
-                  {amenities.map((a) => <li key={a} className="flex items-center gap-2 text-sm text-stone-700"><Check className="h-4 w-4 shrink-0 text-brand-600" />{a}</li>)}
-                </ul>
-              </section>
-            )}
+            <Checklist title="What this home offers" items={amenities} />
             {property.description && (
               <section className="mt-6">
                 <h2 className="h2">Overview</h2>
@@ -190,16 +166,10 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
       {/* Phones: price and the main action always in reach, above the tab bar */}
       {unit.status === "vacant" && !sent && !existing && (
-        <div className="action-bar fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-stone-200 bg-white/95 px-4 py-2.5 backdrop-blur lg:hidden">
-          <div className="mx-auto flex max-w-md items-center gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="truncate text-base font-bold text-brand-950">{ugx(unit.rent)} <span className="text-xs font-normal text-stone-500">/ month</span></div>
-              <div className="truncate text-[11px] text-stone-500">{title} · {property.name}</div>
-            </div>
-            <a href={wa} aria-label="Message on WhatsApp" className="btn-outline btn-sm px-2.5"><MessageCircle className="h-4 w-4" /></a>
-            <a href={user ? "#apply" : `/register?role=tenant&next=/listings/${unit.id}`} className="btn-primary btn-sm">Apply</a>
-          </div>
-        </div>
+        <ActionBar price={ugx(unit.rent)} per="/ month" sub={`${title} · ${property.name}`}>
+          <a href={wa} aria-label="Message on WhatsApp" className="btn-outline btn-sm px-2.5"><MessageCircle className="h-4 w-4" /></a>
+          <a href={user ? "#apply" : `/register?role=tenant&next=/listings/${unit.id}`} className="btn-primary btn-sm">Apply</a>
+        </ActionBar>
       )}
     </main>
   );

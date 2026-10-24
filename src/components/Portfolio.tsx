@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgeCheck, ChevronDown, Plus, ShieldCheck } from "lucide-react";
+import { BadgeCheck, Check, ChevronDown, Plus, ShieldCheck } from "lucide-react";
 import { notFound } from "next/navigation";
 import type { Prisma, Property } from "@prisma/client";
 import { db, type User } from "@/db";
@@ -163,6 +163,8 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
             </div>
           </div>
 
+          {!p.archivedAt && <ListingStrength p={p} photos={photos} base={base} editHref={editHref} />}
+
           <div className="card p-0">
             <div className="flex items-center justify-between px-4 pb-2 pt-4">
               <div className="font-semibold text-brand-950">Units</div>
@@ -313,6 +315,60 @@ export async function PropertyEdit({ id, viewer, base }: { id: number; viewer: U
       <h1 className="mb-4 mt-2 text-xl font-bold text-brand-950">Edit property</h1>
       <PropertyForm p={p} />
       {!p.archivedAt && <RemoveProperty id={p.id} name={p.name} />}
+    </div>
+  );
+}
+
+/**
+ * How complete the property looks to tenants, as a score with the next things to do, and a link to see the
+ * public page. Mirrors what the listing pages show: photo count, rooms, description, map pin, features, badge.
+ */
+function ListingStrength({ p, photos, base, editHref }: {
+  p: Property & { units: { id: number; label: string; bedrooms: number; bathrooms: number; status: string; listed: boolean; mode: string; amenities: string[] }[] };
+  photos: { label: string; unitId: number | null }[]; base: string; editHref: string;
+}) {
+  const req = shotList(p.units, p.units.length > 1).filter((s) => s.required);
+  const rooms = req.filter((s) => photos.some((x) => x.label.replace(/ · \d+$/, "") === s.label && x.unitId === s.unitId)).length;
+  const open = p.units.filter((u) => u.status === "vacant" && u.listed);
+  const featured = open.length > 0 && open.every((u) => u.amenities.length >= 3);
+  const photosHref = `${base}/${p.id}/photos`;
+  const checks: { ok: boolean; label: string; why: string; href?: string; cta: string }[] = [
+    { ok: photos.length >= 5, label: "At least 5 photos", why: `${photos.length} so far. Listings with 5+ photos get the photo count and full gallery.`, href: photosHref, cta: "Add photos" },
+    { ok: req.length > 0 && rooms === req.length, label: "Every must-have room photographed", why: `${rooms} of ${req.length} rooms covered.`, href: photosHref, cta: "See which" },
+    { ok: (p.description ?? "").trim().length >= 80, label: "A good description", why: "Water, power, parking, security and what's nearby. A few lines is enough.", href: editHref, cta: "Write it" },
+    { ok: p.lat != null, label: "Exact spot on the map", why: "Pinned homes show up in “Near me” searches.", href: editHref, cta: "Pin it" },
+    { ok: featured, label: "Features ticked on vacant units", why: "Wi-Fi, parking, water tank… shown as a checklist to tenants. Open a unit below to tick them.", cta: "" },
+    { ok: !!p.verifiedAt, label: "Verified by CasaVilla", why: "The Verified badge on every card. Ask us to visit below.", cta: "" },
+  ];
+  const score = Math.round((checks.filter((c) => c.ok).length / checks.length) * 100);
+  const preview = open[0];
+  return (
+    <div className="card">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+        <div className="relative h-14 w-14 shrink-0">
+          <svg viewBox="0 0 36 36" className="h-14 w-14 -rotate-90"><circle cx="18" cy="18" r="15.5" fill="none" strokeWidth="4" className="stroke-stone-100" />
+            <circle cx="18" cy="18" r="15.5" fill="none" strokeWidth="4" strokeLinecap="round" strokeDasharray={`${(score / 100) * 97.4} 97.4`} className={score >= 80 ? "stroke-brand-600" : score >= 50 ? "stroke-gold-500" : "stroke-maroon-500"} /></svg>
+          <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-brand-950">{score}%</span>
+        </div>
+        <div className="min-w-[10rem] flex-1">
+          <div className="font-semibold text-brand-950">Listing strength</div>
+          <div className="text-xs text-stone-500">{score === 100 ? "Looks great to tenants." : "Complete listings get more enquiries. Next steps below."}</div>
+        </div>
+        {preview && <Link href={preview.mode === "short" ? `/stays/${preview.id}` : `/listings/${preview.id}`} className="btn-outline btn-sm w-full sm:w-auto">See it as tenants do</Link>}
+      </div>
+      <ul className="mt-4 divide-y divide-stone-100 border-t border-stone-100">
+        {[...checks].sort((a, b) => Number(a.ok) - Number(b.ok)).map((c) => (
+          <li key={c.label} className="flex items-start gap-3 py-2.5">
+            <span className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${c.ok ? "bg-brand-600 text-white" : "border-2 border-stone-300"}`}>{c.ok && <Check className="h-3 w-3" />}</span>
+            <div className="min-w-0 flex-1">
+              <div className={`text-sm ${c.ok ? "text-stone-500 line-through decoration-stone-300" : "font-medium text-stone-800"}`}>{c.label}</div>
+              {!c.ok && <div className="text-xs text-stone-500">{c.why}</div>}
+            </div>
+            {!c.ok && c.href && <Link href={c.href} className="shrink-0 text-xs font-semibold text-brand-700 hover:underline">{c.cta}</Link>}
+          </li>
+        ))}
+      </ul>
+      {!open.length && <p className="mt-2 text-[11px] text-stone-400">No vacant listed units right now, so nothing is showing to tenants.</p>}
     </div>
   );
 }

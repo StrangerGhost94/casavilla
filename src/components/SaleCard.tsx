@@ -5,6 +5,7 @@ import { CardShell, Facts, Price, Where } from "./PropertyCard";
 export type SaleRow = {
   id: number; kind: string; title: string; price: number; negotiable: boolean; location: string; photoId: number | null; status: string;
   sizeValue: number | null; sizeUnit: string | null; plotDims: string | null; bedrooms: number | null; titleStatus: string; titleVerified: boolean;
+  publishedAt?: Date | null; _count?: { photos: number };
 };
 
 export function SaleCard({ l, href = `/sale/${l.id}`, className = "" }: { l: SaleRow; href?: string; className?: string }) {
@@ -12,7 +13,8 @@ export function SaleCard({ l, href = `/sale/${l.id}`, className = "" }: { l: Sal
   const pa = l.kind === "land" || l.kind === "farm" ? perAcre(l) : null;
   return (
     <CardShell href={href} photoId={l.photoId} alt={l.title} tag={`For sale · ${KIND[l.kind as SaleKind]?.label ?? l.kind}`} tagTone="bg-gold-400 text-brand-950"
-      verified={l.titleVerified && "Title verified"}
+      verified={l.titleVerified && "Title verified"} photos={l._count?.photos}
+      isNew={!!l.publishedAt && l.status === "active" && Date.now() - l.publishedAt.getTime() < 14 * 86_400_000}
       corner={l.status === "under_offer" && <span className="pill absolute bottom-3 left-3 bg-brand-950/85 text-white">Under offer</span>}
       className={className}>
       <Price amount={shortUgx(l.price)} note={<>
