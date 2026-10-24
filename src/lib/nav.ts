@@ -11,7 +11,7 @@ export const menus: Record<Role, NavItem[]> = {
   tenant: [
     { href: "/tenant", label: "My home", icon: "key" },
     { href: "/tenant/rent", label: "Rent & receipts", icon: "wallet" },
-    { href: "/tenant/requests", label: "Maintenance", icon: "wrench" },
+    { href: "/tenant/requests", label: "Repairs", icon: "wrench" },
     { href: "/tenant/lease", label: "Lease & documents", icon: "file" },
     { href: "/tenant/applications", label: "Applications", icon: "clipboard" },
     { href: "/tenant/stays", label: "My bookings", icon: "calendar" },
