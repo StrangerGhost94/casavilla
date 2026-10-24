@@ -26,7 +26,9 @@ export async function areaMatch(q: string) {
  * places whose name contains the searched words as whole words (so "Kira" never pulls in "Kakira").
  * `near` keeps only homes with a real pin within `km`, nearest first.
  */
-export async function listedUnits(f: { q?: string; max?: number; beds?: number; limit?: number; in?: string; near?: { lat: number; lng: number; km: number } } = {}) {
+export type ListingSort = "new" | "price_asc" | "price_desc";
+
+export async function listedUnits(f: { q?: string; max?: number; beds?: number; limit?: number; in?: string; near?: { lat: number; lng: number; km: number }; furnished?: boolean; selfContained?: boolean; sort?: ListingSort; exclude?: number } = {}) {
   const or: Prisma.PropertyWhereInput[] = [];
   if (f.q) {
     or.push({ name: { contains: f.q, mode: "insensitive" } }, { street: { contains: f.q, mode: "insensitive" } });
@@ -38,6 +40,9 @@ export async function listedUnits(f: { q?: string; max?: number; beds?: number; 
       listed: true, status: "vacant", mode: "long",
       rent: f.max ? { lte: f.max } : undefined,
       bedrooms: f.beds ? { gte: f.beds } : undefined,
+      furnished: f.furnished || undefined,
+      selfContained: f.selfContained || undefined,
+      id: f.exclude ? { not: f.exclude } : undefined,
       property: {
         landlord: { status: "active" },
         ...(or.length ? { OR: or } : {}),
@@ -45,13 +50,15 @@ export async function listedUnits(f: { q?: string; max?: number; beds?: number; 
         ...(f.near ? { lat: { not: null }, lng: { not: null } } : {}),
       },
     },
-    include: { property: { include: { landlord: { select: { name: true } } } } },
-    orderBy: { id: "desc" }, take: f.near ? 500 : f.limit ?? 60,
+    include: { property: { include: { landlord: { select: { name: true } }, _count: { select: { photos: true } } } } },
+    orderBy: f.sort === "price_asc" ? { rent: "asc" } : f.sort === "price_desc" ? { rent: "desc" } : { id: "desc" }, take: f.near ? 500 : f.limit ?? 60,
   });
   let list = rows.map((u) => ({
     id: u.id, label: u.label, rent: u.rent, bedrooms: u.bedrooms,
     propertyId: u.property.id, property: u.property.name, type: u.property.type, location: u.property.location,
     photoId: u.property.photoId, landlord: u.property.landlord.name, verified: !!u.property.verifiedAt,
+    bathrooms: u.bathrooms, furnished: u.furnished, selfContained: u.selfContained, sizeSqm: u.sizeSqm,
+    photos: u.property._count.photos, isNew: Date.now() - u.createdAt.getTime() < 14 * 86_400_000,
     distance: f.near && u.property.lat != null && u.property.lng != null ? distanceKm(f.near, { lat: u.property.lat, lng: u.property.lng }) : undefined,
   }));
   if (f.near) list = list.filter((h) => h.distance! <= f.near!.km).sort((a, b) => a.distance! - b.distance!).slice(0, f.limit ?? 60);

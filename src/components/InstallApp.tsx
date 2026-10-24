@@ -68,7 +68,7 @@ export function InstallPrompt() {
   if (mode === "none" || !visible) return null;
   return (
     <>
-      <div className="no-print fixed inset-x-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-50 mx-auto max-w-md animate-fade-up lg:hidden">
+      <div className="no-print fixed inset-x-3 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-50 [body:has(.action-bar)_&]:bottom-[calc(9.5rem+env(safe-area-inset-bottom))] mx-auto max-w-md animate-fade-up lg:hidden">
         <div className="flex items-center gap-3 rounded-2xl border border-white/10 bg-brand-950/95 p-3 pr-2 text-white shadow-float backdrop-blur">
           <AppIcon className="h-11 w-11" />
           <div className="min-w-0 flex-1">

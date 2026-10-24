@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Features, Gallery } from "@/components/Gallery";
-import { ArrowLeft, BadgeCheck, BedDouble, Building2, DoorOpen, MapPin, MessageCircle, Phone } from "lucide-react";
+import { ListingPhotos } from "@/components/Gallery";
+import { ArrowLeft, Bath, BadgeCheck, BedDouble, Building2, Check, ChevronRight, DoorOpen, MapPin, MessageCircle, Phone, Ruler, Share2, Sofa } from "lucide-react";
 import { db } from "@/db";
 import { getUser } from "@/lib/auth";
 import { ugx } from "@/lib/format";
-import { Avatar, Badge, Field, Photo } from "@/components/ui";
+import { Avatar, Badge, Field } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { applyForUnit } from "@/app/tenant/actions";
 import { crumbText, trailFor } from "@/lib/geo";
 import { AroundHere, LivingHere } from "@/components/AroundHere";
+import { homeNoun, homeTitle, PropertyCard } from "@/components/PropertyCard";
+import { listedUnits } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
@@ -36,34 +38,73 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     ? `https://www.google.com/maps/search/?api=1&query=${property.lat},${property.lng}`
     : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.location + ", Uganda")}`;
   const area = [...trail].reverse().find((c) => ["subcounty", "county", "district"].includes(c.level));
+  // Similar: other vacant homes within about a third of this rent, nearest in price first.
+  const similar = (await listedUnits({ max: Math.round(unit.rent * 1.35), exclude: unit.id, limit: 30 }))
+    .filter((h) => h.rent >= unit.rent * 0.65)
+    .sort((a, b) => Math.abs(a.rent - unit.rent) - Math.abs(b.rent - unit.rent)).slice(0, 3);
+  const title = homeTitle(unit.bedrooms, property.type);
+  const pageUrl = `${process.env.APP_URL ?? ""}/listings/${unit.id}`;
+  const share = `https://wa.me/?text=${encodeURIComponent(`${title} at ${property.name}, ${property.location}: ${ugx(unit.rent)} / month ${pageUrl}`)}`;
+  const facts: [typeof BedDouble, string, string][] = [
+    [BedDouble, unit.bedrooms ? String(unit.bedrooms) : "Studio", unit.bedrooms === 1 ? "Bedroom" : unit.bedrooms ? "Bedrooms" : "Layout"],
+    [Bath, String(unit.bathrooms), unit.bathrooms === 1 ? "Bathroom" : "Bathrooms"],
+    ...(unit.sizeSqm ? [[Ruler, `${unit.sizeSqm} m²`, "Size"] as [typeof BedDouble, string, string]] : []),
+    [Building2, homeNoun(property.type), "Type"],
+    [Sofa, unit.furnished ? "Furnished" : "Unfurnished", unit.selfContained ? "Self-contained" : "Shared facilities"],
+    [DoorOpen, unit.label, "Unit"],
+  ];
+  const amenities = [unit.selfContained ? "Self-contained" : null, unit.furnished ? "Furnished" : null, ...unit.amenities].filter(Boolean) as string[];
 
   return (
     <main className="mx-auto max-w-6xl md:px-4 md:pt-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
-          <div className="relative">
-            <Photo id={property.photoId} alt={property.name} className="h-72 w-full md:h-96 md:rounded-3xl" sizes="(min-width: 1024px) 66vw, 70vw" priority />
-            <Link href="/listings" aria-label="Back to homes" className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-brand-900 shadow-card backdrop-blur">
-              <ArrowLeft className="h-5 w-5" />
-            </Link>
-          </div>
+          <ListingPhotos propertyId={property.id} unitId={unit.id} coverId={property.photoId} alt={property.name} overlay={
+            <>
+              <Link href="/listings" aria-label="Back to homes" className="absolute left-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-brand-900 shadow-card backdrop-blur">
+                <ArrowLeft className="h-5 w-5" />
+              </Link>
+              <a href={share} target="_blank" rel="noreferrer" aria-label="Share on WhatsApp" className="absolute right-4 top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-brand-900 shadow-card backdrop-blur">
+                <Share2 className="h-5 w-5" />
+              </a>
+            </>
+          } />
           <div className="relative -mt-6 rounded-t-3xl bg-cream px-4 pt-5 md:mt-0 md:bg-transparent md:px-0">
-            <span className="pill bg-brand-800 uppercase tracking-wide text-white">For rent</span>
-            <h1 className="mt-3 text-2xl font-bold text-brand-950">{unit.bedrooms} Bedroom · {property.name}</h1>
+            <div className="flex flex-wrap gap-1.5">
+              <span className="pill bg-brand-800 uppercase tracking-wide text-white">For rent</span>
+              {property.verifiedAt && <span className="pill bg-brand-50 text-brand-700"><BadgeCheck className="h-3.5 w-3.5" /> Verified</span>}
+              {unit.status === "vacant" && <span className="pill bg-gold-50 text-gold-700">Available now</span>}
+            </div>
+            <h1 className="mt-3 text-2xl font-bold text-brand-950 md:text-3xl">{title} · {property.name}</h1>
             <div className="mt-1 flex items-center gap-1 text-sm text-stone-500"><MapPin className="h-4 w-4 shrink-0" /> {property.location}</div>
             {trail.length > 1 && <div className="mt-1 text-xs text-brand-800">{crumbText(trail, true)}</div>}
             {property.landmark && <div className="mt-1 break-words text-xs text-stone-500">Landmark: {property.landmark}</div>}
-            <div className="mt-3 text-2xl font-bold text-brand-900">{ugx(unit.rent)} <span className="text-sm font-normal text-stone-500">/ month</span></div>
-            <div className="mt-4 grid grid-cols-3 gap-2">
-              {[[BedDouble, `${unit.bedrooms} bed${unit.bedrooms > 1 ? "s" : ""}`], [Building2, property.type], [DoorOpen, `Unit ${unit.label}`]].map(([I, t], i) => {
-                const Icon = I as typeof BedDouble;
-                return <div key={i} className="flex flex-col items-center gap-1 rounded-2xl border border-stone-200/70 bg-white p-3 text-center text-xs text-stone-600"><Icon className="h-5 w-5 text-brand-700" />{t as string}</div>;
-              })}
-            </div>
-            {property.verifiedAt && <span className="pill mt-4 bg-brand-50 text-brand-700"><BadgeCheck className="h-3.5 w-3.5" /> Verified by CasaVilla · visited and ownership checked</span>}
+            <div className="mt-3 text-2xl font-bold text-brand-900 lg:hidden">{ugx(unit.rent)} <span className="text-sm font-normal text-stone-500">/ month</span></div>
 
-            <Gallery propertyId={property.id} unitId={unit.id} />
-            <Features u={unit} />
+            <div className="mt-5 grid grid-cols-3 gap-2 sm:grid-cols-6">
+              {facts.map(([Icon, v, l]) => (
+                <div key={l} className="flex flex-col items-center gap-1 rounded-2xl border border-stone-200/70 bg-white px-2 py-3 text-center">
+                  <Icon className="h-5 w-5 text-brand-700" />
+                  <span className="text-sm font-semibold capitalize text-brand-950">{v}</span>
+                  <span className="text-[10px] text-stone-500">{l}</span>
+                </div>
+              ))}
+            </div>
+            {property.verifiedAt && (
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-3 text-sm">
+                <BadgeCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />
+                <div><span className="font-semibold text-brand-900">Verified by CasaVilla.</span> <span className="text-stone-600">Our team visited this property and checked the landlord owns it.</span></div>
+              </div>
+            )}
+
+            {amenities.length > 0 && (
+              <section className="mt-6">
+                <h2 className="h2">What this home offers</h2>
+                <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3">
+                  {amenities.map((a) => <li key={a} className="flex items-center gap-2 text-sm text-stone-700"><Check className="h-4 w-4 shrink-0 text-brand-600" />{a}</li>)}
+                </ul>
+              </section>
+            )}
             {property.description && (
               <section className="mt-6">
                 <h2 className="h2">Overview</h2>
@@ -90,11 +131,24 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               </section>
             )}
             <AroundHere area={area} />
+            {similar.length > 0 && (
+              <section className="mt-8">
+                <div className="mb-3 flex items-end justify-between">
+                  <h2 className="h2">Similar homes</h2>
+                  <Link href={`/listings?max=${Math.round(unit.rent * 1.35)}`} className="flex items-center gap-0.5 text-sm font-semibold text-brand-700">See more <ChevronRight className="h-4 w-4" /></Link>
+                </div>
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">{similar.map((h) => <PropertyCard key={h.id} h={h} />)}</div>
+              </section>
+            )}
           </div>
         </div>
 
-        <aside className="min-w-0 px-4 md:px-0">
+        <aside id="apply" className="min-w-0 scroll-mt-20 px-4 pb-24 md:px-0 lg:pb-0">
           <div className="card lg:sticky lg:top-24">
+            <div className="mb-4 hidden lg:block">
+              <div className="text-2xl font-bold text-brand-950">{ugx(unit.rent)} <span className="text-sm font-normal text-stone-500">/ month</span></div>
+              <div className="mt-0.5 text-xs text-stone-500">{title} · Unit {unit.label}</div>
+            </div>
             <div className="flex items-center gap-3">
               <Avatar name={landlord.name} />
               <div>
@@ -127,11 +181,26 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             )}
             <div className="mt-3 grid grid-cols-2 gap-2">
               <a href="tel:+256776593482" className="btn-outline"><Phone className="h-4 w-4" /> Call</a>
-              <a href={wa} className="btn-outline"><MessageCircle className="h-4 w-4" /> Message</a>
+              <a href={wa} className="btn-outline"><MessageCircle className="h-4 w-4" /> WhatsApp</a>
             </div>
+            <p className="mt-3 text-center text-[11px] text-stone-400">CasaVilla never asks for money before you&apos;ve seen the home.</p>
           </div>
         </aside>
       </div>
+
+      {/* Phones: price and the main action always in reach, above the tab bar */}
+      {unit.status === "vacant" && !sent && !existing && (
+        <div className="action-bar fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-stone-200 bg-white/95 px-4 py-2.5 backdrop-blur lg:hidden">
+          <div className="mx-auto flex max-w-md items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-base font-bold text-brand-950">{ugx(unit.rent)} <span className="text-xs font-normal text-stone-500">/ month</span></div>
+              <div className="truncate text-[11px] text-stone-500">{title} · {property.name}</div>
+            </div>
+            <a href={wa} aria-label="Message on WhatsApp" className="btn-outline btn-sm px-2.5"><MessageCircle className="h-4 w-4" /></a>
+            <a href={user ? "#apply" : `/register?role=tenant&next=/listings/${unit.id}`} className="btn-primary btn-sm">Apply</a>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
