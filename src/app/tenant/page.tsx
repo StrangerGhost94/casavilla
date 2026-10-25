@@ -10,6 +10,8 @@ import { activeLease } from "./lib";
 import { ConnectLandlordCard } from "@/components/Links";
 import { chargeLabel, payLabel } from "@/lib/rules";
 import { EfrisBadge } from "@/components/Efris";
+import { PushToggle } from "@/components/PushToggle";
+import { pushPublicKey } from "@/lib/push";
 
 const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
@@ -109,6 +111,8 @@ export default async function TenantHome() {
           <div className="mt-1.5 h-1.5 rounded-full bg-white/10"><div className={`h-1.5 rounded-full ${leaseDays <= 60 ? "bg-gold-400" : "bg-brand-300"}`} style={{ width: `${Math.round((gone / total) * 100)}%` }} /></div>
         </Link>
       </div>
+
+      <div className="mt-3 empty:hidden"><PushToggle publicKey={pushPublicKey()} variant="card" /></div>
 
       {/* Lease end: a nudge two months ahead */}
       {leaseDays <= 60 && (

@@ -1,4 +1,34 @@
-# WhatsApp & SMS set-up
+# WhatsApp, SMS & phone notifications set-up
+
+## 0. Phone notifications (Web Push) — free, set up first
+
+Every notification in the app (rent reminders, payments, repairs, applications…) can also pop up on people's
+phones like any app notification, even when CasaVilla is closed. No per-message cost.
+
+- Android: works in Chrome straight away.
+- iPhone (iOS 16.4+): only after CasaVilla is added to the home screen (Share → Add to Home Screen); the app
+  explains this when someone tries to turn notifications on.
+
+People turn it on with **Turn on** on their home screen, on the Notifications page or in Profile.
+Rent reminders go out **7 days before**, **3 days before** and **on the due day**, then when rent is late.
+(Next month's rent is raised 7 days before it falls due so these can go out in time.)
+
+Set up once:
+
+```bash
+npx web-push generate-vapid-keys
+```
+
+Railway variables (make the keys once and never change them, or everyone has to turn notifications on again):
+
+```
+VAPID_PUBLIC_KEY=<public key>
+VAPID_PRIVATE_KEY=<private key>
+VAPID_SUBJECT=mailto:info.casavilla026@gmail.com
+```
+
+Without them the Turn on button is hidden and nothing is sent.
+
 
 CasaVilla sends sign-up codes, password-reset codes, rent reminders, receipts and notices to people's phones.
 It tries **WhatsApp first** and falls back to **SMS**. Until at least one is connected:

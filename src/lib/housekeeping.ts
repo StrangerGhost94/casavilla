@@ -51,7 +51,8 @@ export function reminderStage(daysUntilDue: number): "due3" | "due0" | "late3" |
 
 async function rentReminders() {
   const today = kampalaToday();
-  const soon = new Date(Date.parse(`${today}T00:00:00Z`) + 3 * 86400000);
+  // A week ahead: an early heads-up, then 3 days before, then on the day (app + phone notifications).
+  const soon = new Date(Date.parse(`${today}T00:00:00Z`) + 7 * 86400000);
   const managers = await managerIds();
   const open = await db.charge.findMany({
     where: { status: { not: "paid" }, dueDate: { lte: soon }, lease: { status: "active" } },
@@ -77,7 +78,13 @@ async function rentReminders() {
       })) n++;
     }
     if (days >= 0) {
-      if (await notifyOnce(`due:${c.id}`, c.lease.tenantId, `${c.description}: ${ugx(owed)} is due ${days === 0 ? "today" : `on ${fmtDate(c.dueDate)}`}. Pay early with Mobile Money.`, pay)) n++;
+      if (owed <= 0) continue;
+      const [key, msg] = days === 0
+        ? [`due0:${c.id}`, `Rent reminder: ${c.description}, ${ugx(owed)}, is due today. Tap to pay with Mobile Money.`]
+        : days <= 3
+          ? [`due:${c.id}`, `Rent reminder: ${c.description}, ${ugx(owed)}, is due in ${days} day${days === 1 ? "" : "s"} (${fmtDate(c.dueDate)}). Pay early with Mobile Money.`]
+          : [`due7:${c.id}`, `Heads-up: ${c.description}, ${ugx(owed)}, is due on ${fmtDate(c.dueDate)}, in ${days} days.`];
+      if (await notifyOnce(key, c.lease.tenantId, msg, pay)) n++;
       continue;
     }
     if (await notifyOnce(`late:${c.id}`, c.lease.tenantId, `${c.description} is overdue — ${ugx(owed)} outstanding. Please pay as soon as you can.`, pay)) n++;

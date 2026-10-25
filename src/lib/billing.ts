@@ -26,6 +26,8 @@ function monthsBetween(start: string, end: string) {
   return out;
 }
 
+/** How many days before its due date a month's rent charge is raised (so reminders can go out a week ahead). */
+export const RAISE_AHEAD_DAYS = 7;
 const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 export const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
@@ -89,8 +91,11 @@ export async function ensureCharges(lease: Lease) {
   if (start <= today) {
     // An agreed rent change applies from its month onwards (earlier months keep the old rent).
     const changeFrom = lease.nextRent && lease.nextRentFrom ? ymd(lease.nextRentFrom).slice(0, 7) : null;
-    for (const p of monthsBetween(start, today)) {
+    // Up to next month: its rent is raised a week before it falls due, so tenants can be reminded in good time.
+    const ahead = addDays(today, RAISE_AHEAD_DAYS);
+    for (const p of monthsBetween(start, ahead)) {
       const day = Math.min(lease.dueDay, 28);
+      if (p > today.slice(0, 7) && `${p}-${String(day).padStart(2, "0")}` > ahead) continue;
       const holdover = p > ymd(lease.endDate).slice(0, 7);
       rows.push({
         leaseId: lease.id, period: p, kind: "rent", amount: changeFrom && p >= changeFrom ? lease.nextRent! : lease.rent,

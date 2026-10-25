@@ -2,6 +2,8 @@ import { BadgeCheck, BellRing, ChevronRight, Clock, LogOut, MapPin, MessageCircl
 import { requireUser } from "@/lib/auth";
 import { grouped, menus, roleName } from "@/lib/nav";
 import { logout, saveMessagePrefs } from "@/app/actions";
+import { PushToggle } from "@/components/PushToggle";
+import { pushPublicKey } from "@/lib/push";
 import { PhoneCheck } from "@/components/AuthForms";
 import { messagingConfigured, otpMode } from "@/lib/messaging";
 import { PortalShell } from "@/components/PortalShell";
@@ -51,6 +53,7 @@ export default async function Profile() {
               </form>
             </details>
           )}
+          <div className="px-4 py-3 empty:hidden"><PushToggle publicKey={pushPublicKey()} /></div>
           {messagingConfigured() && <details className="group">
             <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition hover:bg-stone-50">
               <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#25D366]/10 text-[#128C7E]"><BellRing className="h-[18px] w-[18px]" /></span>

@@ -1,7 +1,7 @@
 // CasaVilla service worker: makes the app installable, keeps app assets on the phone
 // so it opens fast, and copes with flaky connections (some networks drop or block requests).
 // Private pages (rent, payments, dashboards) always come fresh from the server and are never stored.
-const VERSION = "cv-v33";
+const VERSION = "cv-v34";
 const PAGES = "cv-pages-v1";
 const PHOTOS = "cv-photos-v1"; // public listing photos, kept on the phone so they open instantly next time
 const MAX_PHOTOS = 250;
@@ -105,4 +105,31 @@ self.addEventListener("fetch", (event) => {
       })),
     );
   }
+});
+
+// Push notifications (rent reminders, payments, repairs…): shown even when the app is closed.
+self.addEventListener("push", (event) => {
+  let d = {};
+  try { d = event.data ? event.data.json() : {}; } catch { d = { body: event.data && event.data.text() }; }
+  const title = d.title || "CasaVilla";
+  event.waitUntil(self.registration.showNotification(title, {
+    body: d.body || "",
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-192.png",
+    tag: d.tag || undefined,
+    data: { url: d.url || "/notifications" },
+  }));
+});
+
+// Tapping it opens the app on the right page (reusing an open window when there is one).
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = new URL((event.notification.data && event.notification.data.url) || "/notifications", self.location.origin).href;
+  event.waitUntil((async () => {
+    const wins = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    for (const w of wins) {
+      if (new URL(w.url).origin === self.location.origin && "focus" in w) { await w.navigate(url).catch(() => {}); return w.focus(); }
+    }
+    return self.clients.openWindow(url);
+  })());
 });

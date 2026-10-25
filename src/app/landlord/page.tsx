@@ -10,6 +10,8 @@ import { portfolioStats, TenantsTable } from "@/components/Portfolio";
 import { SmartPanel } from "@/components/Insights";
 import { AreaReport } from "@/components/AreaReport";
 import { missingCount } from "@/lib/efris";
+import { PushToggle } from "@/components/PushToggle";
+import { pushPublicKey } from "@/lib/push";
 
 export default async function LandlordHome() {
   const u = await requireUser("landlord");
@@ -38,6 +40,8 @@ export default async function LandlordHome() {
           hint={s.pastArrears > 0 ? `+ ${ugx(s.pastArrears)} from former tenants` : undefined} />
         <MiniStat href="/landlord/properties" icon={<Building2 className="h-[18px] w-[18px]" />} value={`${occ}% let`} label={`${s.occupied} of ${s.units} units · ${vacant} vacant`} hint={`Rent roll ${ugx(rentRoll._sum.rent ?? 0)} / month`} />
       </div>
+
+      <div className="mt-3 empty:hidden"><PushToggle publicKey={pushPublicKey()} variant="card" text="Know the moment a tenant pays, applies or reports a repair, straight on this phone." /></div>
 
       <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         <TodoList rows={[

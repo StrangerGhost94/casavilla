@@ -8,6 +8,8 @@ import { PortalShell } from "@/components/PortalShell";
 import { PageHeader } from "@/components/ui";
 import { ConfirmSubmit } from "@/components/client";
 import { NoteRow } from "@/components/Notifications";
+import { PushToggle } from "@/components/PushToggle";
+import { pushPublicKey } from "@/lib/push";
 
 export const metadata = { title: "Notifications" };
 
@@ -39,6 +41,8 @@ export default async function NotificationsPage({ searchParams }: { searchParams
             {read > 0 && <form action={clearReadNotifications}><ConfirmSubmit message={`Delete ${read} read notification${read === 1 ? "" : "s"}? Unread ones stay.`} className="btn-ghost btn-sm"><Trash2 className="h-4 w-4" /> Clear read</ConfirmSubmit></form>}
           </>
         } />
+
+        <div className="card mb-4 p-4 empty:hidden"><PushToggle publicKey={pushPublicKey()} /></div>
 
         <nav className="mb-4 flex gap-1 rounded-xl bg-stone-100 p-1 text-sm font-semibold">
           {[["", "All"], ["unread", `Unread${unread ? ` (${unread})` : ""}`]].map(([k, label]) => (
