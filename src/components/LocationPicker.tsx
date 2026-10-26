@@ -97,28 +97,10 @@ export function LocationPicker({
       </nav>
       {trail.length > 1 && <div className="-mt-1 px-1 text-[11px] text-stone-500">{last.kind}{!done && kids && kids.length > 0 ? " — narrow it down below, or leave it here if you're not sure" : ""}</div>}
 
-      {/* Next level down */}
-      {!done && state === "loading" && <div className="flex items-center gap-2 px-1 text-xs text-stone-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading places…</div>}
-      {!done && state === "error" && (
-        <div className="flex items-center justify-between rounded-xl bg-maroon-50 px-3 py-2 text-xs text-maroon-700">
-          Couldn&apos;t load places — check your connection.
-          <button type="button" className="font-semibold underline" onClick={() => loadKids(last.id)}>Retry</button>
-        </div>
-      )}
-      {!done && state === "idle" && kids && kids.length > 0 && (
-        <select aria-label={`Choose ${nextLabel}`} className="input" value="" onChange={(e) => { const c = kids.find((k) => k.id === e.target.value); if (c) choose(c); }}>
-          <option value="">Choose {nextLabel?.toLowerCase()}… ({kids.length})</option>
-          {kids.map((k) => <option key={k.id} value={k.id}>{k.name}{kids.some((o) => o.kind !== k.kind) ? ` (${k.kind})` : ""}</option>)}
-        </select>
-      )}
-      {!done && state === "idle" && kids && kids.length === 0 && trail.length > 1 && (
-        <div className="px-1 text-[11px] text-stone-500">This is the most specific level in the official list.</div>
-      )}
-
       {/* Jump straight to a place by name */}
       <div className="relative">
         <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} className="input pl-10" placeholder="Or search a place: district, town, parish, village…"
+        <input value={q} onChange={(e) => setQ(e.target.value)} className="input pl-10" placeholder={trail.length > 1 ? "Search another place…" : "Type an area: Ntinda, Kira, Kololo, Mukono…"}
           aria-label="Search for a place" autoComplete="off" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (hits?.[0]) pickHit(hits[0]); } }} />
         {searching && <Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-stone-400" />}
       </div>
@@ -134,6 +116,24 @@ export function LocationPicker({
           ))}
         </div>
       )}
+      {/* Next level down */}
+      {!done && state === "loading" && <div className="flex items-center gap-2 px-1 text-xs text-stone-500"><Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading places…</div>}
+      {!done && state === "error" && (
+        <div className="flex items-center justify-between rounded-xl bg-maroon-50 px-3 py-2 text-xs text-maroon-700">
+          Couldn&apos;t load places — check your connection.
+          <button type="button" className="font-semibold underline" onClick={() => loadKids(last.id)}>Retry</button>
+        </div>
+      )}
+      {!done && state === "idle" && kids && kids.length > 0 && (
+        <select aria-label={`Choose ${nextLabel}`} className="input" value="" onChange={(e) => { const c = kids.find((k) => k.id === e.target.value); if (c) choose(c); }}>
+          <option value="">{trail.length > 1 ? `Narrow down: choose ${nextLabel?.toLowerCase()}…` : `Or choose step by step: ${nextLabel?.toLowerCase()}…`} ({kids.length})</option>
+          {kids.map((k) => <option key={k.id} value={k.id}>{k.name}{kids.some((o) => o.kind !== k.kind) ? ` (${k.kind})` : ""}</option>)}
+        </select>
+      )}
+      {!done && state === "idle" && kids && kids.length === 0 && trail.length > 1 && (
+        <div className="px-1 text-[11px] text-stone-500">This is the most specific level in the official list.</div>
+      )}
+
       {hint && <p className="px-1 text-[11px] text-stone-500">{hint}</p>}
     </div>
   );

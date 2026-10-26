@@ -1,13 +1,14 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/db";
-import { pathIds, placeTokens, rankHit, searchKey, within, type Crumb } from "./geo-core";
+import { inMetro, niceName, pathIds, placeTokens, rankHit, searchKey, within, type Crumb } from "./geo-core";
 
 export * from "./geo-core";
 
 export type Hit = Crumb & { trail: Crumb[]; depth: number };
 
 const crumbSelect = { id: true, name: true, kind: true, level: true } as const;
+const tidy = <T extends { name: string }>(r: T): T => ({ ...r, name: niceName(r.name) });
 
 /** Ancestors + self, root first, for one location. */
 export async function trailFor(id: string | null | undefined): Promise<Crumb[]> {
@@ -16,7 +17,7 @@ export async function trailFor(id: string | null | undefined): Promise<Crumb[]> 
   if (!loc) return [];
   const ids = pathIds(loc.path);
   const rows = await db.location.findMany({ where: { id: { in: ids } }, select: crumbSelect });
-  return ids.map((i) => rows.find((r) => r.id === i)!).filter(Boolean);
+  return ids.map((i) => rows.find((r) => r.id === i)!).filter(Boolean).map(tidy);
 }
 
 /** Trails for many locations at once (one query for all their ancestors). */
@@ -25,12 +26,12 @@ export async function trailsFor(ids: (string | null | undefined)[]): Promise<Map
   if (!uniq.length) return new Map();
   const locs = await db.location.findMany({ where: { id: { in: uniq } }, select: { id: true, path: true } });
   const all = [...new Set(locs.flatMap((l) => pathIds(l.path)))];
-  const rows = new Map((await db.location.findMany({ where: { id: { in: all } }, select: crumbSelect })).map((r) => [r.id, r]));
+  const rows = new Map((await db.location.findMany({ where: { id: { in: all } }, select: crumbSelect })).map((r) => [r.id, tidy(r)]));
   return new Map(locs.map((l) => [l.id, pathIds(l.path).map((i) => rows.get(i)!).filter(Boolean)]));
 }
 
 export async function childrenOf(parentId: string) {
-  return db.location.findMany({ where: { parentId }, select: { ...crumbSelect, _count: { select: { children: true } } }, orderBy: { name: "asc" } });
+  return (await db.location.findMany({ where: { parentId }, select: { ...crumbSelect, _count: { select: { children: true } } }, orderBy: { name: "asc" } })).map(tidy);
 }
 
 /**
@@ -47,15 +48,16 @@ export async function searchPlaces(q: string, o: { withinId?: string | null; lim
       ...(scope ? { path: { startsWith: scope.path } } : {}),
       ...(o.maxDepth != null ? { depth: { lte: o.maxDepth } } : {}),
     },
-    select: { ...crumbSelect, searchKey: true, depth: true },
+    select: { ...crumbSelect, searchKey: true, depth: true, path: true },
     take: 400,
   });
+  // Greater Kampala first: "Kololo" should find Kololo in Kampala before a village of the same name upcountry.
   const top = rows
-    .map((r) => ({ r, score: rankHit(q, r.name, r.searchKey, r.depth) }))
+    .map((r) => ({ r, score: rankHit(q, r.name, r.searchKey, r.depth) - (inMetro(r.path) ? 15 : 0) }))
     .sort((a, b) => a.score - b.score || a.r.name.localeCompare(b.r.name))
     .slice(0, o.limit ?? 15);
   const trails = await trailsFor(top.map((t) => t.r.id));
-  return top.map(({ r }) => ({ id: r.id, name: r.name, kind: r.kind, level: r.level, depth: r.depth, trail: trails.get(r.id) ?? [] }));
+  return top.map(({ r }) => ({ id: r.id, name: niceName(r.name), kind: r.kind, level: r.level, depth: r.depth, trail: trails.get(r.id) ?? [] }));
 }
 
 /** Prisma filter: the record's location is this place or anywhere inside it. */
@@ -108,11 +110,4 @@ export async function coverage(providerId: number, locationPath: string | null |
   const areas = await db.providerArea.findMany({ where: { providerId }, select: { location: { select: { path: true, level: true, name: true } } } });
   const hit = areas.map((a) => a.location).filter((a) => within(locationPath, a.path)).sort((a, b) => b.path.length - a.path.length)[0];
   return hit ?? null;
-}
-
-/** Readable address for a property: street details, then the place trail (without "Uganda"). */
-export function addressLine(p: { estate?: string | null; street?: string | null; building?: string | null; plot?: string | null }, trail: Crumb[]) {
-  const parts = [p.plot && `Plot ${p.plot}`, p.building, p.street, p.estate].filter(Boolean) as string[];
-  const area = trail.filter((c) => !["country", "region"].includes(c.level)).map((c) => c.name).reverse().slice(0, 3);
-  return [...parts, ...area].join(", ");
 }

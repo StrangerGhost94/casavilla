@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ListingPhotos } from "@/components/Gallery";
-import { ActionBar, Checklist, FactTiles, PhotoButtons, shareLink } from "@/components/ListingParts";
+import { ActionBar, Checklist, FactTiles, LocationCard, PhotoButtons, shareLink } from "@/components/ListingParts";
 import { Bath, BadgeCheck, BedDouble, Building2, ChevronRight, DoorOpen, MapPin, MessageCircle, Phone, Ruler, Sofa } from "lucide-react";
 import { db } from "@/db";
 import { getUser } from "@/lib/auth";
@@ -34,10 +34,6 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     : null;
   const wa = `https://wa.me/256776593482?text=${encodeURIComponent(`Hello CasaVilla, I'm interested in ${property.name} ${unit.label} (${property.location}).`)}`;
   const trail = await trailFor(property.locationId);
-  // A real pin opens the exact spot; otherwise the map searches the address (never a made-up point).
-  const maps = property.lat != null && property.lng != null
-    ? `https://www.google.com/maps/search/?api=1&query=${property.lat},${property.lng}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(property.location + ", Uganda")}`;
   const area = [...trail].reverse().find((c) => ["subcounty", "county", "district"].includes(c.level));
   // Similar: other vacant homes within about a third of this rent, nearest in price first.
   const similar = (await listedUnits({ max: Math.round(unit.rent * 1.35), exclude: unit.id, limit: 30 }))
@@ -87,14 +83,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
                 <p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-stone-600">{property.description}</p>
               </section>
             )}
-            <section className="mt-6">
-              <h2 className="h2">Location</h2>
-              <a href={maps} target="_blank" rel="noreferrer" className="card mt-2 flex items-center gap-3 p-4 hover:border-brand-200">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><MapPin className="h-5 w-5" /></span>
-                <span className="min-w-0 flex-1 break-words text-sm text-stone-700">{property.location}</span>
-                <span className="text-xs font-semibold text-brand-700">View on map</span>
-              </a>
-            </section>
+            <LocationCard address={property.location} landmark={property.landmark} lat={property.lat} lng={property.lng} />
             <LivingHere />
             {others.length > 1 && (
               <section className="mt-6">

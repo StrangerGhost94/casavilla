@@ -7,7 +7,7 @@ import { crumbText, trailFor } from "@/lib/geo";
 import { AroundHere } from "@/components/AroundHere";
 import { KIND, TENURE, TITLE, fullUgx, perAcre, shortUgx, sizeText, toAcres, type SaleKind } from "@/lib/sales";
 import { PhotoMosaic } from "@/components/Gallery";
-import { ActionBar, Checklist, PhotoButtons, shareLink } from "@/components/ListingParts";
+import { ActionBar, Checklist, LocationCard, PhotoButtons, shareLink } from "@/components/ListingParts";
 import { SaleCard } from "@/components/SaleCard";
 import { SaleEnquiryForm, SaleViewCounter, ShareButton } from "@/components/SaleClient";
 
@@ -32,9 +32,6 @@ export default async function SaleListingPage({ params }: { params: Promise<{ id
   const isLand = l.kind === "land" || l.kind === "farm";
   const pa = isLand ? perAcre(l) : null;
   const acres = l.sizeValue && l.sizeUnit && l.sizeUnit !== "acres" ? toAcres(l.sizeValue, l.sizeUnit) : null;
-  const maps = l.lat != null && l.lng != null
-    ? `https://www.google.com/maps/search/?api=1&query=${l.lat},${l.lng}`
-    : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(l.location + ", Uganda")}`;
   const wa = `https://wa.me/256776593482?text=${encodeURIComponent(`Hello CasaVilla, I'm interested in "${l.title}" (${l.location}) — listing #${l.id}.`)}`;
   const area = [...trail].reverse().find((c) => ["subcounty", "county", "district"].includes(c.level));
   const similar = await db.saleListing.findMany({
@@ -103,14 +100,7 @@ export default async function SaleListingPage({ params }: { params: Promise<{ id
                 <p className="mt-2 text-sm text-stone-600"><b>{TENURE[l.tenure].label}</b> — {TENURE[l.tenure].hint}. {TITLE[l.titleStatus]}.</p>
               </section>
             )}
-            <section className="mt-6">
-              <h2 className="h2">Location</h2>
-              <a href={maps} target="_blank" rel="noreferrer" className="card mt-2 flex items-center gap-3 p-4 hover:border-brand-200">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><MapPin className="h-5 w-5" /></span>
-                <span className="min-w-0 flex-1 break-words text-sm text-stone-700">{l.location}{l.lat == null ? " (approximate — exact spot shown at the viewing)" : ""}</span>
-                <span className="shrink-0 text-xs font-semibold text-brand-700">View on map</span>
-              </a>
-            </section>
+            <LocationCard address={l.location} landmark={l.landmark} lat={l.lat} lng={l.lng} />
             <div className="mt-6 flex items-start gap-2.5 rounded-2xl border border-gold-200 bg-gold-50/60 p-3.5 text-xs text-stone-700">
               <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-gold-600" />
               <span>Before paying any deposit, do an official land search at the Ministry of Lands and visit the land. Never send money to someone you haven&apos;t met — CasaVilla can arrange the search and the viewing.</span>

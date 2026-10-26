@@ -34,6 +34,13 @@ export const fmtKm = (km: number) => (km < 1 ? `${Math.round(km * 1000)} m` : `$
 
 export type Crumb = { id: string; name: string; kind: string; level: string };
 
+/** The official list writes Roman numerals like words ("Kololo Ii", "Mbuya Iv"); show them as numerals. */
+export const niceName = (name: string) => name.replace(/\b(i{1,3}|iv|vi{0,3}|ix|x)\b/gi, (m, _x, i, str) => (i > 0 && str[i - 1] === " " ? m.toUpperCase() : m));
+
+/** Greater Kampala (Kampala, Wakiso, Mukono): where most CasaVilla homes are, so its places come first in search. */
+export const METRO_PATHS = ["/UG/UG-C/UG-D32/", "/UG/UG-C/UG-D80/", "/UG/UG-C/UG-D60/"];
+export const inMetro = (path: string) => METRO_PATHS.some((p) => path.startsWith(p));
+
 /** "Uganda → Central Region → Wakiso → Kira Municipality". The country is dropped when `short`. */
 export const crumbText = (trail: Crumb[], short = false) => (short ? trail.filter((c) => c.level !== "country") : trail).map((c) => c.name).join(" → ");
 
@@ -51,3 +58,17 @@ export function rankHit(q: string, name: string, keyStr: string, depth: number) 
  */
 const NOISE = new Set(["road", "rd", "street", "st", "avenue", "ave", "lane", "close", "plot", "block", "near", "opposite", "off", "behind", "next", "to", "the", "and", "of", "uganda", "district", "city", "town", "village", "zone", "estate", "house", "apartments", "apt", "p", "o", "box"]);
 export const placeTokens = (text: string) => [...new Set(searchKey(text).split(" ").filter((w) => w.length >= 3 && !NOISE.has(w) && !/^\d+$/.test(w)))];
+
+/** Area names from small to big, without repeats like "Nakawa, Nakawa Division" (keeps the fuller one). */
+export function areaNames(trail: Crumb[], max = 3) {
+  const names = trail.filter((c) => !["country", "region"].includes(c.level)).map((c) => niceName(c.name)).reverse();
+  return names.filter((n, i) => !names.slice(i + 1).some((m) => m.toLowerCase().startsWith(`${n.toLowerCase()} `))).slice(0, max);
+}
+
+/** Readable address for a property: street details, then the place trail (without "Uganda"). */
+export function addressLine(p: { estate?: string | null; street?: string | null; building?: string | null; plot?: string | null }, trail: Crumb[]) {
+  const parts = [p.plot && `Plot ${p.plot}`, p.building, p.street, p.estate].map((x) => (typeof x === "string" ? x.trim() : x)).filter(Boolean) as string[];
+  // An estate that is also the place name ("Ntinda, Ntinda") is said once.
+  const area = areaNames(trail).filter((n) => !parts.some((x) => x.toLowerCase() === n.toLowerCase()));
+  return [...parts, ...area].join(", ");
+}

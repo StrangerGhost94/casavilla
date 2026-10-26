@@ -10,8 +10,10 @@ type Pin = { lat: number; lng: number; acc: number | null; source: "gps" | "map"
  * Optional exact position for a property: from the phone's GPS (with its accuracy) or a tap on the map.
  * Nothing is filled in automatically — a district centre is never stored as the property's position.
  */
-export function PinPicker({ initial }: { initial?: Pin }) {
-  const [pin, setPin] = useState<Pin>(initial ?? null);
+export function PinPicker({ initial, locationId, onPin }: { initial?: Pin; locationId?: string | null; onPin?: (lat: number, lng: number) => void }) {
+  const [pin, setPinState] = useState<Pin>(initial ?? null);
+  // Every new position is reported, so the form can suggest the address for it.
+  const setPin = (p: Pin) => { setPinState(p); if (p) onPin?.(p.lat, p.lng); };
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
   const [showMap, setShowMap] = useState(false);
@@ -53,12 +55,12 @@ export function PinPicker({ initial }: { initial?: Pin }) {
         <button type="button" onClick={() => setShowMap((s) => !s)} className="btn-outline btn-sm py-2"><MapIcon className="h-4 w-4" /> {showMap ? "Hide map" : "Pick on map"}</button>
       </div>
       {msg && <p className="text-[11px] text-gold-700">{msg}</p>}
-      {showMap && <MapPick pin={pin} onPick={(lat, lng) => { setPin({ lat, lng, acc: null, source: "map" }); setMsg(null); }} />}
+      {showMap && <MapPick pin={pin} locationId={locationId} onPick={(lat, lng) => { setPin({ lat, lng, acc: null, source: "map" }); setMsg(null); }} />}
     </div>
   );
 }
 
-function MapPick({ pin, onPick }: { pin: Pin; onPick: (lat: number, lng: number) => void }) {
+function MapPick({ pin, locationId, onPick }: { pin: Pin; locationId?: string | null; onPick: (lat: number, lng: number) => void }) {
   const el = useRef<HTMLDivElement>(null);
   const [err, setErr] = useState(false);
   useEffect(() => {
@@ -68,8 +70,15 @@ function MapPick({ pin, onPick }: { pin: Pin; onPick: (lat: number, lng: number)
       try {
         const L = (await import("leaflet")).default;
         if (cancelled || !el.current) return;
-        const start: [number, number] = pin ? [pin.lat, pin.lng] : [0.3136, 32.5811]; // Kampala, only to start the view
-        map = L.map(el.current, { zoomControl: true }).setView(start, pin ? 17 : 12);
+        // Open on the pin; else on the chosen area (looked up on OpenStreetMap); else on Kampala.
+        let start: [number, number] = [0.3136, 32.5811], zoom = 12;
+        if (pin) { start = [pin.lat, pin.lng]; zoom = 17; }
+        else if (locationId) {
+          const c = await fetch(`/api/locations?centre=${encodeURIComponent(locationId)}`).then((r) => (r.ok ? r.json() : null)).catch(() => null) as { lat: number; lng: number; zoom: number } | null;
+          if (c) { start = [c.lat, c.lng]; zoom = c.zoom; }
+        }
+        if (cancelled || !el.current) return;
+        map = L.map(el.current, { zoomControl: true }).setView(start, zoom);
         L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19, attribution: "© OpenStreetMap contributors" }).addTo(map);
         const icon = L.divIcon({ className: "", html: '<div style="width:22px;height:22px;border-radius:50% 50% 50% 0;background:#124331;border:3px solid #d2a84a;transform:rotate(-45deg)"></div>', iconSize: [22, 22], iconAnchor: [11, 22] });
         let marker = pin ? L.marker([pin.lat, pin.lng], { icon }).addTo(map) : null;

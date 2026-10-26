@@ -8,7 +8,7 @@ import { crumbText, trailFor } from "@/lib/geo";
 import { AroundHere } from "@/components/AroundHere";
 import { bookedNights } from "@/lib/stays";
 import { ListingPhotos } from "@/components/Gallery";
-import { ActionBar, Checklist, FactTiles, PhotoButtons, shareLink } from "@/components/ListingParts";
+import { ActionBar, Checklist, FactTiles, LocationCard, PhotoButtons, shareLink } from "@/components/ListingParts";
 import { StayBooker } from "@/components/StayBooker";
 import { StayCalendar } from "@/components/StayCalendar";
 
@@ -57,6 +57,7 @@ export default async function StayPage({ params, searchParams }: { params: Promi
             {p.description && <section className="mt-6"><h2 className="h2">About this place</h2><p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-stone-600">{p.description}</p></section>}
             {u.houseRules && <section className="mt-6"><h2 className="h2">House rules</h2><p className="mt-2 whitespace-pre-line break-words rounded-2xl border border-stone-200/70 bg-white p-4 text-sm text-stone-600">{u.houseRules}</p></section>}
             <section className="mt-6"><h2 className="h2">Availability</h2><p className="text-xs text-stone-500">Crossed-out nights are already booked.</p><div className="mt-2"><StayCalendar booked={booked} today={today} /></div></section>
+            <LocationCard address={p.location} landmark={p.landmark} lat={p.lat} lng={p.lng} />
             <AroundHere area={area} skip="stays" />
           </div>
         </div>

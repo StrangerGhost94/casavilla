@@ -1,8 +1,6 @@
 import { Sparkles } from "lucide-react";
 import { suggestFromText, trailFor, crumbText } from "@/lib/geo";
-import { Field } from "./ui";
-import { LocationPicker } from "./LocationPicker";
-import { PinPicker } from "./PinPicker";
+import { PlaceInput } from "./PlaceInput";
 
 type Place = {
   locationId?: string | null; location?: string | null; estate?: string | null; street?: string | null; building?: string | null;
@@ -31,17 +29,9 @@ export async function PlaceFields({ p, pin = true, details = true }: { p?: Place
           </span>
         </div>
       )}
-      <LocationPicker initial={initial} label="Where is it?" required hint="Pick as far down as you know. A district or sub-county is fine if you don't know the village." />
-      {details && (
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Estate / neighbourhood"><input name="estate" defaultValue={p?.estate ?? ""} className="input" maxLength={120} placeholder="e.g. Kansanga" /></Field>
-          <Field label="Street"><input name="street" defaultValue={p?.street ?? ""} className="input" maxLength={120} placeholder="e.g. Rubaga Road" /></Field>
-          <Field label="Building"><input name="building" defaultValue={p?.building ?? ""} className="input" maxLength={120} /></Field>
-          <Field label="Plot no."><input name="plot" defaultValue={p?.plot ?? ""} className="input" maxLength={40} /></Field>
-          <div className="col-span-2"><Field label="Landmark / directions"><input name="landmark" defaultValue={p?.landmark ?? ""} className="input" maxLength={300} placeholder="e.g. Opposite Rubaga Cathedral gate" /></Field></div>
-        </div>
-      )}
-      {pin && <PinPicker initial={p?.lat != null && p?.lng != null ? { lat: p.lat, lng: p.lng, acc: p.coordAccuracyM ?? null, source: p.coordSource === "gps" ? "gps" : "map" } : null} />}
+      <PlaceInput initial={initial} showDetails={details} showPin={pin}
+        details={{ estate: p?.estate ?? "", street: p?.street ?? "", building: p?.building ?? "", plot: p?.plot ?? "", landmark: p?.landmark ?? "" }}
+        pin={p?.lat != null && p?.lng != null ? { lat: p.lat, lng: p.lng, acc: p.coordAccuracyM ?? null, source: p.coordSource === "gps" ? "gps" : "map" } : null} />
     </div>
   );
 }

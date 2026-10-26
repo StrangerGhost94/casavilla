@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, Check, Share2 } from "lucide-react";
+import { ArrowLeft, Check, Map as MapIcon, MapPin, Navigation, Share2 } from "lucide-react";
+import { MiniMap } from "./MiniMap";
 import type { LucideIcon } from "lucide-react";
 
 /** Dark band under the header with a title, a line of context and (usually) a search box. */
@@ -69,5 +70,31 @@ export function ActionBar({ price, per, sub, children }: { price: string; per?: 
         {children}
       </div>
     </div>
+  );
+}
+
+/** "Location" section: map with the pin when the exact spot is known, the address, and directions. */
+export function LocationCard({ address, landmark, lat, lng }: { address: string; landmark?: string | null; lat?: number | null; lng?: number | null }) {
+  const pinned = lat != null && lng != null;
+  const q = pinned ? `${lat},${lng}` : `${address}, Uganda`;
+  return (
+    <section className="mt-6">
+      <h2 className="h2">Location</h2>
+      <div className="card mt-2 overflow-hidden p-0">
+        {pinned && <MiniMap lat={lat!} lng={lng!} label={address} />}
+        <div className="flex items-center gap-3 p-4">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><MapPin className="h-5 w-5" /></span>
+          <div className="min-w-0 flex-1">
+            <div className="break-words text-sm font-medium text-stone-800">{address}</div>
+            {landmark && <div className="break-words text-xs text-stone-500">{landmark}</div>}
+            {!pinned && <div className="text-[11px] text-stone-400">Approximate area. The exact spot is shared when you arrange a viewing.</div>}
+          </div>
+        </div>
+        <div className="grid grid-cols-2 border-t border-stone-100 text-sm font-semibold">
+          <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(q)}`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 py-2.5 text-brand-700 hover:bg-stone-50"><MapIcon className="h-4 w-4" /> View on map</a>
+          <a href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(q)}`} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 border-l border-stone-100 py-2.5 text-brand-700 hover:bg-stone-50"><Navigation className="h-4 w-4" /> Directions</a>
+        </div>
+      </div>
+    </section>
   );
 }
