@@ -2,8 +2,8 @@ import "server-only";
 import type { EfrisProfile } from "@prisma/client";
 import { db } from "@/db";
 import {
-  buildInvoice, buildService, decodeContent, dictSection, encryptedEnvelope, keyFingerprint, openKey, payModeFor, plainEnvelope,
-  readIssued, serviceLine, sessionAesKey, taxTreatment, type Device, type Envelope,
+  buildCreditNote, buildInvoice, buildService, decodeContent, dictSection, encryptedEnvelope, keyFingerprint, openKey, payModeFor, plainEnvelope,
+  readCommodity, readCreditStatus, readIssued, serviceLine, sessionAesKey, treatmentFor, treatmentLabel, type CommodityTax, type Device, type Envelope,
 } from "./efris-crypto";
 
 /**
@@ -131,10 +131,23 @@ export async function testConnection(landlordId: number) {
     const notes: string[] = [];
     if (!units.length) notes.push("URA's list of measure units didn't load — enter the unit code by hand");
     if (tp.vat !== prof.vatRegistered && s.login) notes.push(tp.vat ? "URA lists VAT for this TIN, but the landlord isn't marked VAT-registered here" : "This landlord is marked VAT-registered here, but URA's login didn't list VAT");
+    // URA's official tax treatment of each rent commodity code (T124), used on every document.
+    const tax: Record<string, CommodityTax> = {};
+    for (const [k, code] of [["residential", prof.commodityResidential], ["commercial", prof.commodityCommercial]] as const) {
+      if (!code) continue;
+      const info = await commodityInfo(c, s, code).catch(() => null);
+      if (!info) { notes.push(`URA didn't find commodity code ${code} (${k} rent) — check it`); continue; }
+      tax[k] = info;
+      if (!info.leaf) notes.push(`commodity code ${code} is a category, not a final item — choose a more specific code under it`);
+      if (prof.vatRegistered) notes.push(`${k} rent: ${treatmentLabel(treatmentFor(true, k === "commercial", info))} per URA`);
+    }
     const name = tp.legalName ?? tp.businessName;
     return save(true, `Connected to URA ${c.env === "production" ? "EFRIS" : "EFRIS test environment"}${name ? ` as ${name}` : ""}.${notes.length ? ` Note: ${notes.join("; ")}.` : ""}`, {
       uraDict: dict as never,
       legalName: prof.legalName ?? tp.legalName, businessName: prof.businessName ?? tp.businessName, sellerAddress: prof.sellerAddress ?? tp.address,
+      commodityTax: (Object.keys(tax).length ? tax : prof.commodityTax) as never,
+      commodityResidentialName: prof.commodityResidentialName || tax.residential?.name || null,
+      commodityCommercialName: prof.commodityCommercialName || tax.commercial?.name || null,
       unitCode: prof.unitCode ?? (units.find((u) => /month/i.test(u.name)) ?? units.find((u) => /service|unit/i.test(u.name)))?.value ?? null,
     });
   } catch (e) {
@@ -237,7 +250,14 @@ export async function uraIssue(paymentId: number, uncertainBefore: boolean): Pro
         address: prof.sellerAddress ?? tp.address ?? p.lease.unit.property.location, phone: tp.phone ?? p.lease.landlord.phone, email: tp.email ?? p.lease.landlord.email,
         placeOfBusiness: `${p.lease.unit.property.name}, ${p.lease.unit.property.location}`.slice(0, 500),
       },
-      deviceNo: c.deviceNo, referenceNo, issuedAt: p.paidAt ?? new Date(), vatRegistered: prof.vatRegistered, treatment: taxTreatment(prof.vatRegistered, commercial),
+      deviceNo: c.deviceNo, referenceNo, issuedAt: p.paidAt ?? new Date(), vatRegistered: prof.vatRegistered,
+      ...(() => {
+        // URA's treatment for the code in use (an answer for a since-changed code doesn't count).
+        const code = commercial ? prof.commodityCommercial : prof.commodityResidential;
+        const info = ((prof.commodityTax ?? {}) as Record<string, CommodityTax>)[commercial ? "commercial" : "residential"];
+        const t = treatmentFor(prof.vatRegistered, commercial, info?.code === code ? info : null);
+        return { treatment: t.treatment, rate: t.rate };
+      })(),
       buyer: { name: p.tenant.name, phone: p.tenant.phone, email: p.tenant.email },
       lines: lines.map((l) => ({ name: l.name, code: l.code, amount: l.amount, commodityCode: (commercial ? prof.commodityCommercial : prof.commodityResidential)!, commodityName: (commercial ? prof.commodityCommercialName : prof.commodityResidentialName) ?? "" })),
       unitOfMeasure: prof.unitCode!, payMode: payModeFor(p.method, dict.payWays ?? []), operator: "CasaVilla",
@@ -254,4 +274,99 @@ export async function uraIssue(paymentId: number, uncertainBefore: boolean): Pro
     const err = e as UraError;
     return { ok: false, error: err.message, uncertain: uncertainBefore || !!err.sent };
   }
+}
+
+
+/** URA's tax treatment for one commodity code (T124, commodity category query). */
+async function commodityInfo(c: Conn, s: Session, code: string): Promise<CommodityTax | null> {
+  const r = await secure(c, "T124", { categoryCode: code, categoryName: "", categoryLevel: "", parentCode: "", pageNo: "1", pageSize: "10" }, s);
+  if (r.rc !== "00") throw new UraError(`URA's commodity list didn't answer (${r.rc}: ${r.rm})`, false, r.rc);
+  return readCommodity(r.data, code);
+}
+
+/** Re-reads URA's tax treatment for a landlord's commodity codes without a full connection test. */
+export async function refreshCommodityTax(landlordId: number) {
+  const prof = await db.efrisProfile.findUnique({ where: { landlordId } });
+  const c = prof && connFor(prof);
+  if (!prof || !c || typeof c === "string") return null;
+  const s = await openSession(c);
+  const tax: Record<string, CommodityTax> = {};
+  for (const [k, code] of [["residential", prof.commodityResidential], ["commercial", prof.commodityCommercial]] as const) {
+    if (code) { const info = await commodityInfo(c, s, code).catch(() => null); if (info) tax[k] = info; }
+  }
+  await db.efrisProfile.update({ where: { landlordId }, data: { commodityTax: tax as never } });
+  return tax;
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Credit notes: apply (T110) → URA approves (T111) → it gets its own FDN. Withdraw a pending one (T120);
+// cancel an approved one (T114).
+
+type CreditResult = { status: string; applicationRef?: string | null; applicationId?: string | null; fdn?: string | null; verificationCode?: string | null; invoiceId?: string | null; error?: string | null };
+
+async function creditContext(noteId: number) {
+  const n = await db.efrisCreditNote.findUniqueOrThrow({
+    where: { id: noteId },
+    include: { receipt: { include: { payment: { select: { method: true, tenant: { select: { name: true, phone: true, email: true } } } } } }, profile: true },
+  });
+  const c = connFor(n.profile);
+  if (typeof c === "string") throw new UraError(c);
+  return { n, c, s: await openSession(c) };
+}
+
+/** Sends the credit note application for the original document's lines. */
+export async function uraCreditApply(noteId: number): Promise<CreditResult> {
+  const { n, c, s } = await creditContext(noteId);
+  const r = n.receipt;
+  const orig = await secure(c, "T108", { invoiceNo: r.fdn }, s);
+  if (orig.rc !== "00") return { status: "failed", error: `Couldn't read the original document from URA (${orig.rc}: ${orig.rm})` };
+  const bi = ((orig.data ?? {}) as { basicInformation?: { invoiceId?: string } }).basicInformation ?? {};
+  const dict = (n.profile.uraDict ?? {}) as Partial<Dict>;
+  const body = buildCreditNote({
+    original: orig.data, oriInvoiceId: String(bi.invoiceId ?? r.invoiceId ?? ""), oriInvoiceNo: r.fdn, amount: n.amount,
+    reasonCode: n.reasonCode, reason: n.reason ?? "", appliedAt: new Date(), referenceNo: `CVCN${n.id}`,
+    payMode: payModeFor(r.payment.method, dict.payWays ?? []), contact: { name: n.profile.legalName ?? "CasaVilla", phone: null, email: null },
+  });
+  const res = await secure(c, "T110", body, s);
+  if (res.rc !== "00") return { status: "failed", error: `URA refused the credit note (${res.rc}: ${res.rm})` };
+  const d = (res.data ?? {}) as { referenceNo?: string; id?: string };
+  return { status: "pending", applicationRef: d.referenceNo ?? null, applicationId: d.id ?? null };
+}
+
+/** Asks URA how the application stands; once approved, reads the credit note's FDN and verification code. */
+export async function uraCreditCheck(noteId: number): Promise<CreditResult> {
+  const { n, c, s } = await creditContext(noteId);
+  const day = (d: Date) => new Date(d.getTime() + 3 * 3600_000).toISOString().slice(0, 10);
+  const q = await secure(c, "T111", {
+    referenceNo: n.applicationRef ?? "", oriInvoiceNo: n.receipt.fdn, invoiceNo: "", combineKeywords: "", approveStatus: "", queryType: "1",
+    invoiceApplyCategoryCode: "101", startDate: day(new Date(n.createdAt.getTime() - 86400_000)), endDate: day(new Date()), pageNo: "1", pageSize: "20",
+  }, s);
+  if (q.rc !== "00") return { status: n.status, error: `Couldn't check the credit note with URA (${q.rc}: ${q.rm})` };
+  const st = readCreditStatus(q.data, n.applicationRef ?? "");
+  if (!st) return { status: n.status };
+  if (n.status === "cancelling") {
+    // The cancellation is approved when URA marks the credit note itself invalid.
+    if (!n.fdn) return { status: n.status };
+    const det = await secure(c, "T108", { invoiceNo: n.fdn }, s);
+    const inv = String(((det.data ?? {}) as { basicInformation?: { isInvalid?: string } }).basicInformation?.isInvalid ?? "");
+    return { status: inv === "1" ? "cancelled" : "cancelling" };
+  }
+  if (st.status !== "approved" || !st.fdn) return { status: st.status, applicationId: st.id, error: st.status === "rejected" ? st.note : null };
+  const det = await secure(c, "T108", { invoiceNo: st.fdn }, s);
+  const got = readIssued(det.data, c.env === "production");
+  return { status: "approved", applicationId: st.id, fdn: st.fdn, verificationCode: got?.verificationCode ?? null, invoiceId: got?.invoiceId ?? null };
+}
+
+/** Withdraws an application URA hasn't decided yet. */
+export async function uraCreditWithdraw(noteId: number): Promise<CreditResult> {
+  const { n, c, s } = await creditContext(noteId);
+  const r = await secure(c, "T120", { businessKey: n.applicationId ?? "", referenceNo: n.applicationRef ?? "" }, s);
+  return r.rc === "00" ? { status: "withdrawn" } : { status: n.status, error: `URA wouldn't withdraw it (${r.rc}: ${r.rm})` };
+}
+
+/** Applies to cancel an approved credit note. */
+export async function uraCreditCancel(noteId: number, reason: string): Promise<CreditResult> {
+  const { n, c, s } = await creditContext(noteId);
+  const r = await secure(c, "T114", { oriInvoiceId: n.invoiceId ?? "", invoiceNo: n.fdn ?? "", reason: reason.slice(0, 1024), reasonCode: "102", invoiceApplyCategoryCode: "104" }, s);
+  return r.rc === "00" ? { status: "cancelling" } : { status: n.status, error: `URA refused the cancellation (${r.rc}: ${r.rm})` };
 }

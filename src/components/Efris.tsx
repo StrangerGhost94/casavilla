@@ -4,10 +4,10 @@ import { AlertTriangle, BadgeCheck, Check, ChevronDown, ChevronRight, Clock, Fil
 import { db, type User } from "@/db";
 import { fmtDate, kampalaToday, ugx } from "@/lib/format";
 import { chargeLabel } from "@/lib/rules";
-import { autoActive, daysSince, docName, EFRIS_STATUS, efrisApplies, efrisMode, efrisProblems, efrisProfile, efrisSetup, missingPayments, type EfrisStep } from "@/lib/efris";
-import { canStoreKeys, openKey, publicKeyPem } from "@/lib/efris-crypto";
+import { autoActive, creditableLeft, daysSince, docName, EFRIS_STATUS, efrisApplies, efrisMode, efrisProblems, efrisProfile, efrisSetup, missingPayments, type EfrisStep } from "@/lib/efris";
+import { canStoreKeys, CREDIT_REASONS, openKey, publicKeyPem, treatmentFor, treatmentLabel, type CommodityTax } from "@/lib/efris-crypto";
 import { fileUrl } from "@/lib/file-url";
-import { generateEfrisKey, recordEfris, removeEfris, retryEfrisPayment, saveEfrisConnection, saveEfrisProfile, testEfrisConnection } from "@/app/efris-actions";
+import { generateEfrisKey, recordEfris, refreshCreditNote, removeEfris, requestCreditNote, retryEfrisPayment, saveEfrisConnection, saveEfrisProfile, testEfrisConnection, withdrawCreditNote } from "@/app/efris-actions";
 import { Avatar, Badge, Empty, PageHeader, Stat } from "./ui";
 import { ConfirmSubmit, Submit } from "./client";
 import { FileButton } from "./FileButton";
@@ -149,6 +149,25 @@ async function ConnectionForm({ landlordId }: { landlordId: number }) {
             <label className="block"><span className="label">Its name</span>
               <input name="commodityCommercialName" defaultValue={p.commodityCommercialName ?? ""} className="input" />
             </label>
+            <div className="space-y-1.5 rounded-lg bg-stone-50 p-2.5 text-xs sm:col-span-2">
+              <div className="font-semibold text-stone-700">Tax per URA&apos;s commodity list</div>
+              {([["residential", "Residential rent", p.commodityResidential], ["commercial", "Commercial rent", p.commodityCommercial]] as const).filter(([, , code]) => code).map(([k, label, code]) => {
+                const saved = ((p.commodityTax ?? {}) as Record<string, CommodityTax>)[k];
+                const info = saved?.code === code ? saved : undefined; // a changed code needs checking again
+                return (
+                  <div key={k} className="flex flex-wrap items-center gap-x-2">
+                    <span className="text-stone-600">{label} ({code}):</span>
+                    {info ? <>
+                      <b className="text-brand-900">{treatmentLabel(treatmentFor(true, k === "commercial", info))}</b>
+                      {!p.vatRegistered && <span className="text-stone-500">· landlord not VAT-registered, so documents are out of scope</span>}
+                      {!info.leaf && <span className="font-semibold text-maroon-600">· not a final item code, choose a more specific one</span>}
+                      <span className="text-stone-400">· from URA {fmtDate(new Date(info.checkedAt))}</span>
+                    </> : <span className="text-gold-700">not checked with URA yet. Press Test connection</span>}
+                  </div>
+                );
+              })}
+              {!p.commodityResidential && !p.commodityCommercial && <div className="text-stone-500">Add a commodity code above, then Test connection to load its tax from URA.</div>}
+            </div>
             <label className="block sm:col-span-2"><span className="label">Measure unit for rent</span>
               {units.length ? (
                 <select name="unitCode" defaultValue={p.unitCode ?? ""} className="input">
@@ -505,6 +524,7 @@ export async function EfrisOnReceipt({ paymentId, landlordId, paidAt, chargeKind
         <img src={await QRCode.toDataURL(e.qr, { margin: 1, width: 240 })} alt="EFRIS QR code" className="mt-3 h-28 w-28 rounded-lg bg-white p-1 ring-1 ring-stone-200" />
       )}
       <p className="mt-2 text-[11px] text-stone-500">{e.test ? "Test document — not a real fiscal receipt." : "Check it in URA's EFRIS app or web portal using the FDN and the date it was issued."}</p>
+      <CreditNotes receiptId={e.id} source={e.source} canManage={canManage} />
       <div className="no-print mt-3 flex flex-wrap items-center gap-3">
         {e.fileId && <FileButton href={fileUrl(e.fileId)} name={`EFRIS-${e.fdn}`} className="btn-outline btn-sm">URA&apos;s copy</FileButton>}
         {canManage && (
@@ -514,6 +534,87 @@ export async function EfrisOnReceipt({ paymentId, landlordId, paidAt, chargeKind
           </form>
         )}
       </div>
+    </div>
+  );
+}
+
+
+const CREDIT_STATUS: Record<string, [string, string]> = {
+  submitting: ["Sending to URA", "bg-stone-100 text-stone-600"], pending: ["Waiting for URA", "bg-gold-50 text-gold-700"],
+  approved: ["Approved", "bg-brand-50 text-brand-700"], rejected: ["Rejected by URA", "bg-maroon-50 text-maroon-600"],
+  withdrawn: ["Withdrawn", "bg-stone-100 text-stone-500"], cancelling: ["Cancellation pending", "bg-gold-50 text-gold-700"],
+  cancelled: ["Cancelled", "bg-stone-100 text-stone-500"], failed: ["Not sent", "bg-maroon-50 text-maroon-600"],
+};
+
+/** Credit notes against this EFRIS document; the landlord / CasaVilla can apply for one, follow it and cancel it. */
+async function CreditNotes({ receiptId, source, canManage }: { receiptId: number; source: string; canManage: boolean }) {
+  const [notes, left] = await Promise.all([
+    db.efrisCreditNote.findMany({ where: { receiptId }, orderBy: { createdAt: "desc" } }),
+    creditableLeft(receiptId),
+  ]);
+  const shown = canManage ? notes : notes.filter((n) => ["approved", "cancelling", "cancelled"].includes(n.status));
+  if (!shown.length && !canManage) return null;
+  return (
+    <div className="mt-4 border-t border-brand-100 pt-3">
+      {shown.length > 0 && (
+        <div className="space-y-2">
+          <div className="text-xs font-semibold uppercase tracking-wide text-stone-500">Credit notes</div>
+          {shown.map((n) => (
+            <div key={n.id} className="rounded-lg bg-white p-3 ring-1 ring-stone-200">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold text-stone-900">− {ugx(n.amount)}</span>
+                <span className={`pill ${CREDIT_STATUS[n.status]?.[1] ?? "bg-stone-100"}`}>{n.test ? "TEST · " : ""}{CREDIT_STATUS[n.status]?.[0] ?? n.status}</span>
+                <span className="text-xs text-stone-500">{CREDIT_REASONS[n.reasonCode] ?? n.reasonCode} · {fmtDate(n.createdAt)}</span>
+              </div>
+              {n.fdn && <div className="mt-1 font-mono text-xs text-stone-700">Credit note FDN {n.fdn}{n.verificationCode ? ` · code ${n.verificationCode}` : ""}</div>}
+              {n.reason && <div className="mt-0.5 text-xs text-stone-500">{n.reason}</div>}
+              {canManage && n.error && !["approved", "cancelled", "withdrawn"].includes(n.status) && <div className="mt-1 break-words text-[11px] text-maroon-600">{n.error}</div>}
+              {canManage && (
+                <div className="no-print mt-2 flex flex-wrap gap-3 text-xs">
+                  {["pending", "cancelling"].includes(n.status) && <form action={refreshCreditNote}><input type="hidden" name="noteId" value={n.id} /><Submit className="font-semibold text-brand-700 hover:underline" pendingText="Checking…" doneText="Checked">Check with URA</Submit></form>}
+                  {["pending", "failed"].includes(n.status) && <form action={withdrawCreditNote}><input type="hidden" name="noteId" value={n.id} /><ConfirmSubmit message="Withdraw this credit note application?" className="font-semibold text-maroon-600 hover:underline">Withdraw</ConfirmSubmit></form>}
+                  {n.status === "approved" && (
+                    <details>
+                      <summary className="cursor-pointer list-none font-semibold text-maroon-600 hover:underline">Cancel this credit note</summary>
+                      <form action={withdrawCreditNote} className="mt-2 flex flex-wrap gap-2">
+                        <input type="hidden" name="noteId" value={n.id} />
+                        <input name="reason" className="input py-1.5 text-xs" placeholder="Why, e.g. issued in error" maxLength={300} />
+                        <ConfirmSubmit message="Apply to URA to cancel this credit note?" className="btn-outline btn-sm">Apply to cancel</ConfirmSubmit>
+                      </form>
+                    </details>
+                  )}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+      {canManage && (source === "api" ? left > 0 : true) && (
+        <details className="no-print mt-3">
+          <summary className="cursor-pointer list-none text-xs font-semibold text-brand-700">Issue a credit note…</summary>
+          {source !== "api" ? (
+            <p className="mt-2 text-xs text-stone-600">This EFRIS receipt was issued by hand, so issue its credit note in URA&apos;s EFRIS app or portal against FDN shown above.</p>
+          ) : (
+            <form action={requestCreditNote} className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <input type="hidden" name="receiptId" value={receiptId} />
+              <label className="block"><span className="label">Amount to credit (UGX)</span>
+                <input name="amount" type="number" min={1} max={left} defaultValue={left} required className="input" />
+                <span className="mt-1 block text-[11px] text-stone-500">Up to {ugx(left)}</span>
+              </label>
+              <label className="block"><span className="label">Reason</span>
+                <select name="reasonCode" className="input" defaultValue="102">
+                  {Object.entries(CREDIT_REASONS).filter(([k]) => k !== "101").map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
+              </label>
+              <label className="block sm:col-span-2"><span className="label">Note (needed for “Other reason”)</span>
+                <input name="reason" maxLength={500} className="input" placeholder="e.g. Tenant moved out early, October rent refunded" />
+              </label>
+              <p className="text-[11px] text-stone-500 sm:col-span-2">This corrects the EFRIS document with URA. Refund any money to the tenant separately.</p>
+              <div className="sm:col-span-2"><Submit className="btn-primary btn-sm" pendingText="Sending to URA…">Apply for credit note</Submit></div>
+            </form>
+          )}
+        </details>
+      )}
     </div>
   );
 }

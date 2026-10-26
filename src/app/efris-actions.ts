@@ -7,7 +7,8 @@ import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { saveUpload } from "@/lib/uploads";
 import { date, id, isUniqueViolation, oneOf } from "@/lib/validate";
-import { autoIssueEfris, cleanFdn, docName, efrisMode, efrisProfile, validCode, validFdn, validTin } from "@/lib/efris";
+import { applyCreditNote, autoIssueEfris, cancelCreditNote, checkCreditNote, cleanFdn, docName, efrisMode, efrisProfile, validCode, validFdn, validTin } from "@/lib/efris";
+import { CREDIT_REASONS } from "@/lib/efris-crypto";
 import { canStoreKeys, keyFingerprint, newKeyPair, normalizePrivateKey, sealKey } from "@/lib/efris-crypto";
 import { testConnection } from "@/lib/efris-ura";
 import { chargeLabel } from "@/lib/rules";
@@ -170,5 +171,48 @@ export async function retryEfrisPayment(fd: FormData) {
   await db.efrisAttempt.update({ where: { paymentId }, data: { status: a.status === "uncertain" ? "uncertain" : "failed", attempts: 0 } });
   await autoIssueEfris(paymentId);
   await audit(u.id, "efris.retry", "payment", paymentId, a.error ?? "");
+  refresh();
+}
+
+
+/** Who may handle credit notes on an EFRIS document: CasaVilla, or the landlord it was issued for. */
+async function creditAccess(receiptId: number) {
+  const u = await requireUser("landlord", "manager");
+  const r = await db.efrisReceipt.findUnique({ where: { id: receiptId }, select: { id: true, paymentId: true, payment: { select: { lease: { select: { landlordId: true } } } } } });
+  if (!r || (u.role !== "manager" && r.payment.lease.landlordId !== u.id)) return fail("EFRIS document not found");
+  return { u, r };
+}
+
+/** Applies for a credit note against an EFRIS document (refund, wrong amount, waiver). */
+export async function requestCreditNote(fd: FormData) {
+  const { u, r } = await creditAccess(id(fd, "receiptId"));
+  const amount = Math.round(Number(String(fd.get("amount") ?? "").replace(/[^\d.]/g, "")));
+  if (!Number.isFinite(amount) || amount < 1) return fail("Enter the amount to credit");
+  const reasonCode = await oneOf(fd, "reasonCode", Object.keys(CREDIT_REASONS) as [string, ...string[]], "the reason");
+  const reason = String(fd.get("reason") ?? "").trim().slice(0, 500);
+  if (reasonCode === "105" && reason.length < 5) return fail("Say briefly why, for “Other reason”");
+  const res = await applyCreditNote({ receiptId: r.id, amount, reasonCode, reason, userId: u.id });
+  if (!res.ok) return fail(res.error);
+  await audit(u.id, "efris.credit_note", "payment", r.paymentId, `${amount} UGX · reason ${reasonCode}${reason ? ` · ${reason}` : ""}`);
+  refresh();
+}
+
+/** Asks URA again how a credit note application stands. */
+export async function refreshCreditNote(fd: FormData) {
+  const n = await db.efrisCreditNote.findUnique({ where: { id: id(fd, "noteId") }, select: { id: true, receiptId: true } });
+  if (!n) return fail("Credit note not found");
+  await creditAccess(n.receiptId);
+  await checkCreditNote(n.id);
+  refresh();
+}
+
+/** Withdraws a pending credit note application, or applies to cancel an approved credit note. */
+export async function withdrawCreditNote(fd: FormData) {
+  const n = await db.efrisCreditNote.findUnique({ where: { id: id(fd, "noteId") }, select: { id: true, receiptId: true, status: true } });
+  if (!n) return fail("Credit note not found");
+  const { u, r } = await creditAccess(n.receiptId);
+  const reason = String(fd.get("reason") ?? "").trim().slice(0, 300) || "Issued in error";
+  await cancelCreditNote(n.id, reason);
+  await audit(u.id, n.status === "approved" ? "efris.credit_note_cancel" : "efris.credit_note_withdraw", "payment", r.paymentId, reason);
   refresh();
 }

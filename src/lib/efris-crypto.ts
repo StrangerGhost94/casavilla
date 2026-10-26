@@ -214,18 +214,53 @@ export function serviceLine(kind: string, unitId: number, unitLabel: string, com
   return { kind: k, code: `CV${unitId}-${KIND_CODE[k]}`, name: `${base} - Unit ${label}`.slice(0, 100) };
 }
 
-export type TaxTreatment = "standard" | "exempt" | "oos";
-/** VAT-registered landlords: commercial rent is standard-rated (18%), residential rent is exempt. Others: out of scope. */
+export type TaxTreatment = "standard" | "zero" | "exempt" | "oos";
+/** Fallback before URA has been asked: VAT-registered landlords' commercial rent is 18%, residential exempt; others out of scope. */
 export const taxTreatment = (vatRegistered: boolean, commercial: boolean): TaxTreatment => (!vatRegistered ? "oos" : commercial ? "standard" : "exempt");
 
-const TAX: Record<TaxTreatment, { taxRate: string; taxRule: string; cat: string; vatFlag: string }> = {
-  standard: { taxRate: "0.18", taxRule: "STANDARD", cat: "01", vatFlag: "1" },
-  exempt: { taxRate: "-", taxRule: "EXEMPT", cat: "03", vatFlag: "1" },
-  oos: { taxRate: "-", taxRule: "OOS", cat: "05", vatFlag: "2" },
+/** URA's tax treatment of one commodity code (from T124). */
+export type CommodityTax = { code: string; name: string; rate: number | null; exempt: boolean; zero: boolean; leaf: boolean; checkedAt: string };
+
+/** The treatment URA's commodity list gives, for a VAT-registered landlord; the fixed rule only when URA hasn't said. */
+export function treatmentFor(vatRegistered: boolean, commercial: boolean, info?: CommodityTax | null): { treatment: TaxTreatment; rate: number } {
+  if (!vatRegistered) return { treatment: "oos", rate: 0 };
+  if (!info) { const t = taxTreatment(true, commercial); return { treatment: t, rate: t === "standard" ? 0.18 : 0 }; }
+  if (info.exempt) return { treatment: "exempt", rate: 0 };
+  if (info.zero || info.rate === 0) return { treatment: "zero", rate: 0 };
+  return { treatment: "standard", rate: info.rate ?? 0.18 };
+}
+
+/** How a treatment reads to people, e.g. "Standard rate 18%". */
+export const treatmentLabel = (t: { treatment: TaxTreatment; rate: number }) =>
+  t.treatment === "standard" ? `Standard rate ${Math.round(t.rate * 1000) / 10}%` : t.treatment === "zero" ? "Zero-rated (0%)" : t.treatment === "exempt" ? "Exempt" : "Out of scope (not VAT-registered)";
+
+/** Reads URA's T124 answer for one commodity code. Flags come as "101" (yes) / "102" (no). */
+export function readCommodity(content: unknown, code: string): CommodityTax | null {
+  const d = (content ?? {}) as Record<string, unknown>;
+  const rows = (Array.isArray(d.records) ? d.records : Array.isArray(content) ? content : []) as Record<string, unknown>[];
+  const r = rows.find((x) => String(x.commodityCategoryCode ?? x.categoryCode ?? x.code ?? "") === code) ?? (rows.length === 1 ? rows[0] : null);
+  if (!r) return null;
+  const yes = (v: unknown) => v === true || v === "101" || v === "1" || v === "Y";
+  const rateRaw = String(r.rate ?? r.taxRate ?? "").trim();
+  const rate = rateRaw === "" || rateRaw === "-" ? null : Number(rateRaw.replace("%", "")) > 1 ? Number(rateRaw.replace("%", "")) / 100 : Number(rateRaw);
+  return {
+    code, name: String(r.commodityCategoryName ?? r.categoryName ?? r.name ?? ""),
+    rate: rate != null && Number.isFinite(rate) ? rate : null,
+    exempt: yes(r.isExempt), zero: yes(r.isZeroRate), leaf: r.isLeafNode == null ? true : yes(r.isLeafNode),
+    checkedAt: new Date().toISOString(),
+  };
+}
+
+const TAX: Record<TaxTreatment, { taxRule: string; cat: string; vatFlag: string }> = {
+  standard: { taxRule: "STANDARD", cat: "01", vatFlag: "1" },
+  zero: { taxRule: "ZERO", cat: "02", vatFlag: "1" },
+  exempt: { taxRule: "EXEMPT", cat: "03", vatFlag: "1" },
+  oos: { taxRule: "OOS", cat: "05", vatFlag: "2" },
 };
+const rateText = (t: TaxTreatment, rate: number) => (t === "standard" ? String(rate) : t === "zero" ? "0" : "-");
 const money = (n: number) => (Math.round(n * 100) / 100).toFixed(2);
-/** VAT inside a VAT-inclusive 18% amount. */
-export const vatInside = (gross: number) => Math.round((gross - gross / 1.18) * 100) / 100;
+/** VAT inside a VAT-inclusive amount (18% unless URA says otherwise). */
+export const vatInside = (gross: number, rate = 0.18) => Math.round((gross - gross / (1 + rate)) * 100) / 100;
 
 export type InvoiceInput = {
   seller: { tin: string; legalName: string; businessName: string; address: string; phone: string; email: string; placeOfBusiness: string };
@@ -234,6 +269,8 @@ export type InvoiceInput = {
   issuedAt: Date;
   vatRegistered: boolean;
   treatment: TaxTreatment;
+  /** Standard rate from URA's commodity list (default 18%). */
+  rate?: number;
   buyer: { name: string; phone?: string | null; email?: string | null; tin?: string | null };
   lines: { name: string; code: string; amount: number; commodityCode: string; commodityName: string }[];
   unitOfMeasure: string;
@@ -244,11 +281,12 @@ export type InvoiceInput = {
 
 /** The T109 "upload invoice" payload for the amount actually paid. */
 export function buildInvoice(i: InvoiceInput) {
-  const t = TAX[i.treatment];
+  const rate = i.rate ?? 0.18;
+  const t = { ...TAX[i.treatment], taxRate: rateText(i.treatment, rate) };
   const goodsDetails = i.lines.map((l, n) => ({
     item: l.name, itemCode: l.code, qty: "1", unitOfMeasure: i.unitOfMeasure,
     unitPrice: money(l.amount), total: money(l.amount),
-    taxRate: t.taxRate, taxRule: t.taxRule, tax: i.treatment === "standard" ? money(vatInside(l.amount)) : "0",
+    taxRate: t.taxRate, taxRule: t.taxRule, tax: i.treatment === "standard" ? money(vatInside(l.amount, rate)) : "0",
     discountTotal: "", discountTaxRate: "", orderNumber: String(n), discountFlag: "2", deemedFlag: "2", exciseFlag: "2",
     categoryId: "", categoryName: "", goodsCategoryId: l.commodityCode, goodsCategoryName: l.commodityName, vatApplicableFlag: t.vatFlag,
   }));
@@ -286,6 +324,74 @@ export function buildService(s: { code: string; name: string; price: number; uni
     commodityCategoryId: s.commodityCode, commodityCategoryName: s.commodityName, haveExciseTax: "102", description: s.name,
     stockPrewarning: "0", pricingMode: "1", havePieceUnit: "102", pieceUnit: "", packageScaledValue: "", scaledValue: "", discountTaxRate: "",
   }];
+}
+
+/** URA's reasons for a credit note. */
+export const CREDIT_REASONS: Record<string, string> = {
+  "102": "Rent refunded / tenancy cancelled",
+  "103": "Amount was wrongly stated",
+  "104": "Part or all of it waived",
+  "105": "Other reason",
+  "101": "Returned (goods)",
+};
+
+type OriginalLine = { item?: string; itemCode?: string; qty?: string; unitOfMeasure?: string; unitPrice?: string; total?: string; taxRate?: string; tax?: string; orderNumber?: string; goodsCategoryId?: string; goodsCategoryName?: string; vatApplicableFlag?: string; taxRule?: string };
+
+/**
+ * T110 credit note application for `amount` against an issued document, built from that document's own lines
+ * (as T108 returns them): lines are credited in order until the amount is used up; a partly credited line keeps
+ * its unit price and gets a fractional (negative) quantity, with its tax credited pro rata.
+ */
+export function buildCreditNote(o: {
+  original: unknown; oriInvoiceId: string; oriInvoiceNo: string; amount: number; reasonCode: string; reason: string;
+  appliedAt: Date; referenceNo: string; payMode: string; contact: { name: string; phone?: string | null; email?: string | null };
+}) {
+  const d = (o.original ?? {}) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const lines = ((d.goodsDetails ?? []) as OriginalLine[]).filter((g) => Number(g.total) > 0);
+  if (!lines.length) throw new Error("The original document's lines couldn't be read");
+  let left = Math.round(o.amount * 100) / 100;
+  const goodsDetails: Record<string, string>[] = [];
+  for (const g of lines) {
+    if (left <= 0) break;
+    const total = Number(g.total), price = Number(g.unitPrice) || total, qty = Number(g.qty) || 1;
+    const credit = Math.min(left, total);
+    const share = credit / total;
+    const tax = Math.round(Number(g.tax || 0) * share * 100) / 100;
+    goodsDetails.push({
+      item: g.item ?? "", itemCode: g.itemCode ?? "", qty: String(-Number((qty * share).toFixed(8))), unitOfMeasure: g.unitOfMeasure ?? "",
+      unitPrice: money(price), total: money(-credit), taxRate: g.taxRate ?? "-", tax: money(-tax), orderNumber: String(goodsDetails.length),
+      deemedFlag: "2", exciseFlag: "2", categoryId: "", categoryName: "", goodsCategoryId: g.goodsCategoryId ?? "", goodsCategoryName: g.goodsCategoryName ?? "",
+      exciseRate: "", exciseRule: "", exciseTax: "", pack: "", stick: "", exciseUnit: "", exciseCurrency: "", exciseRateName: "", vatApplicableFlag: g.vatApplicableFlag ?? "1",
+    });
+    left = Math.round((left - credit) * 100) / 100;
+  }
+  if (left > 0.009) throw new Error("The credit is more than the original document");
+  const gross = goodsDetails.reduce((s, g) => s + Number(g.total), 0);
+  const tax = goodsDetails.reduce((s, g) => s + Number(g.tax), 0);
+  const origTax = (d.taxDetails ?? [])[0] as { taxCategoryCode?: string; taxRate?: string } | undefined;
+  return {
+    oriInvoiceId: o.oriInvoiceId, oriInvoiceNo: o.oriInvoiceNo, reasonCode: o.reasonCode, reason: o.reasonCode === "105" ? o.reason.slice(0, 1024) : "",
+    applicationTime: eatStamp(o.appliedAt), invoiceApplyCategoryCode: "101", currency: "UGX",
+    contactName: o.contact.name.slice(0, 100), contactMobileNum: o.contact.phone ?? "", contactEmail: o.contact.email ?? "",
+    source: "103", remarks: o.reason.slice(0, 500), sellersReferenceNo: o.referenceNo,
+    goodsDetails,
+    taxDetails: origTax ? [{ taxCategoryCode: origTax.taxCategoryCode ?? "", netAmount: money(gross - tax), taxRate: origTax.taxRate ?? "-", taxAmount: money(tax), grossAmount: money(gross), exciseUnit: "", exciseCurrency: "", taxRateName: "" }] : [],
+    summary: { netAmount: money(gross - tax), taxAmount: money(tax), grossAmount: money(gross), itemCount: String(goodsDetails.length), modeCode: "0", qrCode: "" },
+    payWay: [{ paymentMode: o.payMode, paymentAmount: money(gross), orderNumber: "a" }],
+    buyerType: "1",
+  };
+}
+
+/** URA's application status (T111): 101 approved · 102 submitted · 103 rejected · 104 voided. */
+export function readCreditStatus(content: unknown, referenceNo: string) {
+  const d = (content ?? {}) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const rows = (Array.isArray(d.records) ? d.records : Array.isArray(content) ? content : []) as Record<string, any>[]; // eslint-disable-line @typescript-eslint/no-explicit-any
+  const r = rows.find((x) => String(x.referenceNo ?? "") === referenceNo) ?? (rows.length === 1 ? rows[0] : null);
+  if (!r) return null;
+  const code = String(r.approveStatus ?? r.approveStatusCode ?? "");
+  const status = code === "101" ? "approved" : code === "103" ? "rejected" : code === "104" ? "withdrawn" : "pending";
+  const fdn = String(r.invoiceNo ?? r.creditNoteNo ?? "").trim();
+  return { status, id: String(r.id ?? "") || null, fdn: fdn && fdn !== String(r.oriInvoiceNo ?? "") ? fdn : null, note: String(r.approveRemark ?? r.remarks ?? "") || null } as const;
 }
 
 export function validationUrl(fdn: string, code: string, production: boolean) {

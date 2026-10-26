@@ -7,7 +7,7 @@ import { sendQueuedEmails } from "./mail";
 import { appUrl, queueMessage, sendQueuedMessages } from "./messaging";
 import { expireStaleBookings } from "./stays";
 import { sendQueuedPayouts } from "./payouts";
-import { retryEfris } from "./efris";
+import { followCreditNotes, retryEfris } from "./efris";
 import { taxReminders } from "./tax";
 
 /**
@@ -32,6 +32,7 @@ export async function runHousekeeping(force = false) {
     await sendQueuedMessages().catch((e) => console.error("message sweep", e));
     await sendQueuedPayouts().catch((e) => console.error("payout sweep", e));
     await retryEfris().catch((e) => console.error("efris sweep", e));
+    await followCreditNotes().catch((e) => console.error("credit note sweep", e));
     await taxReminders().catch((e) => console.error("tax reminder", e));
     await db.marker.deleteMany({ where: { key: { startsWith: "sweep:" }, createdAt: { lt: new Date(Date.now() - 7 * 86400000) } } });
   } catch (e) {

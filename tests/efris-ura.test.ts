@@ -7,6 +7,7 @@ import forge from "node-forge";
 import {
   aesDecrypt, aesEncrypt, buildInvoice, buildService, decodeContent, dictSection, encryptedEnvelope, keyFingerprint, newKeyPair,
   normalizePrivateKey, openKey, payModeFor, publicKeyPem, readIssued, sealKey, serviceLine, sessionAesKey, taxTreatment, vatInside,
+  buildCreditNote, readCommodity, readCreditStatus, treatmentFor, treatmentLabel,
 } from "../src/lib/efris-crypto";
 
 const SECRET = "x".repeat(40);
@@ -157,4 +158,60 @@ test("dictionary sections and payment modes", () => {
   assert.equal(payModeFor("cash", pw), "102");
   assert.equal(payModeFor("bank", pw), "107");
   assert.equal(payModeFor("airtel", []), "105");
+});
+
+
+test("tax treatment comes from URA's commodity list; the fixed rule only until URA has answered", () => {
+  const info = (o: Partial<{ rate: number | null; exempt: boolean; zero: boolean }>) => ({ code: "1", name: "x", rate: null, exempt: false, zero: false, leaf: true, checkedAt: "", ...o });
+  assert.deepEqual(treatmentFor(false, true, info({ rate: 0.18 })), { treatment: "oos", rate: 0 });
+  assert.deepEqual(treatmentFor(true, false, info({ exempt: true })), { treatment: "exempt", rate: 0 });
+  assert.deepEqual(treatmentFor(true, true, info({ zero: true })), { treatment: "zero", rate: 0 });
+  assert.deepEqual(treatmentFor(true, true, info({ rate: 0.18 })), { treatment: "standard", rate: 0.18 });
+  // URA says residential is standard-rated: that wins over the fixed "residential is exempt" rule.
+  assert.deepEqual(treatmentFor(true, false, info({ rate: 0.18 })), { treatment: "standard", rate: 0.18 });
+  assert.deepEqual(treatmentFor(true, false, null), { treatment: "exempt", rate: 0 });
+  assert.equal(treatmentLabel({ treatment: "standard", rate: 0.18 }), "Standard rate 18%");
+});
+
+test("URA's commodity reply (T124) is read: rate, exempt / zero flags, leaf", () => {
+  const r = readCommodity({ records: [{ commodityCategoryCode: "72111001", commodityCategoryName: "Residential rental", rate: "0.18", isExempt: "102", isZeroRate: "102", isLeafNode: "101" }] }, "72111001");
+  assert.equal(r?.rate, 0.18); assert.equal(r?.exempt, false); assert.equal(r?.leaf, true); assert.equal(r?.name, "Residential rental");
+  const e = readCommodity({ records: [{ commodityCategoryCode: "9", rate: "-", isExempt: "101", isLeafNode: "102" }] }, "9");
+  assert.equal(e?.exempt, true); assert.equal(e?.rate, null); assert.equal(e?.leaf, false);
+  assert.equal(readCommodity({ records: [] }, "9"), null);
+  // A zero-rated item is sent with a 0 rate and category 02.
+  const inv = buildInvoice({ ...base, vatRegistered: true, treatment: "zero", lines: [{ name: "r", code: "c", amount: 1000, commodityCode: "1", commodityName: "" }] });
+  assert.equal(inv.goodsDetails[0].taxRate, "0"); assert.equal(inv.taxDetails[0].taxCategoryCode, "02"); assert.equal(inv.summary.taxAmount, "0.00");
+});
+
+test("credit note (T110): built from the original's lines, negative, partial credits pro rata", () => {
+  const original = {
+    goodsDetails: [
+      { item: "Commercial Rent - Unit S1", itemCode: "CV3-RENT", qty: "1", unitOfMeasure: "UN", unitPrice: "1180000.00", total: "1180000.00", taxRate: "0.18", tax: "180000.00", orderNumber: "0", goodsCategoryId: "72", goodsCategoryName: "Rent", vatApplicableFlag: "1" },
+      { item: "Late payment fee - Unit S1", itemCode: "CV3-LATE", qty: "1", unitOfMeasure: "UN", unitPrice: "59000.00", total: "59000.00", taxRate: "0.18", tax: "9000.00", orderNumber: "1", goodsCategoryId: "72", goodsCategoryName: "Rent", vatApplicableFlag: "1" },
+    ],
+    taxDetails: [{ taxCategoryCode: "01", taxRate: "0.18" }],
+  };
+  const common = { original, oriInvoiceId: "99", oriInvoiceNo: "320012345678", reasonCode: "102", reason: "Moved out", appliedAt: new Date("2026-10-26T07:00:00Z"), referenceNo: "CVCN1", payMode: "105", contact: { name: "Jane" } };
+  const full = buildCreditNote({ ...common, amount: 1239000 });
+  assert.equal(full.goodsDetails.length, 2);
+  assert.equal(full.summary.grossAmount, "-1239000.00");
+  assert.equal(full.summary.taxAmount, "-189000.00");
+  assert.equal(full.goodsDetails[0].qty, "-1");
+  assert.equal(full.oriInvoiceNo, "320012345678");
+  assert.equal(full.applicationTime, "2026-10-26 10:00:00");
+  const half = buildCreditNote({ ...common, amount: 590000 });
+  assert.equal(half.goodsDetails.length, 1);
+  assert.equal(half.goodsDetails[0].qty, "-0.5");
+  assert.equal(half.goodsDetails[0].unitPrice, "1180000.00");
+  assert.equal(half.goodsDetails[0].tax, "-90000.00");
+  assert.throws(() => buildCreditNote({ ...common, amount: 2000000 }), /more than the original/);
+  assert.equal(buildCreditNote({ ...common, amount: 1000, reasonCode: "105", reason: "Duplicate" }).reason, "Duplicate");
+});
+
+test("credit note status (T111): approved with its own FDN, rejected, still pending", () => {
+  assert.deepEqual(readCreditStatus({ records: [{ referenceNo: "R1", approveStatus: "101", invoiceNo: "320099", oriInvoiceNo: "320012", id: "7" }] }, "R1"), { status: "approved", id: "7", fdn: "320099", note: null });
+  assert.equal(readCreditStatus({ records: [{ referenceNo: "R1", approveStatus: "103", approveRemark: "Wrong amount" }] }, "R1")?.status, "rejected");
+  assert.equal(readCreditStatus({ records: [{ referenceNo: "R1", approveStatus: "102", invoiceNo: "320012", oriInvoiceNo: "320012" }] }, "R1")?.fdn, null);
+  assert.equal(readCreditStatus({ records: [] }, "R1"), null);
 });

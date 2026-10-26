@@ -230,3 +230,89 @@ export function efrisSetup(p: { status: string; tin: string | null; mode: string
 
 /** Whole days since a date (Kampala calendar is close enough for "waiting N days"). */
 export const daysSince = (d: Date | null) => (d ? Math.max(0, Math.floor((Date.now() - d.getTime()) / 86_400_000)) : 0);
+
+// ---------------------------------------------------------------------------------------------------------------
+// Credit notes
+
+const OPEN_CREDIT = ["submitting", "pending", "approved", "cancelling"];
+
+/** How much of an EFRIS document can still be credited (its amount less credit notes that stand or may stand). */
+export async function creditableLeft(receiptId: number) {
+  const r = await db.efrisReceipt.findUniqueOrThrow({ where: { id: receiptId }, select: { payment: { select: { amount: true } }, creditNotes: { where: { status: { in: OPEN_CREDIT } }, select: { amount: true } } } });
+  return r.payment.amount - r.creditNotes.reduce((s, c) => s + c.amount, 0);
+}
+
+type CreditUpdate = { status: string; applicationRef?: string | null; applicationId?: string | null; fdn?: string | null; verificationCode?: string | null; invoiceId?: string | null; error?: string | null };
+
+/** Saves a change of status and tells the landlord (and the tenant once approved). */
+async function saveCredit(noteId: number, u: CreditUpdate) {
+  const before = await db.efrisCreditNote.findUniqueOrThrow({ where: { id: noteId }, include: { receipt: { select: { paymentId: true, payment: { select: { tenantId: true } } } } } });
+  const n = await db.efrisCreditNote.update({ where: { id: noteId }, data: { ...u, error: u.error === undefined ? before.error : u.error } });
+  if (before.status === n.status) return n;
+  const link = `/receipts/${before.receipt.paymentId}`;
+  const msg: Record<string, string> = {
+    approved: `URA approved the credit note of ${n.amount.toLocaleString("en-UG")} UGX${n.fdn ? ` (FDN ${n.fdn})` : ""}.`,
+    rejected: `URA rejected the credit note of ${n.amount.toLocaleString("en-UG")} UGX${n.error ? `: ${n.error}` : ""}.`,
+    cancelled: `The credit note${n.fdn ? ` ${n.fdn}` : ""} has been cancelled.`,
+    failed: `The credit note couldn't be sent to URA${n.error ? `: ${n.error}` : ""}.`,
+  };
+  if (msg[n.status]) {
+    await notify(n.landlordId, msg[n.status], link);
+    if (n.status === "approved" || n.status === "cancelled") await notify(before.receipt.payment.tenantId, `Your EFRIS ${n.status === "approved" ? "credit note is ready" : "credit note was cancelled"} (${n.amount.toLocaleString("en-UG")} UGX).`, link);
+  }
+  return n;
+}
+
+/** Applies for a credit note: through URA when issuing is automatic, simulated in test mode. */
+export async function applyCreditNote(o: { receiptId: number; amount: number; reasonCode: string; reason: string; userId: number }) {
+  const r = await db.efrisReceipt.findUniqueOrThrow({ where: { id: o.receiptId }, include: { payment: { select: { lease: { select: { landlordId: true } } } } } });
+  const mode = efrisMode();
+  if (r.source !== "api") return { ok: false as const, error: "This EFRIS receipt was issued by hand. Issue its credit note in URA's EFRIS app or portal." };
+  if (mode === "off") return { ok: false as const, error: "Automatic EFRIS is off, so credit notes can't be sent from here." };
+  // Documents made in test mode (never sent to URA) are credited in test mode too, and only there.
+  const simulated = !!r.qr?.startsWith("EFRIS TEST");
+  if (simulated !== (mode === "sandbox")) return { ok: false as const, error: simulated ? "This is a test-mode document; it can only be credited while EFRIS is in test mode." : "This document was issued through URA; switch EFRIS back to URA mode to credit it." };
+  if (o.amount > (await creditableLeft(r.id))) return { ok: false as const, error: "That's more than is left to credit on this document." };
+  const n = await db.efrisCreditNote.create({ data: { receiptId: r.id, landlordId: r.payment.lease.landlordId, amount: o.amount, reasonCode: o.reasonCode, reason: o.reason || null, requestedById: o.userId, test: simulated } });
+  if (simulated) {
+    const fdn = `TESTCN${String(n.id).padStart(6, "0")}${Date.now().toString().slice(-6)}`;
+    await saveCredit(n.id, { status: "approved", applicationRef: `TEST-${n.id}`, fdn, verificationCode: `T${n.id}${Date.now().toString(36).toUpperCase().slice(-6)}` });
+    return { ok: true as const };
+  }
+  try {
+    const { uraCreditApply, uraCreditCheck } = await import("./efris-ura");
+    const res = await uraCreditApply(n.id);
+    await saveCredit(n.id, res);
+    if (res.status === "pending") await saveCredit(n.id, await uraCreditCheck(n.id)).catch(() => null);
+  } catch (e) {
+    await saveCredit(n.id, { status: "failed", error: (e as Error).message.slice(0, 300) });
+  }
+  return { ok: true as const };
+}
+
+/** Asks URA again (or, in test mode, decides locally). */
+export async function checkCreditNote(noteId: number) {
+  const n = await db.efrisCreditNote.findUniqueOrThrow({ where: { id: noteId } });
+  if (n.test) return saveCredit(n.id, { status: n.status === "cancelling" ? "cancelled" : n.status });
+  const { uraCreditCheck } = await import("./efris-ura");
+  return saveCredit(n.id, await uraCreditCheck(n.id).catch((e) => ({ status: n.status, error: (e as Error).message.slice(0, 300) })));
+}
+
+/** Withdraws a pending application, or applies to cancel an approved credit note. */
+export async function cancelCreditNote(noteId: number, reason: string) {
+  const n = await db.efrisCreditNote.findUniqueOrThrow({ where: { id: noteId } });
+  if (n.status === "failed" || n.status === "submitting") return saveCredit(n.id, { status: "withdrawn" });
+  if (n.test) return saveCredit(n.id, { status: n.status === "approved" ? "cancelled" : "withdrawn" });
+  const ura = await import("./efris-ura");
+  if (n.status === "pending") return saveCredit(n.id, await ura.uraCreditWithdraw(n.id).catch((e) => ({ status: n.status, error: (e as Error).message })));
+  if (n.status === "approved") return saveCredit(n.id, await ura.uraCreditCancel(n.id, reason).catch((e) => ({ status: n.status, error: (e as Error).message })));
+  return n;
+}
+
+/** Hourly: follow up applications URA hasn't decided yet. */
+export async function followCreditNotes() {
+  if (efrisMode() !== "ura") return 0;
+  const open = await db.efrisCreditNote.findMany({ where: { status: { in: ["pending", "cancelling"] }, test: false }, select: { id: true }, take: 50 });
+  for (const n of open) await checkCreditNote(n.id).catch((e) => console.error("credit note", n.id, e));
+  return open.length;
+}

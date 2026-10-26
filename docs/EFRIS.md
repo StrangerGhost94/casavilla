@@ -28,8 +28,6 @@ hourly; if it still has no document, the landlord is reminded to record one.
 
 - `off` (default): automatic issuing unavailable; landlords record receipts by hand.
 - `sandbox`: TEST documents made locally, marked TEST on screen and in the PDF; nothing is sent to URA.
-- `ura`: URA's system-to-system interface — `uraIssue()` in `src/lib/efris.ts`.
-
 - `ura`: URA's system-to-system interface (`src/lib/efris-ura.ts`), with **each landlord's own TIN, device and key**.
 
 ## Direct URA system-to-system (`EFRIS_MODE=ura`)
@@ -55,10 +53,32 @@ Every call is built from the profile of the payment's landlord, so TINs never mi
 For example, `Residential Rent - Unit 3B` has the code `CV12-RENT`, and late fees, utilities and repairs each get their own line.
 Rows live in `efris_goods`.
 
-**Tax on the document.**
+**Tax on the document — from URA's commodity list.** "Test connection" asks URA (T124) for the official
+treatment of each rent commodity code: standard (with its rate), zero-rated or exempt, and whether the code is a
+final item (URA only accepts those). It is stored on the profile (`commodity_tax`), shown on the URA connection
+screen, and used on every document:
 - Not VAT-registered: e-receipt (invoiceKind 2), out of scope (OOS), no tax details.
-- VAT-registered: e-invoice (invoiceKind 1). Commercial rent is standard-rated (18% inside the rent); residential rent is exempt.
+- VAT-registered: e-invoice (invoiceKind 1) with URA's treatment for the code (standard rate inside the rent,
+  zero-rated, or exempt). Only until URA has answered: commercial rent 18%, residential exempt.
+- Changing a commodity code means pressing Test connection again; the old answer isn't used for the new code.
 - Deposits are never fiscalised.
+
+**Credit notes.** On a receipt issued automatically, the landlord or CasaVilla can apply for a credit note (full
+or part of the document; reason 102 refunded / cancelled, 103 wrongly stated, 104 waived, 105 other with a note):
+1. T108 reads the original document's lines; T110 sends the application with those lines negative (a partly
+   credited line keeps its unit price, fractional quantity, tax pro rata).
+2. T111 follows URA's decision (on submit, then hourly): approved → the credit note's own FDN and verification
+   code (T108) are saved and the tenant and landlord are told; rejected → URA's remark is shown.
+3. A pending application can be withdrawn (T120); an approved credit note can be cancelled (T114, category 104),
+   which completes when URA marks it invalid.
+At most the document's amount can be credited in total. In test mode (`sandbox`) the whole flow is simulated.
+The credit note corrects the fiscal document only — any money goes back to the tenant separately.
+Receipts recorded by hand get their credit notes in URA's own EFRIS app.
+
+Data: `efris_credit_notes`.
+
+> The T110/T111/T114/T120/T124 field names follow the EFRIS interface as published; confirm them against
+> URA's Interface Specification v1.5 during UAT on the test environment before going live.
 
 **When URA can't be reached** the payment goes to `efris_attempts` and is retried hourly. After 6 tries it stops and
 asks for it to be recorded by hand.
@@ -87,5 +107,5 @@ second document alongside CasaVilla's.
 
 ### Not covered yet
 
-Credit notes (refunds) and B2B buyers are not handled. Tenants are sent as B2C buyers, and a buyer with a TIN is
-only sent as B2B where one is supplied.
+Business (B2B) and government (B2G) tenants are not handled yet: tenants are sent as B2C buyers, and a buyer
+with a TIN is only sent as B2B where one is supplied. Buyer TINs are not validated with URA (T119).
