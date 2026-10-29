@@ -15,7 +15,7 @@ export function AppIntro({ to = "/" }: { to?: string }) {
     return () => clearTimeout(t);
   }, [router, to]);
   return (
-    <main className="launch-screen fixed inset-0 select-none overflow-hidden bg-brand-950 text-white">
+    <main className="launch-screen relative w-full select-none overflow-hidden bg-brand-950 text-white">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/launch.jpg" alt="" aria-hidden draggable={false} className="absolute inset-0 h-full w-full animate-ken-burns object-cover" />
       <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-black/45 to-transparent" />
