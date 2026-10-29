@@ -19,6 +19,8 @@ body { overflow-wrap: break-word; }
 /* Same for the marketplace pages (the content itself sits on cream). Newer iOS Safari tints the strip behind the
    clock/notch from the page background, not from a sticky header — on cream that showed as a pale "fog". */
 html:has(.public-chrome), html:has(.public-chrome) body { background-color: #09251b; }
+/* The launch screen fills the phone edge to edge — no cream strip by the home bar */
+html:has(.launch-screen), html:has(.launch-screen) body { background-color: #0e3628; }
 /* iPhones zoom the whole page when a form field's text is under 16px, which shifts the screen and the bottom menu.
    Keep every field at 16px on phones so tapping one never zooms. */
 @media (max-width: 767px) {
@@ -129,9 +131,10 @@ details > summary::-webkit-details-marker { display: none; }
 @keyframes jny-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
 
 /* Launch screen: a little house draws itself, then its windows light up one by one, as if someone just got home */
-.home-draw { width: 4.5rem; height: auto; overflow: visible; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.home-draw { width: 7.5rem; height: auto; overflow: visible; fill: none; stroke-linecap: round; stroke-linejoin: round; }
 .home-draw .ln { stroke-dasharray: 1; stroke-dashoffset: 0; }
-.home-draw .win { fill: #d2a84a; stroke: #d2a84a; filter: drop-shadow(0 0 5px rgb(242 200 110 / .9)); }
+.home-draw .win { fill: #d2a84a; stroke: #d2a84a; filter: drop-shadow(0 0 6px rgb(242 200 110 / .95)); }
+.home-draw .ln { filter: drop-shadow(0 1px 3px rgb(0 0 0 / .6)); }
 @media (prefers-reduced-motion: no-preference) {
   .home-draw { animation: hd-out 2.4s ease-in-out infinite; }
   .home-draw .ln { stroke-dashoffset: 1; animation: hd-a 2.4s ease-in-out infinite; }
