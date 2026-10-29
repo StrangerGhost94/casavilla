@@ -127,3 +127,22 @@ details > summary::-webkit-details-marker { display: none; }
 @keyframes jny-fill { 0% { transform: scaleX(.06); } 70%, 88% { transform: scaleX(1); } 96%, 100% { transform: scaleX(.06); } }
 @keyframes jny-grow { 0%, 2% { transform: scaleY(.12); } 16%, 86% { transform: scaleY(1); } 96%, 100% { transform: scaleY(.12); } }
 @keyframes jny-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+
+/* Launch screen: a little house draws itself, then its windows light up one by one, as if someone just got home */
+.home-draw { width: 4.5rem; height: auto; overflow: visible; fill: none; stroke-linecap: round; stroke-linejoin: round; }
+.home-draw .ln { stroke-dasharray: 1; stroke-dashoffset: 0; }
+.home-draw .win { fill: #d2a84a; stroke: #d2a84a; filter: drop-shadow(0 0 5px rgb(242 200 110 / .9)); }
+@media (prefers-reduced-motion: no-preference) {
+  .home-draw { animation: hd-out 2.4s ease-in-out infinite; }
+  .home-draw .ln { stroke-dashoffset: 1; animation: hd-a 2.4s ease-in-out infinite; }
+  .home-draw .ln.b { animation-name: hd-b; }
+  .home-draw .ln.c { animation-name: hd-c; }
+  .home-draw .win { opacity: 0; animation: hd-lit-1 2.4s ease-out infinite; }
+  .home-draw .win.b { animation-name: hd-lit-2; }
+}
+@keyframes hd-a { 0% { stroke-dashoffset: 1; } 28%, 100% { stroke-dashoffset: 0; } }
+@keyframes hd-b { 0%, 14% { stroke-dashoffset: 1; } 44%, 100% { stroke-dashoffset: 0; } }
+@keyframes hd-c { 0%, 36% { stroke-dashoffset: 1; } 54%, 100% { stroke-dashoffset: 0; } }
+@keyframes hd-lit-1 { 0%, 56% { opacity: 0; } 60% { opacity: 1; } 62% { opacity: .55; } 65%, 100% { opacity: 1; } }
+@keyframes hd-lit-2 { 0%, 66% { opacity: 0; } 70%, 100% { opacity: 1; } }
+@keyframes hd-out { 0%, 88% { opacity: 1; } 97% { opacity: 0; } 100% { opacity: 1; } }
