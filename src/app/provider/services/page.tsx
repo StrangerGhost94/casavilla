@@ -1,4 +1,4 @@
-import { db, SERVICE_CATEGORIES } from "@/db";
+import { BUILD_CATEGORIES, db, SERVICE_CATEGORIES } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { ugx } from "@/lib/format";
 import { PageHeader, Field, Badge } from "@/components/ui";
@@ -26,7 +26,7 @@ export default async function ProviderServices() {
               <form action={saveService} className="mt-4 space-y-3 border-t border-stone-100 pt-4">
                 <input type="hidden" name="id" value={s.id} />
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <select name="category" defaultValue={s.category} className="input">{SERVICE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select>
+                  <select name="category" defaultValue={s.category} className="input"><optgroup label="Repairs & upkeep">{SERVICE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</optgroup><optgroup label="Build & fit-out">{BUILD_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</optgroup></select>
                   <input name="priceFrom" type="number" defaultValue={s.priceFrom ?? ""} className="input" placeholder="Price from (UGX)" />
                 </div>
                 <input name="title" defaultValue={s.title} className="input" required />
@@ -40,7 +40,7 @@ export default async function ProviderServices() {
         </div>
         <form id="add" action={saveService} className="card h-fit scroll-mt-24 space-y-3">
           <div className="h2">Add a service</div>
-          <Field label="Category"><select name="category" className="input">{SERVICE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
+          <Field label="Category"><select name="category" className="input"><optgroup label="Repairs & upkeep">{SERVICE_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</optgroup><optgroup label="Build & fit-out">{BUILD_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</optgroup></select></Field>
           <Field label="Title"><input name="title" className="input" required placeholder="e.g. Deep house cleaning" /></Field>
           <Field label="Description"><textarea name="description" rows={3} className="input" /></Field>
           <Field label="Price from (UGX)"><input name="priceFrom" type="number" className="input" /></Field>

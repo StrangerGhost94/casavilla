@@ -7,6 +7,8 @@ import { crumbText, trailFor } from "@/lib/geo";
 import { AroundHere } from "@/components/AroundHere";
 import { KIND, TENURE, TITLE, fullUgx, perAcre, shortUgx, sizeText, toAcres, type SaleKind } from "@/lib/sales";
 import { PhotoMosaic } from "@/components/Gallery";
+import { VideoTour } from "@/components/VideoTour";
+import { ViewingBox } from "@/components/Viewings";
 import { ActionBar, Checklist, LocationCard, PhotoButtons, shareLink } from "@/components/ListingParts";
 import { SaleCard } from "@/components/SaleCard";
 import { SaleEnquiryForm, SaleViewCounter, ShareButton } from "@/components/SaleClient";
@@ -52,7 +54,7 @@ export default async function SaleListingPage({ params }: { params: Promise<{ id
         <div className="min-w-0 lg:col-span-2">
           <PhotoMosaic photos={l.photos.map((p, i) => ({ id: p.id, fileId: p.fileId, label: `${l.title} — photo ${i + 1}` }))
             .concat(!l.photos.length && l.photoId ? [{ id: 0, fileId: l.photoId, label: l.title }] : [])}
-            alt={l.title} overlay={<PhotoButtons back="/sale" backLabel="Back to listings for sale" share={shareLink(`${l.title}, ${l.location}: ${fullUgx(l.price)}`, `/sale/${l.id}`)} />} />
+            alt={l.title} overlay={<PhotoButtons back="/sale" backLabel="Back to listings for sale" share={shareLink(`${l.title}, ${l.location}: ${fullUgx(l.price)}`, `/sale/${l.id}`)} video={!!l.videoUrl} save={{ kind: "sale", id: l.id }} />} />
           <div className="relative -mt-6 rounded-t-3xl bg-cream px-4 pt-5 md:mt-0 md:bg-transparent md:px-0">
             {mine && l.status !== "active" && (
               <div className="mb-3 rounded-xl bg-gold-50 p-3 text-xs text-gold-700">Only you and CasaVilla can see this page right now ({l.status.replace("_", " ")}).</div>
@@ -87,6 +89,7 @@ export default async function SaleListingPage({ params }: { params: Promise<{ id
               </div>
             )}
 
+            {l.videoUrl && <VideoTour url={l.videoUrl} title={l.title} />}
             {l.description && (
               <section className="mt-6">
                 <h2 className="h2">About this {isLand ? "land" : "property"}</h2>
@@ -126,6 +129,7 @@ export default async function SaleListingPage({ params }: { params: Promise<{ id
               ? <div className="rounded-xl bg-stone-100 p-3 text-sm text-stone-600">This property has been sold. <Link href="/sale" className="link">See what&apos;s still available →</Link></div>
               : mine ? <Link href={`/${me!.role}/sale/${l.id}`} className="btn-primary w-full">Manage this listing</Link>
               : <SaleEnquiryForm listingId={l.id} title={l.title} me={me ? { name: me.name, phone: me.phone } : null} />}
+            {l.status !== "sold" && !mine && <ViewingBox saleListingId={l.id} hostId={l.ownerId} next={`/sale/${l.id}`} />}
             <div className="grid grid-cols-2 gap-2">
               <a href="tel:+256776593482" className="btn-outline"><Phone className="h-4 w-4" /> Call</a>
               <a href={wa} className="btn-outline"><MessageCircle className="h-4 w-4" /> WhatsApp</a>

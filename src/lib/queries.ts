@@ -28,6 +28,26 @@ export async function areaMatch(q: string) {
  */
 export type ListingSort = "new" | "price_asc" | "price_desc";
 
+const listingInclude = { property: { include: { landlord: { select: { name: true } }, _count: { select: { photos: true } } } } } satisfies Prisma.UnitInclude;
+type UnitRow = Prisma.UnitGetPayload<{ include: typeof listingInclude }>;
+
+/** A unit as a listing card. */
+const toListing = (u: UnitRow) => ({
+  id: u.id, label: u.label, rent: u.rent, bedrooms: u.bedrooms,
+  propertyId: u.property.id, property: u.property.name, type: u.property.type, location: u.property.location,
+  photoId: u.property.photoId, landlord: u.property.landlord.name, verified: !!u.property.verifiedAt,
+  bathrooms: u.bathrooms, furnished: u.furnished, selfContained: u.selfContained, sizeSqm: u.sizeSqm,
+  photos: u.property._count.photos, video: !!u.property.videoUrl, isNew: Date.now() - u.createdAt.getTime() < 14 * 86_400_000,
+});
+
+/** Saved long-term homes as cards, newest saves first, each marked whether it's still on offer. */
+export async function unitsAsListings(ids: number[]) {
+  if (!ids.length) return [];
+  const rows = await db.unit.findMany({ where: { id: { in: ids }, mode: "long" }, include: listingInclude });
+  return ids.map((i) => rows.find((r) => r.id === i)).filter((u): u is UnitRow => !!u)
+    .map((u) => ({ ...toListing(u), available: u.listed && u.status === "vacant" && !u.property.archivedAt }));
+}
+
 export async function listedUnits(f: { q?: string; max?: number; beds?: number; limit?: number; in?: string; near?: { lat: number; lng: number; km: number }; furnished?: boolean; selfContained?: boolean; sort?: ListingSort; exclude?: number } = {}) {
   const or: Prisma.PropertyWhereInput[] = [];
   if (f.q) {
@@ -50,15 +70,11 @@ export async function listedUnits(f: { q?: string; max?: number; beds?: number; 
         ...(f.near ? { lat: { not: null }, lng: { not: null } } : {}),
       },
     },
-    include: { property: { include: { landlord: { select: { name: true } }, _count: { select: { photos: true } } } } },
+    include: listingInclude,
     orderBy: f.sort === "price_asc" ? { rent: "asc" } : f.sort === "price_desc" ? { rent: "desc" } : { id: "desc" }, take: f.near ? 500 : f.limit ?? 60,
   });
   let list = rows.map((u) => ({
-    id: u.id, label: u.label, rent: u.rent, bedrooms: u.bedrooms,
-    propertyId: u.property.id, property: u.property.name, type: u.property.type, location: u.property.location,
-    photoId: u.property.photoId, landlord: u.property.landlord.name, verified: !!u.property.verifiedAt,
-    bathrooms: u.bathrooms, furnished: u.furnished, selfContained: u.selfContained, sizeSqm: u.sizeSqm,
-    photos: u.property._count.photos, isNew: Date.now() - u.createdAt.getTime() < 14 * 86_400_000,
+    ...toListing(u),
     distance: f.near && u.property.lat != null && u.property.lng != null ? distanceKm(f.near, { lat: u.property.lat, lng: u.property.lng }) : undefined,
   }));
   if (f.near) list = list.filter((h) => h.distance! <= f.near!.km).sort((a, b) => a.distance! - b.distance!).slice(0, f.limit ?? 60);
@@ -97,7 +113,7 @@ export async function shopProducts(providerId?: number) {
     orderBy: { id: "desc" },
   });
   return rows.map((p) => ({
-    id: p.id, name: p.name, description: p.description, price: p.price, stock: p.stock, photoId: p.photoId,
+    id: p.id, name: p.name, description: p.description, price: p.price, stock: p.stock, photoId: p.photoId, category: p.category,
     providerId: p.provider.id, seller: p.provider.businessName, sellerName: p.provider.name,
   }));
 }

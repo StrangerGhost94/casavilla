@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AlertButton } from "@/components/AlertButton";
 import type { Prisma } from "@prisma/client";
 import { ArrowDownUp, Check, FileCheck2, MapPin, MessageCircle, Search, ShieldCheck, X } from "lucide-react";
 import { db } from "@/db";
@@ -99,14 +100,14 @@ export default async function ForSale({ searchParams }: { searchParams: Promise<
             <h2 className="text-lg font-bold text-brand-950">{kind ? KIND[kind as keyof typeof KIND].plural : "Everything for sale"}{area.length > 1 ? ` in ${area[area.length - 1].name}` : ""}</h2>
             <p className="text-xs text-stone-500">{rows.length} listing{rows.length === 1 ? "" : "s"}</p>
           </div>
-          <details className="relative">
+          <div className="flex items-center gap-2"><AlertButton kind="sale" params={{ q, in: sp.in, kind, max: sp.max, titled: sp.titled }} next={href({})} /><details className="relative">
             <summary className="chip cursor-pointer list-none"><ArrowDownUp className="h-3.5 w-3.5" /> {sortLabel}</summary>
             <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 shadow-float">
               {sorts.map(([k, label]) => (
                 <Link key={label} href={href({ sort: k || undefined })} className={`flex items-center justify-between px-3 py-2 text-sm hover:bg-stone-50 ${label === sortLabel ? "font-semibold text-brand-800" : "text-stone-700"}`}>{label}{label === sortLabel && <Check className="h-4 w-4" />}</Link>
               ))}
             </div>
-          </details>
+          </details></div>
         </div>
         {active.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2">

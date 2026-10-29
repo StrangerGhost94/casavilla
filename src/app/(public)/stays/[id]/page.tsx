@@ -8,6 +8,7 @@ import { crumbText, trailFor } from "@/lib/geo";
 import { AroundHere } from "@/components/AroundHere";
 import { bookedNights } from "@/lib/stays";
 import { ListingPhotos } from "@/components/Gallery";
+import { VideoTour } from "@/components/VideoTour";
 import { ActionBar, Checklist, FactTiles, LocationCard, PhotoButtons, shareLink } from "@/components/ListingParts";
 import { StayBooker } from "@/components/StayBooker";
 import { StayCalendar } from "@/components/StayCalendar";
@@ -41,7 +42,7 @@ export default async function StayPage({ params, searchParams }: { params: Promi
     <main className="mx-auto max-w-6xl md:px-4 md:pt-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
-          <ListingPhotos propertyId={p.id} unitId={u.id} coverId={p.photoId} alt={p.name} overlay={<PhotoButtons back="/stays" backLabel="Back to stays" share={share} />} />
+          <ListingPhotos propertyId={p.id} unitId={u.id} coverId={p.photoId} alt={p.name} overlay={<PhotoButtons back="/stays" backLabel="Back to stays" share={share} video={!!p.videoUrl} save={{ kind: "stay", id: u.id }} />} />
           <div className="relative -mt-6 rounded-t-3xl bg-cream px-4 pt-5 md:mt-0 md:bg-transparent md:px-0">
             <div className="flex flex-wrap gap-1.5">
               <span className="pill bg-gold-400 uppercase tracking-wide text-brand-950">Short stay</span>
@@ -53,6 +54,7 @@ export default async function StayPage({ params, searchParams }: { params: Promi
             <div className="mt-3 text-2xl font-bold text-brand-900 lg:hidden">{ugx(u.nightlyRate)} <span className="text-sm font-normal text-stone-500">/ night</span>{u.cleaningFee > 0 && <span className="block text-xs font-normal text-stone-500">+ {ugx(u.cleaningFee)} cleaning, once per stay</span>}</div>
 
             <FactTiles facts={facts} />
+            {p.videoUrl && <VideoTour url={p.videoUrl} title={`${p.name} · ${u.label}`} />}
             <Checklist title="What this place offers" items={amenities} />
             {p.description && <section className="mt-6"><h2 className="h2">About this place</h2><p className="mt-2 whitespace-pre-line break-words text-sm leading-relaxed text-stone-600">{p.description}</p></section>}
             {u.houseRules && <section className="mt-6"><h2 className="h2">House rules</h2><p className="mt-2 whitespace-pre-line break-words rounded-2xl border border-stone-200/70 bg-white p-4 text-sm text-stone-600">{u.houseRules}</p></section>}

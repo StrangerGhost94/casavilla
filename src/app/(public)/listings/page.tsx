@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AlertButton } from "@/components/AlertButton";
 import { ArrowDownUp, Check, MapPin, MessageCircle, Search, X } from "lucide-react";
 import { listedUnits, type ListingSort } from "@/lib/queries";
 import { ugx } from "@/lib/format";
@@ -102,14 +103,14 @@ export default async function Listings({ searchParams }: { searchParams: Promise
             <h2 className="text-lg font-bold text-brand-950">{heading}</h2>
             <p className="text-xs text-stone-500">{homes.length} home{homes.length === 1 ? "" : "s"} available{near ? " · only homes with an exact map pin" : ""}</p>
           </div>
-          <details className="group relative">
+          <div className="flex items-center gap-2"><AlertButton kind="rent" params={{ q: sp.q, in: sp.in, beds: sp.beds, max: sp.max, furnished: sp.furnished, sc: sp.sc }} next={href({})} /><details className="group relative">
             <summary className="chip cursor-pointer list-none"><ArrowDownUp className="h-3.5 w-3.5" /> {sorts.find(([k]) => k === sort)![1]}</summary>
             <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 shadow-float">
               {sorts.map(([k, label]) => (
                 <Link key={k} href={href({ sort: k === "new" ? undefined : k })} className={`flex items-center justify-between px-3 py-2 text-sm hover:bg-stone-50 ${k === sort ? "font-semibold text-brand-800" : "text-stone-700"}`}>{label}{k === sort && <Check className="h-4 w-4" />}</Link>
               ))}
             </div>
-          </details>
+          </details></div>
         </div>
         {active.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-2">

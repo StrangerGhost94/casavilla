@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowLeft, Check, Map as MapIcon, MapPin, Navigation, Share2 } from "lucide-react";
+import { ArrowLeft, Check, Map as MapIcon, MapPin, Navigation, Play, Share2 } from "lucide-react";
 import { MiniMap } from "./MiniMap";
+import { SaveButton } from "./SaveButton";
 import type { LucideIcon } from "lucide-react";
 
 /** Dark band under the header with a title, a line of context and (usually) a search box. */
@@ -17,12 +18,14 @@ export function SearchBand({ title, text, children }: { title: string; text: str
 }
 
 /** Round back and share buttons laid over a listing's photos. */
-export function PhotoButtons({ back, backLabel, share }: { back: string; backLabel: string; share: string }) {
+export function PhotoButtons({ back, backLabel, share, video, save }: { back: string; backLabel: string; share: string; video?: boolean; save?: { kind: "rent" | "stay" | "sale"; id: number } }) {
   const btn = "absolute top-4 flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-brand-900 shadow-card backdrop-blur";
   return (
     <>
+      {video && <a href="#video" className="absolute bottom-9 left-4 flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-semibold text-brand-900 shadow-card md:bottom-4"><Play className="h-3.5 w-3.5 fill-current" /> Watch video tour</a>}
       <Link href={back} aria-label={backLabel} className={`${btn} left-4`}><ArrowLeft className="h-5 w-5" /></Link>
       <a href={share} target="_blank" rel="noreferrer" aria-label="Share on WhatsApp" className={`${btn} right-4`}><Share2 className="h-5 w-5" /></a>
+      {save && <div className="absolute right-16 top-4"><SaveButton kind={save.kind} id={save.id} variant="page" /></div>}
     </>
   );
 }

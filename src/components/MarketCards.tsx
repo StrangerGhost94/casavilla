@@ -49,7 +49,7 @@ export function ProviderCard({ p }: { p: ProviderRow }) {
   );
 }
 
-export type ProductRow = { id: number; name: string; description: string | null; price: number; stock: number; photoId: number | null; providerId: number; seller: string | null; sellerName: string };
+export type ProductRow = { id: number; name: string; description: string | null; price: number; stock: number; photoId: number | null; providerId: number; seller: string | null; sellerName: string; category?: string | null };
 
 /** A shop item. Signed-in buyers order in place; others are sent to sign in and come back. */
 export function ProductCard({ p, signedIn, next = "/shop" }: { p: ProductRow; signedIn: boolean; next?: string }) {

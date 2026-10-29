@@ -9,6 +9,7 @@ import { expireStaleBookings } from "./stays";
 import { sendQueuedPayouts } from "./payouts";
 import { followCreditNotes, retryEfris } from "./efris";
 import { taxReminders } from "./tax";
+import { alertHref, matchesAfter, type AlertKind, type AlertParams } from "./saved";
 
 /**
  * Background routine that keeps the system moving without anyone pressing a button:
@@ -33,6 +34,8 @@ export async function runHousekeeping(force = false) {
     await sendQueuedPayouts().catch((e) => console.error("payout sweep", e));
     await retryEfris().catch((e) => console.error("efris sweep", e));
     await followCreditNotes().catch((e) => console.error("credit note sweep", e));
+    await searchAlerts().catch((e) => console.error("search alerts", e));
+    await viewingReminders().catch((e) => console.error("viewing reminders", e));
     await taxReminders().catch((e) => console.error("tax reminder", e));
     await db.marker.deleteMany({ where: { key: { startsWith: "sweep:" }, createdAt: { lt: new Date(Date.now() - 7 * 86400000) } } });
   } catch (e) {
@@ -153,6 +156,42 @@ async function stockAlerts() {
   for (const p of low) {
     const msg = p.stock === 0 ? `${p.name} is sold out — restock it so buyers can order again.` : `Only ${p.stock} ${p.name} left in stock.`;
     if (await notifyOnce(`stock:${p.id}:${p.stock}`, p.providerId, msg, "/provider/products")) n++;
+  }
+  return n;
+}
+
+
+/** Saved searches: tell people about listings that are new since last time (one notification per batch). */
+async function searchAlerts() {
+  const alerts = await db.searchAlert.findMany({ orderBy: { id: "asc" }, take: 500 });
+  let n = 0;
+  for (const a of alerts) {
+    const kind = a.kind as AlertKind, p = a.params as AlertParams;
+    const ids = await matchesAfter(kind, p, a.lastSeenId, a.userId).catch(() => []);
+    if (!ids.length) continue;
+    const top = Math.max(...ids);
+    const what = kind === "sale" ? (ids.length === 1 ? "listing" : "listings") : ids.length === 1 ? "home" : "homes";
+    const link = ids.length === 1 ? `/${kind === "rent" ? "listings" : kind}/${ids[0]}` : alertHref(kind, p);
+    if (await notifyOnce(`alert:${a.id}:${top}`, a.userId, `${ids.length} new ${what} for your alert “${a.label}”.`, link)) n++;
+    await db.searchAlert.update({ where: { id: a.id }, data: { lastSeenId: top } });
+  }
+  return n;
+}
+
+/** Confirmed viewings: a reminder to both sides the day before (within 24 hours) and again about 2 hours before. */
+async function viewingReminders() {
+  const now = Date.now();
+  const soon = await db.viewing.findMany({
+    where: { status: "confirmed", at: { gt: new Date(now), lt: new Date(now + 24 * 3600_000) } },
+    include: { unit: { select: { label: true, property: { select: { name: true } } } }, saleListing: { select: { title: true } } },
+  });
+  let n = 0;
+  for (const v of soon) {
+    const what = v.unit ? `${v.unit.property.name} · ${v.unit.label}` : v.saleListing?.title ?? "a home";
+    const time = v.at.toLocaleString("en-GB", { weekday: "short", hour: "numeric", minute: "2-digit", timeZone: "Africa/Kampala" });
+    const stage = v.at.getTime() - now <= 2.5 * 3600_000 ? "2h" : "day";
+    const msg = stage === "2h" ? `Viewing soon: ${what} at ${time}.` : `Reminder: viewing of ${what} on ${time}.`;
+    for (const who of [v.requesterId, v.hostId]) if (await notifyOnce(`view-${stage}:${v.id}`, who, msg, "/viewings")) n++;
   }
   return n;
 }

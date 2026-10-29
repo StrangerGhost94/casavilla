@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Heart } from "lucide-react";
 import { getUser, homeFor } from "@/lib/auth";
 import { tabs } from "@/lib/nav";
 import { Avatar, Logo } from "./ui";
@@ -18,8 +19,9 @@ export async function PublicHeader() {
               <Link key={h} href={h} className="rounded-lg px-3 py-2 text-sm font-medium text-white/75 hover:bg-white/10 hover:text-white">{l}</Link>
             ))}
           </nav>
-          {u && <div className="md:hidden"><NotificationBell user={u} tone="light" /></div>}
+          {u && <div className="flex items-center md:hidden"><Link href="/saved" aria-label="Saved homes" className="flex h-10 w-10 items-center justify-center rounded-full text-white hover:bg-white/10"><Heart className="h-5 w-5" /></Link><NotificationBell user={u} tone="light" /></div>}
           <div className="hidden items-center gap-2 md:flex">
+            {u && <Link href="/saved" aria-label="Saved homes" className="flex h-10 w-10 items-center justify-center rounded-full text-white hover:bg-white/10"><Heart className="h-5 w-5" /></Link>}
             {u && <NotificationBell user={u} tone="light" />}
             {u ? (
               <Link href={homeFor(u.role)} className="flex items-center gap-2 rounded-full py-1 pl-1 pr-3 text-sm font-semibold text-white hover:bg-white/10">

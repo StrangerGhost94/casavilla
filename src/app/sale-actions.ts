@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db, type User } from "@/db";
+import { readVideoUrl } from "@/lib/video-form";
 import { getUser, requireUser } from "@/lib/auth";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
@@ -30,6 +31,7 @@ export async function saveSaleListing(fd: FormData) {
   const kind = await oneOf(fd, "kind", SALE_KINDS, "what you're selling");
   const title = await reqText(fd, "title", "a headline", { max: 100 });
   const description = await text(fd, "description", "the description", { optional: true, max: 5000 });
+  const videoUrl = await readVideoUrl(fd);
   const price = num(fd, "price");
   if (!price || !Number.isFinite(price) || price < 100_000 || price > 1e13) return fail("Enter the asking price in UGX");
   const sizeValue = num(fd, "sizeValue");
@@ -49,7 +51,7 @@ export async function saveSaleListing(fd: FormData) {
   const { building: _building, ...spot } = place; // sale listings keep estate/street/plot/landmark, not a building name
   void _building;
   const data = {
-    kind, title, description: description || null, price: Math.round(price), negotiable: fd.get("negotiable") === "on",
+    kind, title, description: description || null, videoUrl, price: Math.round(price), negotiable: fd.get("negotiable") === "on",
     sizeValue, sizeUnit, plotDims: plotDims || null, bedrooms, bathrooms, tenure, titleStatus, features, location, ...spot,
   };
   if (existing) {

@@ -45,6 +45,9 @@ function BasicsFields({ p }: { p?: Property }) {
         <select name="type" defaultValue={p?.type} className="input">{PROPERTY_TYPES.map((t) => <option key={t}>{t}</option>)}</select>
       </Field>
       <Field label="Description (optional)"><textarea name="description" defaultValue={p?.description ?? ""} rows={3} className="input" placeholder="Water, power, parking, security, nearby…" /></Field>
+      <Field label="Video tour (optional)" hint="A YouTube or TikTok link to a walk-through. Listings with a video get a ▶ Video tag and more enquiries.">
+        <input name="videoUrl" type="url" inputMode="url" defaultValue={p?.videoUrl ?? ""} className="input" placeholder="https://youtu.be/… or https://www.tiktok.com/@you/video/…" />
+      </Field>
     </>
   );
 }
@@ -356,6 +359,7 @@ function ListingStrength({ p, photos, base, editHref }: {
     { ok: (p.description ?? "").trim().length >= 80, label: "A good description", why: "Water, power, parking, security and what's nearby. A few lines is enough.", href: editHref, cta: "Write it" },
     { ok: p.lat != null, label: "Exact spot on the map", why: "Pinned homes show up in “Near me” searches.", href: editHref, cta: "Pin it" },
     { ok: featured, label: "Features ticked on vacant units", why: "Wi-Fi, parking, water tank… shown as a checklist to tenants. Open a unit below to tick them.", cta: "" },
+    { ok: !!p.videoUrl, label: "A video tour", why: "A YouTube or TikTok walk-through. Listings with video get a ▶ Video tag.", href: editHref, cta: "Add link" },
     { ok: !!p.verifiedAt, label: "Verified by CasaVilla", why: "The Verified badge on every card. Ask us to visit below.", cta: "" },
   ];
   const score = Math.round((checks.filter((c) => c.ok).length / checks.length) * 100);

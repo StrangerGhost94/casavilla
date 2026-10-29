@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { db, SERVICE_CATEGORIES } from "@/db";
+import { ALL_SERVICE_CATEGORIES, db, PRODUCT_CATEGORIES } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { saveUpload } from "@/lib/uploads";
 import { normalizePhone } from "@/lib/format";
@@ -14,7 +14,7 @@ export async function saveService(fd: FormData) {
   const u = await requireUser("provider");
   const sid = id(fd) || null;
   const data = {
-    category: await oneOf(fd, "category", SERVICE_CATEGORIES, "category"),
+    category: await oneOf(fd, "category", ALL_SERVICE_CATEGORIES, "category"),
     title: await reqText(fd, "title", "a service name", { max: 120 }),
     description: await text(fd, "description", "the description", { optional: true, max: 2000 }),
     priceFrom: await optInt(fd, "priceFrom", "the starting price", { min: 0, max: 100_000_000 }),
@@ -46,6 +46,7 @@ export async function saveProduct(fd: FormData) {
     description: await text(fd, "description", "the description", { optional: true, max: 2000 }),
     price: await int(fd, "price", "the price", { min: 100, max: 100_000_000 }),
     stock: await int(fd, "stock", "the stock", { min: 0, max: 100_000, fallback: 0 }),
+    category: await oneOf(fd, "category", PRODUCT_CATEGORIES, "the shop section", "Other"),
   };
   if (pid && !(await db.product.findFirst({ where: { id: pid, providerId: u.id } }))) return fail("Item not found");
   const photoId = await saveUpload(fd.get("photo"), u.id, true, true);

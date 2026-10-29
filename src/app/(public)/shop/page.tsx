@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ArrowDownUp, BadgeCheck, Check, PackageSearch, Search, Store, Truck, X } from "lucide-react";
+import { PRODUCT_CATEGORIES } from "@/db";
 import { getUser } from "@/lib/auth";
 import { shopProducts } from "@/lib/queries";
 import { SearchBand } from "@/components/ListingParts";
@@ -10,7 +11,7 @@ export const metadata = { title: "Shop" };
 
 const sorts = [["", "Newest"], ["low", "Lowest price"], ["high", "Highest price"]] as const;
 
-export default async function Shop({ searchParams }: { searchParams: Promise<{ error?: string; q?: string; seller?: string; sort?: string; stock?: string }> }) {
+export default async function Shop({ searchParams }: { searchParams: Promise<{ error?: string; q?: string; seller?: string; sort?: string; stock?: string; sec?: string }> }) {
   const sp = await searchParams;
   const [all, me] = await Promise.all([shopProducts(), getUser()]);
   const sellers = [...new Map(all.map((p) => [p.providerId, p.seller || p.sellerName])).entries()];
@@ -18,16 +19,18 @@ export default async function Shop({ searchParams }: { searchParams: Promise<{ e
   const seller = Number(sp.seller) || undefined;
   const items = all
     .filter((p) => !seller || p.providerId === seller)
+    .filter((p) => !sp.sec || (p.category ?? "Other") === sp.sec)
     .filter((p) => !sp.stock || p.stock > 0)
     .filter((p) => !needle || [p.name, p.description, p.seller, p.sellerName].some((s) => s?.toLowerCase().includes(needle)))
     .sort(sp.sort === "low" ? (a, b) => a.price - b.price : sp.sort === "high" ? (a, b) => b.price - a.price : () => 0);
-  const keep = { q: sp.q, seller: sp.seller, sort: sp.sort, stock: sp.stock };
+  const keep = { q: sp.q, seller: sp.seller, sort: sp.sort, stock: sp.stock, sec: sp.sec };
+  const sections = PRODUCT_CATEGORIES.map((c) => [c, all.filter((p) => (p.category ?? "Other") === c).length] as const).filter(([, n]) => n > 0);
   const href = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams(Object.entries({ ...keep, ...patch }).filter(([, v]) => v) as [string, string][]);
     return `/shop${p.size ? `?${p}` : ""}`;
   };
   const sortLabel = sorts.find(([k]) => k === (sp.sort ?? ""))?.[1] ?? "Newest";
-  const filtered = !!(needle || seller || sp.stock);
+  const filtered = !!(needle || seller || sp.stock || sp.sec);
 
   return (
     <main>
@@ -47,6 +50,12 @@ export default async function Shop({ searchParams }: { searchParams: Promise<{ e
       <div className="mx-auto max-w-6xl px-4 pt-4">
         {sp.error && <div className="mb-4 rounded-xl bg-maroon-50 p-3 text-sm text-maroon-600">{sp.error}</div>}
 
+        {sections.length > 1 && (
+          <div className="-mx-4 mb-2 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
+            <Link href={href({ sec: undefined })} className={!sp.sec ? "chip-active" : "chip"}>All sections</Link>
+            {sections.map(([c, n]) => <Link key={c} href={href({ sec: sp.sec === c ? undefined : c })} className={sp.sec === c ? "chip-active" : "chip"}>{c} <span className="opacity-60">{n}</span></Link>)}
+          </div>
+        )}
         <div className="-mx-4 flex items-center gap-2 overflow-x-auto px-4 pb-1 [scrollbar-width:none]">
           <Link href={href({ seller: undefined })} className={!seller ? "chip-active" : "chip"}>All sellers</Link>
           {sellers.map(([id, name]) => (
@@ -58,7 +67,7 @@ export default async function Shop({ searchParams }: { searchParams: Promise<{ e
 
         <div className="mt-5 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-brand-950">{needle ? `Results for “${sp.q}”` : seller ? sellers.find(([id]) => id === seller)?.[1] : "Everything in the shop"}</h2>
+            <h2 className="text-lg font-bold text-brand-950">{needle ? `Results for “${sp.q}”` : sp.sec ? sp.sec : seller ? sellers.find(([id]) => id === seller)?.[1] : "Everything in the shop"}</h2>
             <p className="text-xs text-stone-500">{items.length} item{items.length === 1 ? "" : "s"}</p>
           </div>
           <details className="relative">

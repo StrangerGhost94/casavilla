@@ -56,6 +56,10 @@ model User {
   documents        Document[]
   notifications    Notification[]
   pushSubs         PushSubscription[]
+  saved            SavedListing[]
+  searchAlerts     SearchAlert[]
+  viewingsAsked    Viewing[]             @relation("ViewingRequester")
+  viewingsHosted   Viewing[]             @relation("ViewingHost")
   audits           AuditLog[]
   linkRequests     TenantLink[]          @relation("LinkTenant")
   linkInvites      TenantLink[]          @relation("LinkLandlord")
@@ -150,6 +154,8 @@ model Property {
   verifiedBy     Int?                  @map("verified_by")
   photos         PropertyPhoto[]
   photoId        Int?                  @map("photo_id")
+  /// Video tour: a YouTube or TikTok link (videos are hosted there, not on our server)
+  videoUrl       String?               @map("video_url")
   createdAt      DateTime              @default(now()) @map("created_at")
   units          Unit[]
   jobs           Job[]
@@ -195,6 +201,7 @@ model Unit {
   expenses      Expense[]
   meters        Meter[]
   createdAt     DateTime        @default(now()) @map("created_at")
+  viewings      Viewing[]
 
   @@index([propertyId])
   @@map("units")
@@ -346,6 +353,8 @@ model Product {
   photoId     Int?    @map("photo_id")
   active      Boolean @default(true)
   orders      Order[]
+  /// Shop section, e.g. "Building materials" or "House plans"
+  category    String?
 
   @@map("products")
 }
@@ -919,6 +928,7 @@ model SaleListing {
   /// CasaVilla has seen the title and done a land search.
   titleVerified  Boolean       @default(false) @map("title_verified")
   features       String[]      @default([])
+  videoUrl       String?       @map("video_url")
   location       String
   locationId     String?       @map("location_id")
   place          Location?     @relation(fields: [locationId], references: [id])
@@ -941,6 +951,7 @@ model SaleListing {
   updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at")
   photos         SalePhoto[]
   enquiries      SaleEnquiry[]
+  viewings       Viewing[]
 
   @@index([status, kind])
   @@index([ownerId])
@@ -1194,4 +1205,62 @@ model TaxRemittance {
 
   @@index([landlordId, kind])
   @@map("tax_remittances")
+}
+
+/// A home someone saved (heart): a long-term unit ("rent"), a short-stay unit ("stay") or a sale listing ("sale").
+model SavedListing {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  itemId    Int      @map("item_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([userId, kind, itemId])
+  @@map("saved_listings")
+}
+
+/// "Alert me": a saved search; new listings that match are sent as notifications (app + phone).
+model SearchAlert {
+  id         Int      @id @default(autoincrement())
+  userId     Int      @map("user_id")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  /// rent | stays | sale
+  kind       String
+  /// The search's filters, as on the results page (q, beds, max, in, kind, …)
+  params     Json
+  label      String
+  /// Highest listing id already told about (only newer ones alert)
+  lastSeenId Int      @default(0) @map("last_seen_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("search_alerts")
+}
+
+/// A request to view a home (long-term unit or sale listing) at a chosen time; the host confirms, proposes another
+/// time or declines. Both are reminded the day before and on the day.
+model Viewing {
+  id            Int          @id @default(autoincrement())
+  unitId        Int?         @map("unit_id")
+  unit          Unit?        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  saleListingId Int?         @map("sale_listing_id")
+  saleListing   SaleListing? @relation(fields: [saleListingId], references: [id], onDelete: Cascade)
+  requesterId   Int          @map("requester_id")
+  requester     User         @relation("ViewingRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  /// Landlord / seller who answers it
+  hostId        Int          @map("host_id")
+  host          User         @relation("ViewingHost", fields: [hostId], references: [id], onDelete: Cascade)
+  /// The time asked for; after "suggest another time", the host's proposal
+  at            DateTime
+  note          String?
+  hostNote      String?      @map("host_note")
+  /// requested | confirmed | proposed (host suggested another time) | declined | cancelled
+  status        String       @default("requested")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  @@index([hostId, status])
+  @@index([requesterId])
+  @@map("viewings")
 }

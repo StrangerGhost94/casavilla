@@ -15,6 +15,7 @@ import { AMENITIES, CHARGE_KINDS, CHARGE_KIND_LABEL, MAX_ADVANCE_MONTHS } from "
 import { triage } from "@/lib/insights";
 import { PROPERTY_TYPES } from "@/lib/property-types";
 import { placeLine, readPlace } from "@/lib/geo-form";
+import { readVideoUrl } from "@/lib/video-form";
 import { saveAgreementSnapshot } from "@/lib/agreement";
 import { propertyRemoval, unitRemoval } from "@/lib/removal";
 
@@ -49,7 +50,8 @@ export async function saveProperty(fd: FormData) {
   // is kept as the landmark (unless one was given) so nothing the landlord typed is lost.
   const location = place.locationId ? await placeLine(place) : existing?.location ?? (await reqText(fd, "location", "the address", { max: 200 }));
   if (existing && !existing.locationId && place.locationId && !place.landmark) place.landmark = existing.location;
-  const data = { name, type, description, location: location || existing?.location || name, ...place };
+  const videoUrl = await readVideoUrl(fd);
+  const data = { name, type, description, videoUrl, location: location || existing?.location || name, ...place };
   const photoId = await saveUpload(fd.get("photo"), u.id, true, true);
   if (existing) {
     // Moving a verified property (by anyone but a manager) means CasaVilla has to check it again.

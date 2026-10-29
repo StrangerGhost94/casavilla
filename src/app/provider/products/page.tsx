@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ExternalLink, Plus } from "lucide-react";
-import { db } from "@/db";
+import { db, PRODUCT_CATEGORIES } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { ugx } from "@/lib/format";
 import { PageHeader, Field, Photo } from "@/components/ui";
@@ -27,6 +27,7 @@ export default async function ProviderProducts() {
         <summary className="flex cursor-pointer list-none items-center gap-2 font-semibold text-brand-950"><span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-50 text-brand-700"><Plus className="h-4 w-4" /></span> Add an item</summary>
         <form action={saveProduct} className="mt-4 grid grid-cols-1 gap-3 border-t border-stone-100 pt-4 sm:grid-cols-2">
           <Field label="Name"><input name="name" className="input" required placeholder="e.g. Kitchen mixer tap" /></Field>
+          <Field label="Shop section"><select name="category" className="input" defaultValue="Building materials">{PRODUCT_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
           <div className="grid grid-cols-2 gap-2">
             <Field label="Price (UGX)"><input name="price" type="number" className="input" required /></Field>
             <Field label="In stock"><input name="stock" type="number" className="input" defaultValue={1} /></Field>
@@ -46,7 +47,7 @@ export default async function ProviderProducts() {
                 <Photo id={p.photoId} alt={p.name} className="h-14 w-14 shrink-0 rounded-xl" sizes="56px" />
                 <div className="min-w-0 flex-1">
                   <div className="truncate text-sm font-semibold text-stone-800">{p.name}</div>
-                  <div className="text-xs text-stone-500">{ugx(p.price)} · <span className={p.stock === 0 ? "font-semibold text-maroon-600" : p.stock <= 3 ? "font-semibold text-gold-700" : ""}>{p.stock === 0 ? "Sold out" : `${p.stock} in stock`}</span></div>
+                  <div className="text-xs text-stone-500">{p.category ? `${p.category} · ` : ""}{ugx(p.price)} · <span className={p.stock === 0 ? "font-semibold text-maroon-600" : p.stock <= 3 ? "font-semibold text-gold-700" : ""}>{p.stock === 0 ? "Sold out" : `${p.stock} in stock`}</span></div>
                 </div>
                 <span className={`pill shrink-0 ${p.active ? "bg-brand-50 text-brand-700" : "bg-stone-100 text-stone-500"}`}>{p.active ? "In shop" : "Hidden"}</span>
                 <span className="shrink-0 text-xs font-semibold text-brand-700 group-open:hidden">Edit</span>
@@ -55,6 +56,7 @@ export default async function ProviderProducts() {
                 <form action={saveProduct} className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   <input type="hidden" name="id" value={p.id} />
                   <Field label="Name"><input name="name" defaultValue={p.name} className="input" required /></Field>
+                  <Field label="Shop section"><select name="category" className="input" defaultValue={p.category ?? "Other"}>{PRODUCT_CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></Field>
                   <div className="grid grid-cols-2 gap-2">
                     <Field label="Price (UGX)"><input name="price" type="number" defaultValue={p.price} className="input" required /></Field>
                     <Field label="In stock"><input name="stock" type="number" defaultValue={p.stock} className="input" /></Field>

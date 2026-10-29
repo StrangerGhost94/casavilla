@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowDownUp, BadgeCheck, Check, MapPin, MessageCircle, Search, Star, Wrench, X } from "lucide-react";
-import { SERVICE_CATEGORIES } from "@/db";
+import { BUILD_CATEGORIES, SERVICE_CATEGORIES } from "@/db";
 import { activeProviders } from "@/lib/queries";
 import { categoryLabel } from "@/lib/icons";
 import { LocationPicker } from "@/components/LocationPicker";
@@ -20,7 +20,7 @@ export default async function Services({ searchParams }: { searchParams: Promise
   const inArea = area.length > 1 ? inId : undefined;
   const [all, everyone] = await Promise.all([activeProviders(category, inArea), category ? activeProviders(undefined, inArea) : null]);
   // How many providers offer each category (in the chosen area), for the tiles.
-  const perCat = new Map(SERVICE_CATEGORIES.map((c) => [c, (everyone ?? all).filter((p) => p.categories.has(c)).length]));
+  const perCat = new Map([...SERVICE_CATEGORIES, ...BUILD_CATEGORIES].map((c) => [c as string, (everyone ?? all).filter((p) => p.categories.has(c)).length]));
   const needle = q?.trim().toLowerCase();
   const found = needle ? all.filter((p) => [p.name, p.area, p.bio, ...p.categories].some((s) => s?.toLowerCase().includes(needle))) : all;
   const list = [...found].sort(
@@ -57,6 +57,21 @@ export default async function Services({ searchParams }: { searchParams: Promise
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-11">
           {SERVICE_CATEGORIES.map((c) => <CategoryTile key={c} c={c} n={perCat.get(c) ?? 0} on={category === c} href={href({ category: category === c ? undefined : c })} />)}
         </div>
+
+        {/* Build & fit-out: new homes, interiors, plans — and the materials in the shop */}
+        <section className="mt-5 rounded-3xl border border-stone-200/70 bg-white p-4 shadow-card">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-base font-bold text-brand-950">Build & fit-out</h2>
+              <p className="text-xs text-stone-500">Building a home or doing it up? Builders, interior designers, house plans and materials.</p>
+            </div>
+            <Link href="/shop?sec=Building%20materials" className="text-xs font-semibold text-brand-700 hover:underline">Building materials in the shop →</Link>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
+            {BUILD_CATEGORIES.map((c) => <CategoryTile key={c} c={c} n={perCat.get(c) ?? 0} on={category === c} href={href({ category: category === c ? undefined : c })} />)}
+            <Link href="/shop?sec=House%20plans" className="hidden flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-stone-300 px-1 py-3 text-center text-[11px] font-semibold text-stone-600 hover:border-brand-300 sm:flex">Ready-made plans<span className="text-[10px] font-normal text-stone-400">in the shop</span></Link>
+          </div>
+        </section>
 
         <details className="mt-4 rounded-2xl border border-stone-200 bg-white p-3" open={area.length > 1}>
           <summary className="flex cursor-pointer list-none items-center gap-1.5 text-sm font-semibold text-brand-900"><MapPin className="h-4 w-4" /> Who covers my area?{area.length > 1 && <span className="font-normal text-stone-500"> · {crumbText(area, true)}</span>}</summary>

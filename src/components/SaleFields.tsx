@@ -105,6 +105,10 @@ export function SaleDetails({ d }: { d: Defaults }) {
         <textarea name="description" rows={5} maxLength={5000} defaultValue={d.description ?? ""} className="input"
           placeholder={land ? "Access road, neighbours, what it's good for (residential, farming…), how far from the main road, any developments nearby." : "Rooms, finishes, compound, security, water and power, what's nearby."} />
       </label>
+      <label className="block"><span className="label">Video tour (optional)</span>
+        <input name="videoUrl" type="url" inputMode="url" defaultValue={(d as { videoUrl?: string | null }).videoUrl ?? ""} className="input" placeholder="https://youtu.be/… or a TikTok video link" />
+        <span className="mt-1 block text-[11px] text-stone-500">A walk-around video on YouTube or TikTok. Buyers far away trust a video far more than photos.</span>
+      </label>
     </div>
   );
 }

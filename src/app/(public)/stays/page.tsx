@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { AlertButton } from "@/components/AlertButton";
 import { ArrowDownUp, CalendarDays, Check, MapPin, MessageCircle, Moon, Search, Users } from "lucide-react";
 import { db } from "@/db";
+import { areaMatch } from "@/lib/queries";
 import { fmtDate, kampalaToday, ugx } from "@/lib/format";
 import { crumbText, insideFilter, trailFor } from "@/lib/geo";
 import { isFree, nightsBetween, checkStay } from "@/lib/stays";
@@ -24,10 +26,13 @@ export default async function Stays({ searchParams }: { searchParams: Promise<Re
   const area = await trailFor(sp.in);
   const inside = area.length > 1 ? await insideFilter(sp.in) : null;
   const max = Number(sp.max) || undefined;
+  // Typed area or name ("Ntinda", "Entebbe", a property's name).
+  const text = sp.q?.trim();
+  const named = text ? [{ name: { contains: text, mode: "insensitive" as const } }, { location: { contains: text, mode: "insensitive" as const } }, ...(await areaMatch(text))] : null;
   const units = await db.unit.findMany({
     where: {
       mode: "short", listed: true, nightlyRate: max ? { not: null, lte: max } : { not: null }, maxGuests: { gte: guests },
-      property: { archivedAt: null, landlord: { status: "active" }, ...(inside ? { place: inside } : {}) },
+      property: { archivedAt: null, landlord: { status: "active" }, ...(inside ? { place: inside } : {}), ...(named ? { OR: named } : {}) },
     },
     include: { property: { include: { _count: { select: { photos: true } } } } },
     orderBy: sp.sort === "high" ? { nightlyRate: "desc" } : sp.sort === "new" ? { id: "desc" } : { nightlyRate: "asc" }, take: 100,
@@ -38,7 +43,7 @@ export default async function Stays({ searchParams }: { searchParams: Promise<Re
     if (checkStay(u, sp.checkIn!, sp.checkOut!, guests)) return { u, ok: false };
     return { u, ok: await isFree(u.id, sp.checkIn!, sp.checkOut!) };
   }))).filter((r) => r.ok);
-  const keep = { checkIn: sp.checkIn, checkOut: sp.checkOut, guests: sp.guests, in: sp.in, max: sp.max, sort: sp.sort };
+  const keep = { q: sp.q, checkIn: sp.checkIn, checkOut: sp.checkOut, guests: sp.guests, in: sp.in, max: sp.max, sort: sp.sort };
   const href = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams(Object.entries({ ...keep, ...patch }).filter(([, v]) => v) as [string, string][]);
     return `/stays${p.size ? `?${p}` : ""}`;
@@ -52,6 +57,7 @@ export default async function Stays({ searchParams }: { searchParams: Promise<Re
       <SearchBand title="Short stays" text="Furnished homes by the night, booked and paid with Mobile Money.">
         <form className="grid grid-cols-2 gap-2 rounded-2xl bg-white p-2 text-stone-800 shadow-float sm:grid-cols-[1fr_1fr_8rem_auto]">
           {sp.in && <input type="hidden" name="in" value={sp.in} />}
+          {sp.q && <input type="hidden" name="q" value={sp.q} />}
           {sp.max && <input type="hidden" name="max" value={sp.max} />}
           <label className="rounded-xl px-3 py-1.5 hover:bg-stone-50"><span className="flex items-center gap-1 text-[11px] font-semibold text-stone-500"><CalendarDays className="h-3.5 w-3.5" /> Check-in</span>
             <input type="date" name="checkIn" min={today} defaultValue={sp.checkIn} className="w-full bg-transparent text-sm font-semibold focus:outline-none" /></label>
@@ -87,17 +93,17 @@ export default async function Stays({ searchParams }: { searchParams: Promise<Re
 
         <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
           <div>
-            <h2 className="text-lg font-bold text-brand-950">{dated ? `Free ${day(sp.checkIn!)} – ${day(sp.checkOut!)}` : area.length > 1 ? `Stays in ${area[area.length - 1].name}` : "All short stays"}</h2>
+            <h2 className="text-lg font-bold text-brand-950">{dated ? `Free ${day(sp.checkIn!)} – ${day(sp.checkOut!)}` : area.length > 1 ? `Stays in ${area[area.length - 1].name}` : text ? `Stays matching “${text}”` : "All short stays"}</h2>
             <p className="flex items-center gap-1 text-xs text-stone-500">{rows.length} place{rows.length === 1 ? "" : "s"}{dated && <> · <Moon className="h-3 w-3" /> {n} night{n === 1 ? "" : "s"}, prices include cleaning</>}</p>
           </div>
-          <details className="relative">
+          <div className="flex items-center gap-2"><AlertButton kind="stays" params={{ q: sp.q, in: sp.in, guests: sp.guests, max: sp.max }} next={href({})} /><details className="relative">
             <summary className="chip cursor-pointer list-none"><ArrowDownUp className="h-3.5 w-3.5" /> {sortLabel}</summary>
             <div className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-xl border border-stone-200 bg-white py-1 shadow-float">
               {sorts.map(([k, label]) => (
                 <Link key={label} href={href({ sort: k || undefined })} className={`flex items-center justify-between px-3 py-2 text-sm hover:bg-stone-50 ${label === sortLabel ? "font-semibold text-brand-800" : "text-stone-700"}`}>{label}{label === sortLabel && <Check className="h-4 w-4" />}</Link>
               ))}
             </div>
-          </details>
+          </details></div>
         </div>
 
         {rows.length > 0 ? (

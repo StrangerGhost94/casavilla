@@ -1,8 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ListingPhotos } from "@/components/Gallery";
+import { VideoTour } from "@/components/VideoTour";
+import { ViewingBox } from "@/components/Viewings";
 import { ActionBar, Checklist, FactTiles, LocationCard, PhotoButtons, shareLink } from "@/components/ListingParts";
-import { Bath, BadgeCheck, BedDouble, Building2, ChevronRight, DoorOpen, MapPin, MessageCircle, Phone, Ruler, Sofa } from "lucide-react";
+import { Bath, BadgeCheck, BedDouble, CalendarCheck, Building2, ChevronRight, DoorOpen, MapPin, MessageCircle, Phone, Ruler, Sofa } from "lucide-react";
 import { db } from "@/db";
 import { getUser } from "@/lib/auth";
 import { ugx } from "@/lib/format";
@@ -55,7 +57,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     <main className="mx-auto max-w-6xl md:px-4 md:pt-6">
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
-          <ListingPhotos propertyId={property.id} unitId={unit.id} coverId={property.photoId} alt={property.name} overlay={<PhotoButtons back="/listings" backLabel="Back to homes" share={share} />} />
+          <ListingPhotos propertyId={property.id} unitId={unit.id} coverId={property.photoId} alt={property.name} overlay={<PhotoButtons back="/listings" backLabel="Back to homes" share={share} video={!!property.videoUrl} save={{ kind: "rent", id: unit.id }} />} />
           <div className="relative -mt-6 rounded-t-3xl bg-cream px-4 pt-5 md:mt-0 md:bg-transparent md:px-0">
             <div className="flex flex-wrap gap-1.5">
               <span className="pill bg-brand-800 uppercase tracking-wide text-white">For rent</span>
@@ -76,6 +78,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               </div>
             )}
 
+            {property.videoUrl && <VideoTour url={property.videoUrl} title={`${title} · ${property.name}`} />}
             <Checklist title="What this home offers" items={amenities} />
             {property.description && (
               <section className="mt-6">
@@ -122,6 +125,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               </div>
             </div>
             <div className="my-4 border-t border-stone-100" />
+            {unit.status === "vacant" && <div className="mb-4"><ViewingBox unitId={unit.id} hostId={landlord.id} next={`/listings/${unit.id}`} /></div>}
             {unit.status !== "vacant" ? (
               <Badge>occupied</Badge>
             ) : sent || existing ? (
@@ -157,6 +161,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       {unit.status === "vacant" && !sent && !existing && (
         <ActionBar price={ugx(unit.rent)} per="/ month" sub={`${title} · ${property.name}`}>
           <a href={wa} aria-label="Message on WhatsApp" className="btn-outline btn-sm px-2.5"><MessageCircle className="h-4 w-4" /></a>
+          <a href="#viewing" aria-label="Book a viewing" className="btn-outline btn-sm px-2.5"><CalendarCheck className="h-4 w-4" /></a>
           <a href={user ? "#apply" : `/register?role=tenant&next=/listings/${unit.id}`} className="btn-primary btn-sm">Apply</a>
         </ActionBar>
       )}
