@@ -2,7 +2,11 @@ import Link from "next/link";
 import { ChevronRight, KeyRound, Trees, Wrench } from "lucide-react";
 import { getUser } from "@/lib/auth";
 
-export const metadata = { title: "List with CasaVilla" };
+export const metadata = {
+  title: "List Your Property for Rent or Sale in Uganda",
+  description: "Landlords and owners: list houses, apartments, short stays and land with CasaVilla. Collect rent by Mobile Money, get tenants faster, and manage everything in one app.",
+  alternates: { canonical: "/list" },
+};
 export const dynamic = "force-dynamic";
 
 /** The one place owners and providers start: rent out, sell, or offer a service. */

@@ -14,8 +14,12 @@ import { MobileFooter } from "@/components/SiteFooter";
 import { AreaChips } from "@/components/AreaChips";
 import { chargesSummary } from "@/components/Ledger";
 import { activeLease } from "@/app/tenant/lib";
+import { JsonLd } from "@/components/JsonLd";
+import { organizationLd, websiteLd } from "@/lib/seo";
+import { CONTACT, SOCIAL } from "@/lib/social";
 
 export const dynamic = "force-dynamic";
+export const metadata = { alternates: { canonical: "/" } };
 
 const AREAS = ["Ntinda", "Kira", "Muyenga", "Naalya", "Bukoto", "Rubaga", "Kansanga", "Najjera", "Entebbe", "Mukono", "Wakiso", "Kololo"];
 const CARD = "w-[78vw] max-w-[19rem] shrink-0 snap-start";
@@ -119,6 +123,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
 
   return (
     <main>
+      <JsonLd data={[organizationLd(CONTACT, Object.values(SOCIAL).filter((x) => !x.placeholder).map((x) => x.url)), websiteLd()]} />
       {/* Compact search band: continues the dark header, so listings start high on the screen */}
       <section className="relative overflow-hidden bg-brand-950 text-white">
         {/* eslint-disable-next-line @next/next/no-img-element */}

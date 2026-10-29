@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { BadgeCheck, ChevronRight, MapPin, Package, Star, Truck } from "lucide-react";
 import { ugx } from "@/lib/format";
+import { providerHref } from "@/lib/seo";
 import { CategoryIcon, categoryLabel } from "@/lib/icons";
 import { placeOrder } from "@/app/market-actions";
 import { Avatar, Photo } from "./ui";
@@ -23,7 +24,7 @@ export type ProviderRow = { id: number; name: string; area: string | null; bio: 
 export function ProviderCard({ p }: { p: ProviderRow }) {
   const cats = [...p.categories];
   return (
-    <Link href={`/services/${p.id}`} className="card group flex min-w-0 flex-col gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-float">
+    <Link href={providerHref(p)} className="card group flex min-w-0 flex-col gap-3 p-4 transition hover:-translate-y-0.5 hover:shadow-float">
       <div className="flex items-start gap-3.5">
         <div className="relative shrink-0">
           <Avatar name={p.name} className="h-14 w-14 text-base" />

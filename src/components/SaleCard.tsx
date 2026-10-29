@@ -1,6 +1,7 @@
 import { BedDouble, Ruler } from "lucide-react";
 import { KIND, perAcre, shortUgx, sizeText, type SaleKind } from "@/lib/sales";
 import { CardShell, Facts, Price, Where } from "./PropertyCard";
+import { saleHref } from "@/lib/seo";
 
 export type SaleRow = {
   id: number; kind: string; title: string; price: number; negotiable: boolean; location: string; photoId: number | null; status: string;
@@ -8,7 +9,7 @@ export type SaleRow = {
   publishedAt?: Date | null; videoUrl?: string | null; _count?: { photos: number };
 };
 
-export function SaleCard({ l, href = `/sale/${l.id}`, className = "" }: { l: SaleRow; href?: string; className?: string }) {
+export function SaleCard({ l, href = saleHref(l), className = "" }: { l: SaleRow; href?: string; className?: string }) {
   const size = sizeText(l);
   const pa = l.kind === "land" || l.kind === "farm" ? perAcre(l) : null;
   return (

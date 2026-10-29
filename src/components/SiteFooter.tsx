@@ -3,6 +3,30 @@ import { ArrowUpRight, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { BuildingArt, Logo } from "./ui";
 import { SocialLinks } from "./SocialLinks";
 import { CONTACT, tel } from "@/lib/social";
+import { areaHref, type SeoKind } from "@/lib/seo";
+
+/** Popular searches: links to the area pages people look for on Google (also how Google finds them). */
+const POPULAR: { kind: SeoKind; title: string; areas: string[] }[] = [
+  { kind: "houses-for-rent", title: "Houses for rent", areas: ["Kampala", "Ntinda", "Kira", "Najjera", "Kololo", "Bukoto", "Muyenga", "Kyanja", "Naalya", "Mukono", "Entebbe"] },
+  { kind: "land-for-sale", title: "Land for sale", areas: ["Wakiso", "Mukono", "Kira", "Gayaza", "Entebbe", "Namugongo", "Seeta", "Kasangati", "Kajjansi"] },
+  { kind: "short-stays", title: "Short stays", areas: ["Kampala", "Entebbe", "Kololo", "Ntinda", "Muyenga", "Munyonyo", "Bugolobi"] },
+  { kind: "houses-for-sale", title: "Houses for sale", areas: ["Kampala", "Kira", "Najjera", "Mukono", "Entebbe", "Wakiso", "Namugongo"] },
+];
+
+export function PopularSearches({ compact = false }: { compact?: boolean }) {
+  return (
+    <div className={compact ? "space-y-4" : "grid grid-cols-4 gap-8 border-b border-white/10 py-10 text-sm"}>
+      {POPULAR.map((g) => (
+        <nav key={g.kind} aria-label={`${g.title} by area`}>
+          <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">{g.title}</div>
+          <ul className={compact ? "mt-2 flex flex-wrap gap-x-3 gap-y-1.5 text-xs" : "mt-3 space-y-1.5"}>
+            {g.areas.map((a) => <li key={a}><Link href={areaHref(g.kind, a)} className="transition hover:text-white">{compact ? a : `${g.title} in ${a}`}</Link></li>)}
+          </ul>
+        </nav>
+      ))}
+    </div>
+  );
+}
 
 const COLUMNS = [
   { title: "Explore", links: [["/listings", "Homes for rent"], ["/stays", "Short stays"], ["/sale", "Land & property for sale"], ["/services", "Home services"], ["/shop", "Shop"]] },
@@ -27,6 +51,8 @@ export function PublicFooter() {
             <a href={CONTACT.whatsapp} className="btn border border-white/20 text-white hover:bg-white/10"><MessageCircle className="h-4 w-4" /> Talk to us</a>
           </div>
         </div>
+
+        <PopularSearches />
 
         <div className="grid grid-cols-[1.4fr_1fr_1fr_1.3fr] gap-10 py-12 text-sm">
           <div>
@@ -75,6 +101,11 @@ export function MobileFooter() {
       <div className="relative">
         <Logo tile size="sm" />
         <p className="mt-3 text-sm leading-relaxed text-white/65">Homes, land and trusted services in Uganda — and everything after you move in.</p>
+
+        <details className="mt-6 rounded-2xl bg-white/[0.05] p-3 text-white/70 ring-1 ring-white/10">
+          <summary className="cursor-pointer list-none text-xs font-semibold text-white">Popular searches</summary>
+          <div className="mt-3"><PopularSearches compact /></div>
+        </details>
 
         <div className="mt-6 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">Follow us</div>
         <SocialLinks size="sm" className="mt-3" />

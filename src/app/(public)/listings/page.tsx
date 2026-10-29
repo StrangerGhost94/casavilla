@@ -11,7 +11,11 @@ import { crumbText, trailFor } from "@/lib/geo";
 import { fmtKm, inUganda } from "@/lib/geo-core";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Homes to rent" };
+export const metadata = {
+  title: "Houses & Apartments for Rent in Kampala, Wakiso & Mukono",
+  description: "Browse houses and apartments for rent in Kampala and across Uganda: prices, photos, video tours and exact locations. Filter by area, bedrooms and budget, book a viewing and pay rent with Mobile Money.",
+  alternates: { canonical: "/listings" },
+};
 
 const budgets = [300000, 500000, 800000, 1200000, 2000000];
 const short = (n: number) => (n >= 1_000_000 ? `${n / 1_000_000}M` : `${n / 1000}k`);

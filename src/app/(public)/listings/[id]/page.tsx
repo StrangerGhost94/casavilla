@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+import { abs, areaHref, areaOf, breadcrumbLd, idFrom, listingLd, rentHref } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
+import { fileUrl } from "@/lib/file-url";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ListingPhotos } from "@/components/Gallery";
@@ -18,11 +22,27 @@ import { listedUnits } from "@/lib/queries";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const u = await db.unit.findUnique({ where: { id: idFrom((await params).id) }, include: { property: true } });
+  if (!u || u.mode !== "long") return {};
+  const p = u.property, area = areaOf(p.location);
+  const title = `${homeTitle(u.bedrooms, p.type)} for rent in ${area} — ${ugx(u.rent)} a month`;
+  const bits = [u.bathrooms && `${u.bathrooms} bathroom${u.bathrooms === 1 ? "" : "s"}`, u.selfContained && "self-contained", u.furnished && "furnished", ...u.amenities.slice(0, 4)].filter(Boolean).join(", ");
+  const description = `${homeTitle(u.bedrooms, p.type)} at ${p.name}, ${p.location}. ${ugx(u.rent)} per month${bits ? `; ${bits}` : ""}.${p.verifiedAt ? " Verified by CasaVilla." : ""} Book a viewing or apply online.`.slice(0, 300);
+  const path = rentHref({ id: u.id, bedrooms: u.bedrooms, type: p.type, location: p.location });
+  const live = u.listed && u.status === "vacant" && !p.archivedAt;
+  return {
+    title, description, alternates: { canonical: path },
+    openGraph: { title, description, url: path, type: "website", images: p.photoId ? [{ url: abs(fileUrl(p.photoId, 1024)), width: 1024, alt: title }] : undefined },
+    robots: live ? undefined : { index: false, follow: true },
+  };
+}
+
 export default async function ListingPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ sent?: string }> }) {
   const { id } = await params;
   const { sent } = await searchParams;
   const row = await db.unit.findUnique({
-    where: { id: Number(id) || 0 },
+    where: { id: idFrom(id) },
     include: { property: { include: { landlord: { select: { id: true, name: true, phone: true, status: true } } } } },
   });
   if (!row || row.property.landlord.status !== "active") notFound();
@@ -55,6 +75,15 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
 
   return (
     <main className="mx-auto max-w-6xl md:px-4 md:pt-6">
+      <JsonLd data={[
+        listingLd({
+          path: rentHref({ id: unit.id, bedrooms: unit.bedrooms, type: property.type, location: property.location }), name: `${title} · ${property.name}`, description: property.description,
+          image: property.photoId ? fileUrl(property.photoId, 1024) : null, type: /house/i.test(property.type) ? "House" : /apartment/i.test(property.type) ? "Apartment" : "Residence",
+          price: unit.rent, per: "MON", rooms: unit.bedrooms, bathrooms: unit.bathrooms, sizeSqm: unit.sizeSqm, address: property.location,
+          lat: property.lat, lng: property.lng, amenities: amenities, available: unit.status === "vacant", datePosted: unit.createdAt,
+        }),
+        breadcrumbLd([["Home", "/"], ["Houses for rent", "/listings"], [areaOf(property.location), areaHref("houses-for-rent", areaOf(property.location))], [title, rentHref({ id: unit.id, bedrooms: unit.bedrooms, type: property.type, location: property.location })]]),
+      ]} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
           <ListingPhotos propertyId={property.id} unitId={unit.id} coverId={property.photoId} alt={property.name} overlay={<PhotoButtons back="/listings" backLabel="Back to homes" share={share} video={!!property.videoUrl} save={{ kind: "rent", id: unit.id }} />} />
@@ -64,7 +93,11 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               {property.verifiedAt && <span className="pill bg-brand-50 text-brand-700"><BadgeCheck className="h-3.5 w-3.5" /> Verified</span>}
               {unit.status === "vacant" && <span className="pill bg-gold-50 text-gold-700">Available now</span>}
             </div>
-            <h1 className="mt-3 text-2xl font-bold text-brand-950 md:text-3xl">{title} · {property.name}</h1>
+            <nav aria-label="Breadcrumb" className="mt-3 flex flex-wrap items-center gap-1 text-[11px] text-stone-500">
+              <Link href="/listings" className="hover:underline">Houses for rent</Link><ChevronRight className="h-3 w-3" />
+              <Link href={areaHref("houses-for-rent", areaOf(property.location))} className="hover:underline">{areaOf(property.location)}</Link>
+            </nav>
+            <h1 className="mt-1 text-2xl font-bold text-brand-950 md:text-3xl">{title} · {property.name}</h1>
             <div className="mt-1 flex items-center gap-1 text-sm text-stone-500"><MapPin className="h-4 w-4 shrink-0" /> {property.location}</div>
             {trail.length > 1 && <div className="mt-1 text-xs text-brand-800">{crumbText(trail, true)}</div>}
             {property.landmark && <div className="mt-1 break-words text-xs text-stone-500">Landmark: {property.landmark}</div>}

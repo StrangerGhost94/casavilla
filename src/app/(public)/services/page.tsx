@@ -9,7 +9,11 @@ import { CategoryTile, ProviderCard } from "@/components/MarketCards";
 import { crumbText, trailFor } from "@/lib/geo";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Services" };
+export const metadata = {
+  title: "Plumbers, Electricians, Cleaners & Builders in Kampala",
+  description: "Vetted home service providers in Kampala and Uganda: plumbers, electricians, cleaners, painters, carpenters, pest control, builders, interior designers and house plans. Rated after every job.",
+  alternates: { canonical: "/services" },
+};
 
 const sorts = [["", "Top rated"], ["price", "Lowest price"], ["jobs", "Most jobs done"]] as const;
 

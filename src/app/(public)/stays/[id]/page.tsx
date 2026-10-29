@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+import { abs, areaHref, areaOf, breadcrumbLd, idFrom, listingLd, stayHref } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
+import { fileUrl } from "@/lib/file-url";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Bath, BadgeCheck, BedDouble, LogIn, LogOut, MapPin, Moon, Users, type LucideIcon } from "lucide-react";
@@ -17,8 +21,22 @@ export const dynamic = "force-dynamic";
 
 const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const u = await db.unit.findUnique({ where: { id: idFrom((await params).id) }, include: { property: true } });
+  if (!u || u.mode !== "short" || !u.nightlyRate) return {};
+  const p = u.property, area = areaOf(p.location);
+  const title = `${p.name} · ${u.label} — short stay in ${area} from ${ugx(u.nightlyRate)} a night`;
+  const description = `Furnished ${u.bedrooms ? `${u.bedrooms}-bedroom` : "studio"} short stay in ${p.location}, sleeps ${u.maxGuests}. ${ugx(u.nightlyRate)} per night${u.amenities.length ? `; ${u.amenities.slice(0, 4).join(", ")}` : ""}. Book online and pay with Mobile Money.`.slice(0, 300);
+  const path = stayHref({ id: u.id, label: u.label, property: p });
+  return {
+    title, description, alternates: { canonical: path },
+    openGraph: { title, description, url: path, images: p.photoId ? [{ url: abs(fileUrl(p.photoId, 1024)), width: 1024, alt: title }] : undefined },
+    robots: u.listed && !p.archivedAt ? undefined : { index: false, follow: true },
+  };
+}
+
 export default async function StayPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ checkIn?: string; checkOut?: string; guests?: string }> }) {
-  const u = await db.unit.findUnique({ where: { id: Number((await params).id) || 0 }, include: { property: { include: { landlord: { select: { name: true, status: true } } } } } });
+  const u = await db.unit.findUnique({ where: { id: idFrom((await params).id) }, include: { property: { include: { landlord: { select: { name: true, status: true } } } } } });
   if (!u || u.mode !== "short" || !u.nightlyRate || u.property.landlord.status !== "active") notFound();
   const sp = await searchParams;
   const user = await getUser();
@@ -40,6 +58,11 @@ export default async function StayPage({ params, searchParams }: { params: Promi
   const bookHref = user ? "#book" : `/register?role=tenant&next=/stays/${u.id}`;
   return (
     <main className="mx-auto max-w-6xl md:px-4 md:pt-6">
+      <JsonLd data={[
+        listingLd({ path: stayHref({ id: u.id, label: u.label, property: p }), name: `${p.name} · ${u.label}`, description: p.description, image: p.photoId ? fileUrl(p.photoId, 1024) : null,
+          type: "Accommodation", price: u.nightlyRate, per: "DAY", rooms: u.bedrooms, bathrooms: u.bathrooms, sizeSqm: u.sizeSqm, address: p.location, lat: p.lat, lng: p.lng, amenities: u.amenities }),
+        breadcrumbLd([["Home", "/"], ["Short stays", "/stays"], [areaOf(p.location), areaHref("short-stays", areaOf(p.location))], [`${p.name} · ${u.label}`, stayHref({ id: u.id, label: u.label, property: p })]]),
+      ]} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
           <ListingPhotos propertyId={p.id} unitId={u.id} coverId={p.photoId} alt={p.name} overlay={<PhotoButtons back="/stays" backLabel="Back to stays" share={share} video={!!p.videoUrl} save={{ kind: "stay", id: u.id }} />} />

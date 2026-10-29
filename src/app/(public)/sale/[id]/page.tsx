@@ -1,3 +1,7 @@
+import type { Metadata } from "next";
+import { abs, areaHref, areaOf, breadcrumbLd, idFrom, listingLd, saleHref } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
+import { fileUrl } from "@/lib/file-url";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BadgeCheck, BedDouble, Bath, FileCheck2, Landmark, MapPin, MessageCircle, Phone, Ruler, ShieldAlert } from "lucide-react";
@@ -15,14 +19,23 @@ import { SaleEnquiryForm, SaleViewCounter, ShareButton } from "@/components/Sale
 
 export const dynamic = "force-dynamic";
 
-export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) {
-  const l = await db.saleListing.findUnique({ where: { id: Number((await params).id) || 0 }, select: { title: true, status: true } });
-  return { title: l && ["active", "under_offer", "sold"].includes(l.status) ? `${l.title} — for sale` : "For sale" };
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const l = await db.saleListing.findUnique({ where: { id: idFrom((await params).id) } });
+  if (!l || !["active", "under_offer", "sold"].includes(l.status)) return { title: "For sale", robots: { index: false } };
+  const size = sizeText(l);
+  const title = `${l.title} — ${shortUgx(l.price)}${l.status === "sold" ? " (sold)" : ""}`;
+  const description = `${KIND[l.kind as SaleKind]?.label ?? "Property"} for sale in ${l.location}${size ? `, ${size}` : ""}. ${fullUgx(l.price)}${l.negotiable ? " (negotiable)" : ""}.${l.titleStatus === "titled" ? " Has a land title." : ""}${l.titleVerified ? " Title verified by CasaVilla." : ""} Book a viewing or enquire online.`.slice(0, 300);
+  const path = saleHref(l);
+  return {
+    title, description, alternates: { canonical: path },
+    openGraph: { title, description, url: path, images: l.photoId ? [{ url: abs(fileUrl(l.photoId, 1024)), width: 1024, alt: l.title }] : undefined },
+    robots: l.status === "sold" ? { index: false, follow: true } : undefined,
+  };
 }
 
 export default async function SaleListingPage({ params }: { params: Promise<{ id: string }> }) {
   const l = await db.saleListing.findUnique({
-    where: { id: Number((await params).id) || 0 },
+    where: { id: idFrom((await params).id) },
     include: { photos: { orderBy: [{ isCover: "desc" }, { sort: "asc" }] }, owner: { select: { id: true, name: true, businessName: true, role: true } } },
   });
   const me = await getUser();
@@ -50,6 +63,12 @@ export default async function SaleListingPage({ params }: { params: Promise<{ id
   return (
     <main className="mx-auto max-w-6xl md:px-4 md:pt-6">
       <SaleViewCounter id={l.id} />
+      <JsonLd data={[
+        listingLd({ path: saleHref(l), name: l.title, description: l.description, image: l.photoId ? fileUrl(l.photoId, 1024) : null,
+          type: isLand ? "Landform" : l.kind === "apartment" ? "Apartment" : "House", price: l.price, per: null, rooms: l.bedrooms, bathrooms: l.bathrooms,
+          address: l.location, lat: l.lat, lng: l.lng, amenities: l.features, available: l.status !== "sold", datePosted: l.publishedAt }),
+        breadcrumbLd([["Home", "/"], ["For sale", "/sale"], [areaOf(l.location), areaHref(isLand ? "land-for-sale" : "houses-for-sale", areaOf(l.location))], [l.title, saleHref(l)]]),
+      ]} />
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 lg:col-span-2">
           <PhotoMosaic photos={l.photos.map((p, i) => ({ id: p.id, fileId: p.fileId, label: `${l.title} — photo ${i + 1}` }))

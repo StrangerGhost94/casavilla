@@ -12,7 +12,11 @@ import { DiscoverTabs } from "@/components/DiscoverTabs";
 import { SearchBand } from "@/components/ListingParts";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Short stays" };
+export const metadata = {
+  title: "Short Stays & Furnished Apartments in Kampala and Entebbe",
+  description: "Book furnished apartments and short stays by the night in Kampala, Entebbe and across Uganda. See availability, total price and pay with MTN or Airtel Mobile Money.",
+  alternates: { canonical: "/stays" },
+};
 
 const nightly = [100000, 150000, 250000, 400000];
 const sorts = [["", "Lowest price"], ["high", "Highest price"], ["new", "Newest"]] as const;

@@ -11,7 +11,11 @@ import { crumbText, insideFilter, trailFor } from "@/lib/geo";
 import { KIND, PRICE_STEPS, SALE_KINDS, shortUgx } from "@/lib/sales";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Land & property for sale" };
+export const metadata = {
+  title: "Land, Plots & Houses for Sale in Uganda",
+  description: "Land, plots, farms, houses and commercial buildings for sale in Kampala, Wakiso, Mukono and across Uganda. Every listing reviewed by CasaVilla; land titles checked on request.",
+  alternates: { canonical: "/sale" },
+};
 
 const sorts = [["", "Newest"], ["low", "Lowest price"], ["high", "Highest price"]] as const;
 

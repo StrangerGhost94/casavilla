@@ -7,7 +7,11 @@ import { SearchBand } from "@/components/ListingParts";
 import { ProductCard } from "@/components/MarketCards";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Shop" };
+export const metadata = {
+  title: "Building Materials, Fittings & House Plans — Shop",
+  description: "Buy building materials, plumbing and electrical fittings, paint, furniture and house plans from vetted CasaVilla providers in Uganda. Pay the seller on delivery.",
+  alternates: { canonical: "/shop" },
+};
 
 const sorts = [["", "Newest"], ["low", "Lowest price"], ["high", "Highest price"]] as const;
 

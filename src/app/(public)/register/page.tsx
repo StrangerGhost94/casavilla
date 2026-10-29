@@ -4,7 +4,7 @@ import { LogoMark } from "@/components/ui";
 import { BackButton } from "@/components/client";
 import Link from "next/link";
 
-export const metadata = { title: "Create account" };
+export const metadata = { title: "Create a free account", alternates: { canonical: "/register" } };
 
 export default async function Register({ searchParams }: { searchParams: Promise<{ role?: string; next?: string }> }) {
   const { role, next } = await searchParams;

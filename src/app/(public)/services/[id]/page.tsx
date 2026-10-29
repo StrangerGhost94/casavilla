@@ -1,3 +1,6 @@
+import type { Metadata } from "next";
+import { abs, breadcrumbLd, idFrom, providerHref } from "@/lib/seo";
+import { JsonLd } from "@/components/JsonLd";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
@@ -14,9 +17,19 @@ import { ProductCard, Stars } from "@/components/MarketCards";
 
 export const dynamic = "force-dynamic";
 
+export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
+  const p = await db.user.findFirst({ where: { id: idFrom((await params).id), role: "provider", status: "active" }, include: { services: { where: { active: true }, select: { category: true } } } });
+  if (!p) return {};
+  const name = p.businessName || p.name;
+  const cats = [...new Set(p.services.map((s) => s.category))];
+  const title = `${name} — ${cats.slice(0, 3).join(", ") || "home services"} in ${p.area || "Kampala"}`;
+  const description = `${name}: ${cats.join(", ").toLowerCase() || "home services"} in ${p.area || "Kampala"}, vetted by CasaVilla. ${p.bio ? p.bio.slice(0, 160) : "Request a quote online and track the job in the app."}`;
+  return { title, description, alternates: { canonical: providerHref({ id: p.id, name }) }, openGraph: { title, description, url: providerHref({ id: p.id, name }) } };
+}
+
 export default async function ProviderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const p = await db.user.findFirst({ where: { id: Number(id) || 0, role: "provider", status: "active" }, include: { serviceAreas: { include: { location: { select: { name: true } } } } } });
+  const p = await db.user.findFirst({ where: { id: idFrom(id), role: "provider", status: "active" }, include: { serviceAreas: { include: { location: { select: { name: true } } } } } });
   if (!p) notFound();
   const [svcs, prods, me, stats, reviews] = await Promise.all([
     db.service.findMany({ where: { providerId: p.id, active: true }, orderBy: { category: "asc" } }),
@@ -34,6 +47,18 @@ export default async function ProviderPage({ params }: { params: Promise<{ id: s
 
   return (
     <main>
+      <JsonLd data={[
+        {
+          "@context": "https://schema.org", "@type": "HomeAndConstructionBusiness", "@id": abs(`${providerHref({ id: p.id, name })}#business`), name, url: abs(providerHref({ id: p.id, name })),
+          ...(p.bio ? { description: p.bio.slice(0, 500) } : {}), areaServed: areas.map((a) => ({ "@type": "Place", name: a })),
+          address: { "@type": "PostalAddress", addressLocality: p.area || "Kampala", addressCountry: "UG" },
+          ...(prices.length ? { priceRange: `From UGX ${Math.min(...prices).toLocaleString("en-UG")}` } : {}),
+          // Only real ratings from finished jobs.
+          ...(stats._count.rating && stats._avg.rating ? { aggregateRating: { "@type": "AggregateRating", ratingValue: Number(stats._avg.rating.toFixed(1)), reviewCount: stats._count.rating, bestRating: 5, worstRating: 1 } } : {}),
+          hasOfferCatalog: { "@type": "OfferCatalog", name: "Services", itemListElement: svcs.map((s) => ({ "@type": "Offer", itemOffered: { "@type": "Service", name: s.title, serviceType: s.category }, ...(s.priceFrom != null ? { price: s.priceFrom, priceCurrency: "UGX" } : {}) })) },
+        },
+        breadcrumbLd([["Home", "/"], ["Services", "/services"], [name, providerHref({ id: p.id, name })]]),
+      ]} />
       {/* Profile header */}
       <section className="bg-brand-950 text-white">
         <div className="mx-auto max-w-5xl px-4 pb-6 pt-4 md:pb-8 md:pt-6">

@@ -1,7 +1,7 @@
 // CasaVilla service worker: makes the app installable, keeps app assets on the phone
 // so it opens fast, and copes with flaky connections (some networks drop or block requests).
 // Private pages (rent, payments, dashboards) always come fresh from the server and are never stored.
-const VERSION = "cv-v34";
+const VERSION = "cv-v35";
 const PAGES = "cv-pages-v1";
 const PHOTOS = "cv-photos-v1"; // public listing photos, kept on the phone so they open instantly next time
 const MAX_PHOTOS = 250;
@@ -9,7 +9,7 @@ const SHELL = ["/offline.html", "/launch.jpg", "/logo.png", "/logo-light.png", "
 
 // Public marketplace pages: kept as a fallback so the app still opens (with a "not up to date" note) when the
 // network fails. Nothing behind sign-in is kept, and nothing rendered for a signed-in person.
-const PUBLIC = /^\/($|listings(\/\d+)?$|stays(\/\d+)?$|sale(\/\d+)?$|services$|shop$)/;
+const PUBLIC = /^\/($|listings(\/\d+[\w-]*)?$|stays(\/\d+[\w-]*)?$|sale(\/\d+[\w-]*)?$|services$|shop$|(houses-for-rent|short-stays|land-for-sale|houses-for-sale)\/[\w-]+$)/;
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(VERSION).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
