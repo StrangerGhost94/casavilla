@@ -10,8 +10,9 @@ export async function PublicHeader() {
   const u = await getUser();
   return (
     <>
-      {/* Dark like the hero and the status bar, so the iPhone clock/battery stay readable and there is no white band. */}
-      <header className="no-print sticky top-0 z-30 bg-brand-950 pt-[env(safe-area-inset-top)] text-white">
+      {/* Dark like the hero and the status bar, so the iPhone clock/battery stay readable and there is no white band.
+          The extra top space (×1.45, zero on computers) keeps the white logo tile below the soft blur newer iPhones draw under the clock. */}
+      <header className="no-print sticky top-0 z-30 bg-brand-950 pt-[calc(env(safe-area-inset-top)*1.45)] text-white">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 md:h-16">
           <Link href="/" aria-label="CasaVilla home" className="flex items-center"><Logo tile size="sm" className="[&_img]:h-8 md:[&_img]:h-10" /></Link>
           <nav className="hidden items-center gap-1 md:flex">
