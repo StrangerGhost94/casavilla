@@ -6,8 +6,10 @@ import { CONTACT, tel } from "@/lib/social";
 import { ORG_ID, abs, breadcrumbLd, planHref } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
 import { PlanCard, ProjectCard } from "@/components/BuildCards";
+import { MyBuildCard } from "@/components/MyBuildCard";
+import { getUser } from "@/lib/auth";
 
-export const revalidate = 600;
+export const dynamic = "force-dynamic";
 export const metadata = {
   title: "House Construction, Building Plans & Approvals in Kampala, Uganda",
   description: "Build with CasaVilla: architectural house plans, building approval from KCCA or your municipality, bills of quantities, and construction of houses, apartments and commercial buildings in Kampala, Wakiso, Mukono and across Uganda. Free consultation.",
@@ -26,6 +28,7 @@ const FAQS: [string, string][] = [
 ];
 
 export default async function Build() {
+  const me = await getUser();
   const [plans, projects, nPlans] = await Promise.all([
     db.housePlan.findMany({ where: { published: true }, orderBy: [{ sort: "asc" }, { id: "desc" }], take: 6, include: { _count: { select: { photos: true } } } }),
     db.buildProject.findMany({ where: { published: true }, orderBy: [{ year: "desc" }, { id: "desc" }], take: 9 }),
@@ -67,6 +70,7 @@ export default async function Build() {
       </section>
 
       <div className="mx-auto max-w-6xl px-4">
+        {me && <MyBuildCard u={me} className="mt-6" />}
         <section className="mt-8">
           <h2 className="h2">What we do</h2>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

@@ -19,10 +19,10 @@ const BASE = "/manager/build";
 const pill = (s: string) => <Badge color={REQUEST_STATUS[s]?.tone ?? "gray"}>{REQUEST_STATUS[s]?.label ?? s}</Badge>;
 const photoActions = { upload: uploadBuildPhoto, cover: setBuildCover, remove: deleteBuildPhoto };
 
-export function BuildTabs({ active, newCount }: { active: "requests" | "plans" | "projects"; newCount?: number }) {
+export function BuildTabs({ active, newCount }: { active: "requests" | "sites" | "plans" | "projects"; newCount?: number }) {
   return (
     <div className="mb-4 flex flex-wrap gap-2">
-      {([["requests", BASE, `Requests${newCount ? ` (${newCount} new)` : ""}`], ["plans", `${BASE}/plans`, "House plans"], ["projects", `${BASE}/projects`, "Our work"]] as const).map(([k, href, label]) => (
+      {([["requests", BASE, `Requests${newCount ? ` (${newCount} new)` : ""}`], ["sites", `${BASE}/sites`, "Builds"], ["plans", `${BASE}/plans`, "House plans"], ["projects", `${BASE}/projects`, "Our work"]] as const).map(([k, href, label]) => (
         <Link key={k} href={href} className={active === k ? "chip-active" : "chip"}>{label}</Link>
       ))}
       <Link href="/build" className="ml-auto flex items-center gap-1 text-xs font-semibold text-brand-700 hover:underline">Public page <ExternalLink className="h-3 w-3" /></Link>
@@ -79,7 +79,7 @@ export async function RequestList({ tab = "open" }: { tab?: string }) {
 }
 
 export async function RequestDetail({ id }: { id: number }) {
-  const r = await db.buildRequest.findUnique({ where: { id }, include: { plan: true, saleListing: true, user: { select: { id: true, role: true } } } });
+  const r = await db.buildRequest.findUnique({ where: { id }, include: { plan: true, saleListing: true, user: { select: { id: true, role: true } }, site: { select: { id: true, title: true } } } });
   if (!r) notFound();
   const first = r.name.split(" ")[0];
   const wa = `https://wa.me/${r.phone.replace("+", "")}?text=${encodeURIComponent(`Hello ${first}, this is CasaVilla about your building request.`)}`;
@@ -117,6 +117,14 @@ export async function RequestDetail({ id }: { id: number }) {
         {rows.map(([k, v]) => <div key={k} className="flex justify-between gap-3 py-0.5"><span className="text-stone-500">{k}</span><span className="text-right text-stone-800">{v}</span></div>)}
         {r.message && <p className="mt-2 whitespace-pre-line break-words rounded-xl bg-stone-50 p-3 text-stone-700">{r.message}</p>}
       </div>
+      {r.site ? (
+        <Link href={`${BASE}/sites/${r.site.id}`} className="card flex items-center justify-between gap-3 border-brand-100 bg-brand-50/60 text-sm text-brand-900 hover:border-brand-200"><span><b>Build under way:</b> {r.site.title}</span><span className="font-semibold">Open →</span></Link>
+      ) : r.status !== "lost" && (
+        <div className="card flex flex-wrap items-center justify-between gap-3 text-sm">
+          <span className="text-stone-600">Client agreed? Set up the build so they can follow it and pay stages in the app.</span>
+          <Link href={`${BASE}/sites/new?request=${r.id}`} className="btn-primary btn-sm">Start the build</Link>
+        </div>
+      )}
       <form action={updateBuildRequest} className="card space-y-3">
         <input type="hidden" name="id" value={r.id} />
         <div className="font-semibold text-brand-950">Follow-up</div>

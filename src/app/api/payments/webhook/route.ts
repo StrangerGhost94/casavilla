@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { verifyCharge } from "@/lib/momo";
 import { completePayment, failPayment } from "@/lib/billing";
 import { confirmBooking, failBooking } from "@/lib/stays";
+import { completeBuildPayment, failBuildPayment } from "@/lib/build-sites";
 
 // Flutterwave calls this when a mobile money charge settles. We never trust the body:
 // we check the secret hash, then re-verify the transaction with Flutterwave.
@@ -19,6 +20,15 @@ export async function POST(req: Request) {
       const r = await verifyCharge(b.reference, b.total);
       if (r === "success") await confirmBooking(b.id);
       if (r === "failed") await failBooking(b.id);
+    }
+    return NextResponse.json({ ok: true });
+  }
+  if (String(ref).startsWith("CP")) {
+    const bp = await db.buildPayment.findUnique({ where: { reference: String(ref) } });
+    if (bp && bp.status === "pending") {
+      const r = await verifyCharge(bp.reference, bp.amount);
+      if (r === "success") await completeBuildPayment(bp.id);
+      if (r === "failed") await failBuildPayment(bp.id);
     }
     return NextResponse.json({ ok: true });
   }

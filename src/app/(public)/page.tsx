@@ -9,6 +9,7 @@ import { Photo } from "@/components/ui";
 import { PropertyCard, StayCard } from "@/components/PropertyCard";
 import { SaleCard } from "@/components/SaleCard";
 import { PlanCard } from "@/components/BuildCards";
+import { MyBuildCard } from "@/components/MyBuildCard";
 import { MarketSearch } from "@/components/MarketSearch";
 import { Journey } from "@/components/Journey";
 import { MobileFooter } from "@/components/SiteFooter";
@@ -147,6 +148,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
 
       <div className="relative z-10 mx-auto -mt-5 max-w-6xl rounded-t-3xl bg-cream px-4 pt-4 md:rounded-none md:pt-8">
         {u && <div className="mb-4"><MyStrip u={u} /></div>}
+        {u && <MyBuildCard u={u} className="mb-4" />}
 
         <nav aria-label="Browse the marketplace" className="mb-5 grid grid-cols-3 gap-2 md:grid-cols-6 md:gap-3">
           {categories.map(([href, label, I, n, unit]) => (

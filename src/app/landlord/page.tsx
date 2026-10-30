@@ -12,6 +12,7 @@ import { AreaReport } from "@/components/AreaReport";
 import { missingCount } from "@/lib/efris";
 import { PushToggle } from "@/components/PushToggle";
 import { pushPublicKey } from "@/lib/push";
+import { MyBuildCard } from "@/components/MyBuildCard";
 
 export default async function LandlordHome() {
   const u = await requireUser("landlord");
@@ -66,6 +67,7 @@ export default async function LandlordHome() {
 
       <SmartPanel landlordId={u.id} base="/landlord" />
 
+      <MyBuildCard u={u} className="mt-6" />
       {/* CasaVilla's design & build: more units for a landlord who already rents through us */}
       <Link href="/build/start?kind=apartments" className="group mt-6 flex items-center gap-4 rounded-3xl bg-brand-900 p-4 text-white md:p-5">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gold-400 text-brand-950"><HardHat className="h-5 w-5" /></span>

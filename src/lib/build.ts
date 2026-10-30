@@ -70,3 +70,25 @@ export function planFacts(p: { style: string; bedrooms: number | null; bathrooms
     p.areaSqm ? `${p.areaSqm} m²` : null,
   ].filter(Boolean).join(" · ");
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Building sites (agreed jobs)
+
+export const SITE_STATUS: Record<string, { label: string; tone: "green" | "gold" | "gray" | "red" | "blue" }> = {
+  active: { label: "Under way", tone: "green" }, on_hold: { label: "On hold", tone: "gold" },
+  handed_over: { label: "Handed over", tone: "blue" }, cancelled: { label: "Cancelled", tone: "gray" },
+};
+export const SITE_STATUS_KEYS = ["active", "on_hold", "handed_over", "cancelled"] as const;
+
+export const STAGE_STATUS: Record<string, { label: string; tone: "green" | "gold" | "gray" | "red" | "blue" }> = {
+  upcoming: { label: "Coming up", tone: "gray" }, in_progress: { label: "In progress", tone: "gold" }, done: { label: "Done", tone: "green" },
+};
+export const STAGE_STATUS_KEYS = ["upcoming", "in_progress", "done"] as const;
+
+/** A starting split of the contract sum (staff change names and amounts per job). Percentages add up to 100. */
+export const STAGE_TEMPLATE: [string, number][] = [
+  ["Deposit & mobilisation", 20], ["Foundation", 15], ["Walls to ring beam", 20], ["Roofing", 15],
+  ["Plastering, plumbing & wiring", 15], ["Finishes & handover", 15],
+];
+
+export const PAY_METHOD: Record<string, string> = { mtn: "MTN Mobile Money", airtel: "Airtel Money", cash: "Cash", bank: "Bank transfer" };

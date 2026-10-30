@@ -87,6 +87,10 @@ model User {
   saleListings     SaleListing[]
   saleEnquiries    SaleEnquiry[]
   buildRequests    BuildRequest[]
+  buildSites       BuildSite[]           @relation("BuildClient")
+  buildUpdates     BuildUpdate[]
+  buildPayments    BuildPayment[]        @relation("BuildPayer")
+  buildRecorded    BuildPayment[]        @relation("BuildRecorder")
   efrisProfile     EfrisProfile?
   efrisRecorded    EfrisReceipt[]        @relation("EfrisRecordedBy")
   efrisCredits     EfrisCreditNote[]     @relation("EfrisCreditBy")
@@ -1296,6 +1300,7 @@ model HousePlan {
   updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at")
   photos      BuildPhoto[]
   requests    BuildRequest[]
+  sites       BuildSite[]
 
   @@index([published, sort])
   @@map("house_plans")
@@ -1364,10 +1369,120 @@ model BuildRequest {
   /// CasaVilla's quote in UGX, once given
   quote         Float?
   staffNote     String?      @map("staff_note")
+  site          BuildSite?
   createdAt     DateTime     @default(now()) @map("created_at")
   updatedAt     DateTime     @default(now()) @updatedAt @map("updated_at")
 
   @@index([status, createdAt])
   @@index([phone, createdAt])
   @@map("build_requests")
+}
+
+/// A building job CasaVilla has agreed with a client: stages paid one by one, with progress updates from the site.
+model BuildSite {
+  id          Int            @id @default(autoincrement())
+  requestId   Int?           @unique @map("request_id")
+  request     BuildRequest?  @relation(fields: [requestId], references: [id], onDelete: SetNull)
+  /// The client's account (linked by staff, or automatically when they sign in with the same verified phone)
+  clientId    Int?           @map("client_id")
+  client      User?          @relation("BuildClient", fields: [clientId], references: [id], onDelete: SetNull)
+  clientName  String         @map("client_name")
+  clientPhone String         @map("client_phone")
+  planId      Int?           @map("plan_id")
+  plan        HousePlan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  title       String
+  location    String
+  /// Agreed price in UGX
+  contractSum Float          @map("contract_sum")
+  startDate   DateTime?      @map("start_date") @db.Date
+  targetDate  DateTime?      @map("target_date") @db.Date
+  /// active | on_hold | handed_over | cancelled
+  status      String         @default("active")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at")
+  stages      BuildStage[]
+  updates     BuildUpdate[]
+  payments    BuildPayment[]
+
+  @@index([clientId])
+  @@index([clientPhone])
+  @@map("build_sites")
+}
+
+/// One stage of a build (e.g. foundation, roofing) and what the client pays for it.
+model BuildStage {
+  id        Int            @id @default(autoincrement())
+  siteId    Int            @map("site_id")
+  site      BuildSite      @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  sort      Int            @default(0)
+  name      String
+  /// UGX due for this stage
+  amount    Float
+  /// upcoming | in_progress | done
+  status    String         @default("upcoming")
+  startedAt DateTime?      @map("started_at")
+  doneAt    DateTime?      @map("done_at")
+  updates   BuildUpdate[]
+  payments  BuildPayment[]
+
+  @@index([siteId, sort])
+  @@map("build_stages")
+}
+
+/// A progress note from the site, with photos.
+model BuildUpdate {
+  id        Int                @id @default(autoincrement())
+  siteId    Int                @map("site_id")
+  site      BuildSite          @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  stageId   Int?               @map("stage_id")
+  stage     BuildStage?        @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  authorId  Int?               @map("author_id")
+  author    User?              @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  note      String
+  createdAt DateTime           @default(now()) @map("created_at")
+  photos    BuildUpdatePhoto[]
+
+  @@index([siteId, createdAt])
+  @@map("build_updates")
+}
+
+model BuildUpdatePhoto {
+  id        Int         @id @default(autoincrement())
+  updateId  Int         @map("update_id")
+  update    BuildUpdate @relation(fields: [updateId], references: [id], onDelete: Cascade)
+  fileId    Int         @map("file_id")
+  sort      Int         @default(0)
+  isCover   Boolean     @default(false) @map("is_cover")
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  @@index([updateId])
+  @@map("build_update_photos")
+}
+
+/// Money from the client toward the build: Mobile Money in the app, or cash / bank recorded by staff.
+model BuildPayment {
+  id           Int         @id @default(autoincrement())
+  siteId       Int         @map("site_id")
+  site         BuildSite   @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  stageId      Int?        @map("stage_id")
+  stage        BuildStage? @relation(fields: [stageId], references: [id], onDelete: SetNull)
+  payerId      Int?        @map("payer_id")
+  payer        User?       @relation("BuildPayer", fields: [payerId], references: [id], onDelete: SetNull)
+  amount       Float
+  /// mtn | airtel | cash | bank
+  method       String
+  phone        String?
+  reference    String      @unique
+  /// pending | success | failed
+  status       String      @default("pending")
+  receiptNo    String?     @unique @map("receipt_no")
+  note         String?
+  recordedById Int?        @map("recorded_by_id")
+  recordedBy   User?       @relation("BuildRecorder", fields: [recordedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime    @default(now()) @map("created_at")
+  paidAt       DateTime?   @map("paid_at")
+
+  @@index([siteId, status])
+  @@index([status, createdAt])
+  @@map("build_payments")
 }

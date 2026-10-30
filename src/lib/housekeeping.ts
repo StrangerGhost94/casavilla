@@ -6,6 +6,7 @@ import { fmtDate, kampalaToday, ugx, ymd } from "./format";
 import { sendQueuedEmails } from "./mail";
 import { appUrl, queueMessage, sendQueuedMessages } from "./messaging";
 import { expireStaleBookings } from "./stays";
+import { expireStaleBuildPayments } from "./build-sites";
 import { sendQueuedPayouts } from "./payouts";
 import { followCreditNotes, retryEfris } from "./efris";
 import { taxReminders } from "./tax";
@@ -29,6 +30,7 @@ export async function runHousekeeping(force = false) {
     out.reminders = await rentReminders() + await leaseReminders();
     out.escalations = await jobEscalations() + await stockAlerts();
     await expireStaleBookings().catch((e) => console.error("bookings sweep", e));
+    await expireStaleBuildPayments().catch((e) => console.error("build payments sweep", e));
     await sendQueuedEmails().catch((e) => console.error("email sweep", e));
     await sendQueuedMessages().catch((e) => console.error("message sweep", e));
     await sendQueuedPayouts().catch((e) => console.error("payout sweep", e));
