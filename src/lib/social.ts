@@ -22,4 +22,7 @@ export const CONTACT = {
   maps: "https://www.google.com/maps/search/?api=1&query=Rubaga+Road,+Kampala,+Uganda",
 };
 
+/** WhatsApp chat with CasaVilla, optionally with a message typed in for them. */
+export const waLink = (text?: string) => `${CONTACT.whatsapp}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
+
 export const tel = (phone: string) => `tel:${phone.replace(/\s/g, "")}`;

@@ -3,6 +3,7 @@ import { startTransition, useActionState, useState } from "react";
 import { Building, Check, DraftingCompass, Hammer, Home, Loader2, MessageCircle, Store } from "lucide-react";
 import { sendBuildRequest } from "@/app/build-actions";
 import { BUILD_KINDS, PLOT, TIMELINE, type BuildKind } from "@/lib/build";
+import { waLink } from "@/lib/social";
 
 const ICON: Record<BuildKind, typeof Home> = { house: Home, apartments: Building, commercial: Store, renovation: Hammer, plans: DraftingCompass };
 
@@ -22,7 +23,7 @@ export function BuildRequestForm({ me, kind: initialKind = "house", planId, sale
       <div className="rounded-2xl bg-brand-50 p-5 text-sm text-brand-900">
         <div className="flex items-center gap-2 text-base font-semibold"><Check className="h-5 w-5" /> Thank you — we have your request</div>
         <p className="mt-1.5 text-brand-800">CasaVilla's building team will call you to talk it through and arrange a site visit. Keep your phone near.</p>
-        <a href={`https://wa.me/256776593482?text=${encodeURIComponent("Hello CasaVilla, I've just sent a build request on the website.")}`} className="btn-outline btn-sm mt-3"><MessageCircle className="h-4 w-4" /> Chat on WhatsApp now</a>
+        <a href={waLink("Hello CasaVilla, I've just sent a build request on the website.")} className="btn-outline btn-sm mt-3"><MessageCircle className="h-4 w-4" /> Chat on WhatsApp now</a>
       </div>
     );
   }

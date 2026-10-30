@@ -7,6 +7,7 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { SearchBand } from "@/components/ListingParts";
 import { CategoryTile, ProviderCard } from "@/components/MarketCards";
 import { crumbText, trailFor } from "@/lib/geo";
+import { waLink } from "@/lib/social";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -39,7 +40,7 @@ export default async function Services({ searchParams }: { searchParams: Promise
   };
   const sortLabel = sorts.find(([k]) => k === (sp.sort ?? ""))?.[1] ?? "Top rated";
   const label = category ? categoryLabel[category] ?? category : null;
-  const wa = `https://wa.me/256776593482?text=${encodeURIComponent(`Hello CasaVilla, I need ${label ? label.toLowerCase() : "help at home"}${area.length > 1 ? ` in ${area[area.length - 1].name}` : ""}.`)}`;
+  const wa = waLink(`Hello CasaVilla, I need ${label ? label.toLowerCase() : "help at home"}${area.length > 1 ? ` in ${area[area.length - 1].name}` : ""}.`);
 
   return (
     <main>

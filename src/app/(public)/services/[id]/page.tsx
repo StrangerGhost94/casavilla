@@ -14,6 +14,7 @@ import { Submit } from "@/components/client";
 import { bookService } from "@/app/market-actions";
 import { ActionBar } from "@/components/ListingParts";
 import { ProductCard, Stars } from "@/components/MarketCards";
+import { waLink } from "@/lib/social";
 
 export const dynamic = "force-dynamic";
 
@@ -43,7 +44,7 @@ export default async function ProviderPage({ params }: { params: Promise<{ id: s
   const name = p.businessName || p.name;
   const areas = p.serviceAreas.length ? p.serviceAreas.map((a) => a.location.name) : [p.area || "Kampala"];
   const prices = svcs.map((s) => s.priceFrom).filter((n): n is number => n != null);
-  const wa = `https://wa.me/256776593482?text=${encodeURIComponent(`Hello CasaVilla, I'd like to book ${name}.`)}`;
+  const wa = waLink(`Hello CasaVilla, I'd like to book ${name}.`);
 
   return (
     <main>

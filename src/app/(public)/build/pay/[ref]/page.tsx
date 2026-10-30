@@ -6,7 +6,7 @@ import { ugx } from "@/lib/format";
 import { provider, verifyCharge } from "@/lib/momo";
 import { canSeeSite, completeBuildPayment, failBuildPayment } from "@/lib/build-sites";
 import { sandboxBuildPay } from "@/app/build-site-actions";
-import { AutoRefresh, Submit } from "@/components/client";
+import { PayPending } from "@/components/PayPending";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Payment status", robots: { index: false } };
@@ -29,23 +29,7 @@ export default async function BuildPay({ params }: { params: Promise<{ ref: stri
         <div className="text-sm text-stone-500">{p.site.title}{p.stage ? ` · ${p.stage.name}` : ""}</div>
         <div className="mt-1 text-3xl font-bold">{ugx(p.amount)}</div>
         <div className="text-xs uppercase text-stone-500">{p.method} · {p.phone}</div>
-        {p.status === "pending" && (
-          <div className="mt-6">
-            <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
-            <div className="mt-3 font-semibold">Approve the payment on your phone…</div>
-            <div className="muted">Enter your Mobile Money PIN when prompted. This page updates automatically.</div>
-            {provider !== "sandbox" && <AutoRefresh seconds={5} />}
-            {provider === "sandbox" && (
-              <div className="mt-5 rounded-lg bg-amber-50 p-3 text-left text-xs text-amber-800">
-                <div className="mb-2 font-semibold">Test mode — simulate the customer&apos;s response:</div>
-                <div className="flex gap-2">
-                  <form action={sandboxBuildPay}><input type="hidden" name="ref" value={ref} /><input type="hidden" name="outcome" value="approve" /><Submit className="btn-primary btn-sm">Approve payment</Submit></form>
-                  <form action={sandboxBuildPay}><input type="hidden" name="ref" value={ref} /><input type="hidden" name="outcome" value="decline" /><Submit className="btn-outline btn-sm">Decline</Submit></form>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
+        {p.status === "pending" && <PayPending reference={ref} sandbox={sandboxBuildPay} />}
         {p.status === "success" && (
           <div className="mt-6">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-500 text-2xl text-white">✓</div>

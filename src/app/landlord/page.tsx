@@ -13,18 +13,21 @@ import { missingCount } from "@/lib/efris";
 import { PushToggle } from "@/components/PushToggle";
 import { pushPublicKey } from "@/lib/push";
 import { MyBuildCard } from "@/components/MyBuildCard";
+import { LandlordSetup } from "@/components/LandlordSetup";
 
 export default async function LandlordHome() {
   const u = await requireUser("landlord");
   await ensureChargesFor("landlord", u.id);
   const s = await portfolioStats(u.id);
-  const [pendingApps, openJobs, vacant, rentRoll, efrisMissing] = await Promise.all([
+  const [pendingApps, openJobs, vacant, rentRoll, efrisMissing, viewingAsks, buyerEnquiries] = await Promise.all([
     db.application.count({ where: { status: "pending", unit: { property: { landlordId: u.id } } } })
       .then(async (n) => n + await db.tenantLink.count({ where: { status: "pending", landlordId: u.id } })),
     db.job.count({ where: { landlordId: u.id, status: { notIn: ["done", "cancelled"] } } }),
     db.unit.count({ where: { status: "vacant", property: { landlordId: u.id } } }),
     db.lease.aggregate({ _sum: { rent: true }, where: { landlordId: u.id, status: "active" } }),
     missingCount(u.id),
+    db.viewing.count({ where: { hostId: u.id, status: "requested" } }),
+    db.saleEnquiry.count({ where: { status: "new", listing: { ownerId: u.id } } }),
   ]);
   const occ = s.units ? Math.round((s.occupied / s.units) * 100) : 0;
   return (
@@ -42,12 +45,15 @@ export default async function LandlordHome() {
         <MiniStat href="/landlord/properties" icon={<Building2 className="h-[18px] w-[18px]" />} value={`${occ}% let`} label={`${s.occupied} of ${s.units} units · ${vacant} vacant`} hint={`Rent roll ${ugx(rentRoll._sum.rent ?? 0)} / month`} />
       </div>
 
+      <LandlordSetup u={u} />
       <div className="mt-3 empty:hidden"><PushToggle publicKey={pushPublicKey()} variant="card" text="Know the moment a tenant pays, applies or reports a repair, straight on this phone." /></div>
 
       <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         <TodoList rows={[
           { href: "/landlord/tenants", count: s.lateTenants, label: "Tenants with overdue rent", tone: "red" },
           { href: "/landlord/applications", count: pendingApps, label: "Applications & tenants to confirm", tone: "blue" },
+          { href: "/viewings", count: viewingAsks, label: "Viewing requests to confirm", tone: "blue" },
+          { href: "/landlord/sale", count: buyerEnquiries, label: "New buyer enquiries", tone: "blue" },
           { href: "/landlord/maintenance", count: openJobs, label: "Open maintenance requests", tone: "gold" },
           { href: "/landlord/efris", count: efrisMissing, label: "Payments waiting for an EFRIS receipt", tone: "gold" },
           { href: "/landlord/tenants#former", count: s.pastTenants, label: "Former tenants who still owe", tone: "gold" },

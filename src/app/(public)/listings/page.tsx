@@ -9,6 +9,7 @@ import { NearMe } from "@/components/NearMe";
 import { DiscoverTabs } from "@/components/DiscoverTabs";
 import { crumbText, trailFor } from "@/lib/geo";
 import { fmtKm, inUganda } from "@/lib/geo-core";
+import { waLink } from "@/lib/social";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -49,7 +50,7 @@ export default async function Listings({ searchParams }: { searchParams: Promise
     ...(sp.sc === "1" ? [["Self-contained", href({ sc: undefined })] as [string, string]] : []),
   ];
   const heading = near ? `Within ${fmtKm(km)} of you` : area.length > 1 ? `Homes in ${area[area.length - 1].name}` : sp.q ? `Homes matching “${sp.q}”` : "Homes to rent";
-  const wa = `https://wa.me/256776593482?text=${encodeURIComponent(`Hello CasaVilla, I'm looking for a home to rent${sp.q ? ` in ${sp.q}` : ""}${sp.beds ? `, ${sp.beds}+ bedrooms` : ""}${sp.max ? `, up to ${ugx(Number(sp.max))} a month` : ""}.`)}`;
+  const wa = waLink(`Hello CasaVilla, I'm looking for a home to rent${sp.q ? ` in ${sp.q}` : ""}${sp.beds ? `, ${sp.beds}+ bedrooms` : ""}${sp.max ? `, up to ${ugx(Number(sp.max))} a month` : ""}.`);
 
   return (
     <main>

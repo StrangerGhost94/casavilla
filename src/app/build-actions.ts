@@ -8,12 +8,11 @@ import { audit } from "@/lib/audit";
 import { notifyManagers } from "@/lib/notify";
 import { saveUpload } from "@/lib/uploads";
 import { normalizePhone } from "@/lib/format";
-import { id, oneOf, reqText, text } from "@/lib/validate";
+import { id, num, oneOf, reqText, text } from "@/lib/validate";
 import { BUILD_KIND_KEYS, BUILD_KINDS, PLAN_STYLE_KEYS, PLOT, PROJECT_KINDS, REQUEST_STATUS, REQUEST_STATUS_KEYS, TIMELINE } from "@/lib/build";
 import { shortUgx } from "@/lib/sales";
 
 const refresh = () => revalidatePath("/", "layout");
-const num = (fd: FormData, k: string) => { const v = String(fd.get(k) ?? "").replace(/[,\s]/g, ""); return v === "" ? null : Number(v); };
 const keys = <T extends object>(o: T) => Object.keys(o) as (keyof T & string)[];
 
 export type BuildRequestState = { ok?: boolean; error?: string } | undefined;

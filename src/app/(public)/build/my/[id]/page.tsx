@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { ArrowLeft, Landmark, MessageCircle, Phone } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { MOMO_MAX, canSeeSite, siteSummary } from "@/lib/build-sites";
-import { CONTACT, tel } from "@/lib/social";
+import { CONTACT, tel, waLink } from "@/lib/social";
 import { BuildPayForm } from "@/components/BuildPayForm";
 import { MoneyCards, PaymentList, SiteHeader, StageList, UpdateFeed } from "@/components/BuildSiteView";
 
@@ -17,7 +17,7 @@ export default async function MyBuild({ params }: { params: Promise<{ id: string
   const s = sum.site;
   const payable = sum.stages.filter((st) => st.balance > 0).map((st) => ({ id: st.id, name: st.name, balance: st.balance }));
   const open = ["active", "on_hold"].includes(s.status);
-  const wa = `https://wa.me/256776593482?text=${encodeURIComponent(`Hello CasaVilla, about my building project “${s.title}”.`)}`;
+  const wa = waLink(`Hello CasaVilla, about my building project “${s.title}”.`);
   return (
     <main className="pb-24">
       <SiteHeader sum={sum} back={<Link href={u.role === "manager" ? `/manager/build/sites/${s.id}` : "/build/my"} className="inline-flex items-center gap-1 text-sm text-white/70 hover:text-white"><ArrowLeft className="h-4 w-4" /> {u.role === "manager" ? "Manage this site" : "My projects"}</Link>} />

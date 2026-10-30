@@ -62,7 +62,7 @@ const roles = [
   { id: "provider", title: "Service provider", body: "Offer your services, get hired", icon: Wrench, tone: "bg-brand-800 text-gold-300" },
 ] as const;
 
-export function RegisterForm({ role: initial, next, messaging = false }: { role?: string; next?: string; messaging?: boolean }) {
+export function RegisterForm({ role: initial, next, messaging = false, landlordPhone }: { role?: string; next?: string; messaging?: boolean; landlordPhone?: string }) {
   const [state, action, pending] = useActionState(register, undefined);
   const [role, setRole] = useState<string>(roles.some((r) => r.id === initial) ? initial! : "tenant");
   const [editing, setEditing] = useState(false);
@@ -101,7 +101,7 @@ export function RegisterForm({ role: initial, next, messaging = false }: { role?
         <IconInput icon={Phone}><input name="phone" required inputMode="tel" className="input pl-11" placeholder="Phone (Mobile Money), e.g. 0772 123456" autoComplete="tel" /></IconInput>
         <IconInput icon={Mail}><input name="email" type="email" required className="input pl-11" placeholder="Email address" autoComplete="email" /></IconInput>
         <PasswordInput autoComplete="new-password" minLength={8} />
-        {role === "tenant" && <ExistingTenant />}
+        {role === "tenant" && <ExistingTenant landlordPhone={landlordPhone} />}
         {messaging && <label className="flex items-start gap-2.5 text-xs text-stone-600">
           <input type="checkbox" defaultChecked onChange={(e) => { const h = e.currentTarget.form?.elements.namedItem("optIn") as HTMLInputElement | null; if (h) h.value = e.currentTarget.checked ? "on" : "off"; }} className="mt-0.5 h-4 w-4 shrink-0 rounded accent-brand-700" />
           <span>Send me rent reminders, receipts and updates on WhatsApp or SMS</span>
@@ -185,9 +185,9 @@ export function ForgotForm() {
   );
 }
 
-/** "Already renting?" — links a new tenant to their landlord by the landlord's phone number. */
-export function ExistingTenant() {
-  const [on, setOn] = useState(false);
+/** "Already renting?" — links a new tenant to their landlord by the landlord's phone number (filled in from a landlord's invite link). */
+export function ExistingTenant({ landlordPhone }: { landlordPhone?: string }) {
+  const [on, setOn] = useState(!!landlordPhone);
   return (
     <div className={`rounded-2xl border p-3.5 transition ${on ? "border-brand-700 bg-brand-50/60" : "border-stone-200 bg-white"}`}>
       <label className="flex cursor-pointer items-start gap-3">
@@ -199,7 +199,7 @@ export function ExistingTenant() {
       </label>
       {on && (
         <div className="mt-3 space-y-2.5">
-          <IconInput icon={KeyRound}><input name="landlordPhone" required inputMode="tel" className="input pl-11" placeholder="Landlord's phone, e.g. 0772 123456" /></IconInput>
+          <IconInput icon={KeyRound}><input name="landlordPhone" required inputMode="tel" defaultValue={landlordPhone} className="input pl-11" placeholder="Landlord's phone, e.g. 0772 123456" /></IconInput>
           <input name="unitNote" className="input" maxLength={120} placeholder="Your house / unit (optional), e.g. Rubaga Court Apt A2" />
           <p className="text-[11px] text-stone-500">Your landlord confirms before anything is linked. If they&apos;re not on CasaVilla yet, we&apos;ll invite them and connect you when they join.</p>
         </div>

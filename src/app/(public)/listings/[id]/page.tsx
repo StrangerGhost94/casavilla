@@ -19,6 +19,7 @@ import { crumbText, trailFor } from "@/lib/geo";
 import { AroundHere, LivingHere } from "@/components/AroundHere";
 import { homeNoun, homeTitle, PropertyCard } from "@/components/PropertyCard";
 import { listedUnits } from "@/lib/queries";
+import { CONTACT, tel, waLink } from "@/lib/social";
 
 export const dynamic = "force-dynamic";
 
@@ -54,7 +55,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const existing = user?.role === "tenant"
     ? await db.application.findFirst({ where: { unitId: unit.id, tenantId: user.id }, orderBy: { createdAt: "desc" } })
     : null;
-  const wa = `https://wa.me/256776593482?text=${encodeURIComponent(`Hello CasaVilla, I'm interested in ${property.name} ${unit.label} (${property.location}).`)}`;
+  const wa = waLink(`Hello CasaVilla, I'm interested in ${property.name} ${unit.label} (${property.location}).`);
   const trail = await trailFor(property.locationId);
   const area = [...trail].reverse().find((c) => ["subcounty", "county", "district"].includes(c.level));
   // Similar: other vacant homes within about a third of this rent, nearest in price first.
@@ -182,7 +183,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               </div>
             )}
             <div className="mt-3 grid grid-cols-2 gap-2">
-              <a href="tel:+256776593482" className="btn-outline"><Phone className="h-4 w-4" /> Call</a>
+              <a href={tel(CONTACT.phones[0])} className="btn-outline"><Phone className="h-4 w-4" /> Call</a>
               <a href={wa} className="btn-outline"><MessageCircle className="h-4 w-4" /> WhatsApp</a>
             </div>
             <p className="mt-3 text-center text-[11px] text-stone-400">CasaVilla never asks for money before you&apos;ve seen the home.</p>

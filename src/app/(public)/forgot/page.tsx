@@ -1,6 +1,7 @@
 import { ForgotForm } from "@/components/AuthForms";
 import { Logo } from "@/components/ui";
 import { otpMode } from "@/lib/messaging";
+import { waLink } from "@/lib/social";
 
 export const metadata = { title: "Reset password" };
 export const dynamic = "force-dynamic";
@@ -15,7 +16,7 @@ export default function Forgot() {
         {off ? (
           <>
             <p className="muted mb-6 mt-1">Message CasaVilla on WhatsApp and we&apos;ll help you back into your account.</p>
-            <a href="https://wa.me/256776593482?text=Hello%20CasaVilla%2C%20I%20forgot%20my%20password." className="btn-primary btn-lg w-full">Message us on WhatsApp</a>
+            <a href={waLink("Hello CasaVilla, I forgot my password.")} className="btn-primary btn-lg w-full">Message us on WhatsApp</a>
           </>
         ) : (
           <>

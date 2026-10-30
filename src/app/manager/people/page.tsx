@@ -10,7 +10,7 @@ import { setUserStatus, createStaff } from "../actions";
 export default async function People({ searchParams }: { searchParams: Promise<{ role?: string; status?: string; q?: string }> }) {
   const me = await requireUser("manager");
   const sp = await searchParams;
-  const roles = ["tenant", "landlord", "provider", "manager"] as const;
+  const roles = ["tenant", "landlord", "provider", "caretaker", "manager"] as const;
   const statuses = ["pending", "active", "suspended"] as const;
   const role = roles.find((r) => r === sp.role);
   const status = statuses.find((s) => s === sp.status);
@@ -27,7 +27,7 @@ export default async function People({ searchParams }: { searchParams: Promise<{
     <>
       <PageHeader title="People & approvals" subtitle="Approve landlords and providers before they go public. Suspend anyone who breaks the rules." />
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {tab("Everyone", "?")}{tab("Awaiting approval", "?status=pending")}{tab("Landlords", "?role=landlord")}{tab("Tenants", "?role=tenant")}{tab("Providers", "?role=provider")}{tab("Staff", "?role=manager")}
+        {tab("Everyone", "?")}{tab("Awaiting approval", "?status=pending")}{tab("Landlords", "?role=landlord")}{tab("Tenants", "?role=tenant")}{tab("Providers", "?role=provider")}{tab("Caretakers", "?role=caretaker")}{tab("Staff", "?role=manager")}
         <form className="ml-auto flex gap-2">
           {sp.role && <input type="hidden" name="role" value={sp.role} />}
           <input name="q" defaultValue={sp.q} className="input" placeholder="Search name, email, phone" />
@@ -40,7 +40,7 @@ export default async function People({ searchParams }: { searchParams: Promise<{
           <tbody>
             {list.map((u) => (
               <tr key={u.id}>
-                <td data-label="" className="font-medium">{u.businessName || u.name}{u.businessName && <div className="text-xs font-normal text-stone-500">{u.name}</div>}</td>
+                <td data-label="" className="font-medium"><Link href={`/manager/people/${u.id}`} className="hover:underline">{u.businessName || u.name}</Link>{u.businessName && <div className="text-xs font-normal text-stone-500">{u.name}</div>}</td>
                 <td data-label="Role" className="capitalize">{u.role}</td>
                 <td data-label="Contact">{u.phone}<div className="text-xs text-stone-500">{u.email}</div></td>
                 <td data-label="Joined" className="whitespace-nowrap">{fmtDate(u.createdAt)}</td>

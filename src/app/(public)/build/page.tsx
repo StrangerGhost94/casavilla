@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BadgeCheck, Calculator, ChevronRight, ClipboardCheck, DraftingCompass, FileCheck2, HardHat, Hammer, MessageCircle, Phone, Trees } from "lucide-react";
 import { db } from "@/db";
 import { BUILD_SERVICES, BUILD_STEPS } from "@/lib/build";
-import { CONTACT, tel } from "@/lib/social";
+import { CONTACT, tel, waLink } from "@/lib/social";
 import { ORG_ID, abs, breadcrumbLd, planHref } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
 import { PlanCard, ProjectCard } from "@/components/BuildCards";
@@ -34,7 +34,7 @@ export default async function Build() {
     db.buildProject.findMany({ where: { published: true }, orderBy: [{ year: "desc" }, { id: "desc" }], take: 9 }),
     db.housePlan.count({ where: { published: true } }),
   ]);
-  const wa = `https://wa.me/256776593482?text=${encodeURIComponent("Hello CasaVilla, I'd like to talk about building.")}`;
+  const wa = waLink("Hello CasaVilla, I'd like to talk about building.");
 
   return (
     <main>

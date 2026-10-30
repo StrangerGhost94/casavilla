@@ -13,6 +13,7 @@ import { Submit } from "@/components/client";
 import { LocationPicker } from "@/components/LocationPicker";
 import { setMyLocation } from "@/app/place-actions";
 import { crumbText, trailFor } from "@/lib/geo";
+import { CONTACT } from "@/lib/social";
 
 export const metadata = { title: "Profile" };
 
@@ -96,7 +97,7 @@ export default async function Profile() {
         ))}
 
         <div className="card mt-4 p-0">
-          <ListRow href="https://wa.me/256776593482" title="Contact CasaVilla" detail="WhatsApp +256 776 593 482"
+          <ListRow href={CONTACT.whatsapp} title="Contact CasaVilla" detail="WhatsApp +256 776 593 482"
             icon={<span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-50 text-gold-600"><MessageCircle className="h-[18px] w-[18px]" /></span>} />
         </div>
 

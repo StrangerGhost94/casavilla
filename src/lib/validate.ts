@@ -64,3 +64,6 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 /** Prisma unique-constraint violation (e.g. the one-active-lease-per-unit rule). */
 export const isUniqueViolation = (e: unknown) =>
   typeof e === "object" && e !== null && "code" in e && (e as { code?: string }).code === "P2002";
+
+/** A number typed with or without commas/spaces ("1,500,000"), or null when blank (callers range-check it). */
+export const num = (fd: FormData, k: string) => { const v = String(fd.get(k) ?? "").replace(/[,\s]/g, ""); return v === "" ? null : Number(v); };

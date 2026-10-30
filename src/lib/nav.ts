@@ -22,6 +22,7 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/stays", label: "Short stays", icon: "calendar" },
     { href: "/sale", label: "Land & property for sale", icon: "tag" },
     { href: "/services", label: "Book a service", icon: "sparkles" },
+    { href: "/build", label: "Build a home", icon: "hardHat" },
   ],
   landlord: [
     { href: "/landlord", label: "Dashboard", icon: "home" },
@@ -42,6 +43,7 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/landlord/utilities", label: "Utilities & meters", icon: "zap" },
     { href: "/landlord/caretakers", label: "Caretakers", icon: "userCog" },
     { href: "/services", label: "Service providers", icon: "sparkles", group: "Marketplace" },
+    { href: "/build", label: "Build or extend", icon: "hardHat" },
     { href: "/shop", label: "Shop", icon: "bag" },
   ],
   provider: [
@@ -83,6 +85,7 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/manager/utilities", label: "Utilities & meters", icon: "zap" },
     { href: "/manager/orders", label: "Shop orders", icon: "bag" },
     { href: "/manager/health", label: "System health", icon: "shield", group: "System" },
+    { href: "/manager/messages", label: "WhatsApp & SMS", icon: "message" },
   ],
 };
 

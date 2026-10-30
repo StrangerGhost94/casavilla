@@ -184,7 +184,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
         )}
         {nothing && (
           <div className="card mt-6 text-center text-sm text-stone-500">
-            {area ? <>Nothing listed{inArea} yet. <Link href="/" scroll={false} className="link">See all areas</Link> or <a href="https://wa.me/256776593482" className="link">ask us on WhatsApp</a> — we often have homes before they&apos;re listed.</> : "New listings are coming soon — check back shortly."}
+            {area ? <>Nothing listed{inArea} yet. <Link href="/" scroll={false} className="link">See all areas</Link> or <a href={CONTACT.whatsapp} className="link">ask us on WhatsApp</a> — we often have homes before they&apos;re listed.</> : "New listings are coming soon — check back shortly."}
           </div>
         )}
 

@@ -10,7 +10,7 @@ import { notify, notifyManagers } from "@/lib/notify";
 import { saveUpload } from "@/lib/uploads";
 import { normalizePhone, kampalaToday } from "@/lib/format";
 import { placeLine, readPlace } from "@/lib/geo-form";
-import { id, oneOf, reqText, text } from "@/lib/validate";
+import { id, num, oneOf, reqText, text } from "@/lib/validate";
 import { SALE_FEATURES, SALE_KINDS, SIZE_UNITS, TENURES, TITLE_STATUSES } from "@/lib/sales";
 
 const refresh = () => revalidatePath("/", "layout");
@@ -22,7 +22,6 @@ async function ownedListing(u: User, listingId: number) {
   return l;
 }
 
-const num = (fd: FormData, k: string) => { const v = String(fd.get(k) ?? "").replace(/[,\s]/g, ""); return v === "" ? null : Number(v); };
 
 /** Create or edit a listing. A landlord's new listing waits for CasaVilla's review; a manager's goes live. */
 export async function saveSaleListing(fd: FormData) {

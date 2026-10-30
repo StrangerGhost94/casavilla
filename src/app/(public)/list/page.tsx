@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ChevronRight, KeyRound, Trees, Wrench } from "lucide-react";
 import { getUser } from "@/lib/auth";
+import { CONTACT, tel } from "@/lib/social";
 
 export const metadata = {
   title: "List Your Property for Rent or Sale in Uganda",
@@ -36,8 +37,8 @@ export default async function List() {
         <div className="font-semibold">Want CasaVilla to manage it for you?</div>
         <p className="mt-1 text-sm text-white/70">We find tenants, collect rent and handle repairs — from our office on Rubaga Road.</p>
         <div className="mt-3 flex flex-wrap gap-2">
-          <a href="https://wa.me/256776593482" className="btn-gold btn-sm">WhatsApp us</a>
-          <a href="tel:+256776593482" className="btn btn-sm border border-white/30 text-white">Call +256 776 593 482</a>
+          <a href={CONTACT.whatsapp} className="btn-gold btn-sm">WhatsApp us</a>
+          <a href={tel(CONTACT.phones[0])} className="btn btn-sm border border-white/30 text-white">Call +256 776 593 482</a>
         </div>
       </div>
     </main>

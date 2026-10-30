@@ -9,6 +9,7 @@ import { LocationPicker } from "@/components/LocationPicker";
 import { SearchBand } from "@/components/ListingParts";
 import { crumbText, insideFilter, trailFor } from "@/lib/geo";
 import { KIND, PRICE_STEPS, SALE_KINDS, shortUgx } from "@/lib/sales";
+import { waLink } from "@/lib/social";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -53,7 +54,7 @@ export default async function ForSale({ searchParams }: { searchParams: Promise<
     ...(max ? [[`Up to ${shortUgx(max)}`, href({ max: undefined })] as [string, string]] : []),
     ...(sp.titled ? [["With land title", href({ titled: undefined })] as [string, string]] : []),
   ];
-  const wa = `https://wa.me/256776593482?text=${encodeURIComponent(`Hello CasaVilla, I'm looking to buy ${kind ? KIND[kind as keyof typeof KIND].label.toLowerCase() : "land or property"}${q ? ` in ${q}` : ""}${max ? ` up to ${shortUgx(max)}` : ""}.`)}`;
+  const wa = waLink(`Hello CasaVilla, I'm looking to buy ${kind ? KIND[kind as keyof typeof KIND].label.toLowerCase() : "land or property"}${q ? ` in ${q}` : ""}${max ? ` up to ${shortUgx(max)}` : ""}.`);
 
   return (
     <main>

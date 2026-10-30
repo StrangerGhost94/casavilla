@@ -7,7 +7,7 @@ import { getUser } from "@/lib/auth";
 import { PLAN_STYLES, buildCost, planFacts, type PlanStyle } from "@/lib/build";
 import { fullUgx, shortUgx } from "@/lib/sales";
 import { fileUrl } from "@/lib/file-url";
-import { CONTACT, tel } from "@/lib/social";
+import { CONTACT, tel, waLink } from "@/lib/social";
 import { ORG_ID, abs, breadcrumbLd, idFrom, planHref } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
 import { PhotoMosaic } from "@/components/Gallery";
@@ -46,7 +46,7 @@ export default async function PlanPage({ params }: { params: Promise<{ id: strin
   const cost = buildCost(p);
   const styleLabel = PLAN_STYLES[p.style as PlanStyle]?.label ?? p.style;
   const buildKind = p.style === "apartments" ? "apartments" : p.style === "commercial" ? "commercial" : "house";
-  const wa = `https://wa.me/256776593482?text=${encodeURIComponent(`Hello CasaVilla, I'm interested in the house plan "${p.title}" (${abs(path)}).`)}`;
+  const wa = waLink(`Hello CasaVilla, I'm interested in the house plan "${p.title}" (${abs(path)}).`);
   const facts: [typeof BedDouble, string, string][] = [
     ...(p.bedrooms != null ? [[BedDouble, "Bedrooms", String(p.bedrooms)] as [typeof BedDouble, string, string]] : []),
     ...(p.bathrooms != null ? [[Bath, "Bathrooms", String(p.bathrooms)] as [typeof BedDouble, string, string]] : []),

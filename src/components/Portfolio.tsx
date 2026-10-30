@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import type { Prisma, Property } from "@prisma/client";
 import { db, type User } from "@/db";
 import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
+import { SITE } from "@/lib/seo";
 import { Avatar, Badge, Empty, Field, Photo } from "./ui";
 import { Submit, ConfirmSubmit } from "./client";
 import { Documents } from "./Documents";
@@ -23,6 +24,7 @@ import { marketRent, tenantScore } from "@/lib/insights";
 
 import { PROPERTY_TYPES } from "@/lib/property-types";
 import { fileUrl } from "@/lib/file-url";
+import { tel, waLink } from "@/lib/social";
 export { PROPERTY_TYPES };
 
 /** Editing an existing property's details (its own screen, not repeated on the property page). */
@@ -53,14 +55,14 @@ function BasicsFields({ p }: { p?: Property }) {
 }
 
 /** Adding a property: three short steps in one form — the basics, where it is, and its units. */
-export async function NewPropertyForm({ landlords }: { landlords?: { id: number; name: string }[] }) {
+export async function NewPropertyForm({ landlords, landlordId }: { landlords?: { id: number; name: string }[]; landlordId?: number }) {
   return (
     <form action={saveProperty}>
       <Steps titles={["Basics", "Location", "Units"]} submitLabel="Add property">
         <div className="space-y-4">
           {landlords && (
             <Field label="Landlord">
-              <select name="landlordId" className="input" required>{landlords.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>
+              <select name="landlordId" className="input" required defaultValue={landlordId}>{landlords.map((l) => <option key={l.id} value={l.id}>{l.name}</option>)}</select>
             </Field>
           )}
           <BasicsFields />
@@ -214,6 +216,10 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
                       <div className="flex flex-wrap gap-3 text-xs">
                         {lease && <Link href={`${tenantsBase}/${lease.id}`} className="link">Open {lease.tenant.name}'s tenancy →</Link>}
                         {u.status === "vacant" && u.listed && <Link href={u.mode === "short" ? `/stays/${u.id}` : `/listings/${u.id}`} className="link">View listing →</Link>}
+                        {u.status === "vacant" && u.listed && (
+                          <a href={`https://wa.me/?text=${encodeURIComponent(`${u.mode === "short" ? "Short stay" : `${u.bedrooms ? `${u.bedrooms}-bedroom` : "Unit"} for rent`} at ${p.name}, ${p.location} — ${u.mode === "short" ? `${ugx(u.nightlyRate ?? 0)} a night` : `${ugx(u.rent)} a month`}. Photos and details: ${SITE}${u.mode === "short" ? `/stays/${u.id}` : `/listings/${u.id}`}`)}`}
+                            target="_blank" rel="noreferrer" className="link inline-flex items-center gap-1"><MessageCircle className="h-3.5 w-3.5" /> Share on WhatsApp</a>
+                        )}
                       </div>
                       {m && <p className="text-[11px] text-stone-500">Similar {u.bedrooms}-bed units {m.scope} let for about {ugx(m.median)}.</p>}
                       <form action={updateUnit} className="grid grid-cols-[1.3fr_0.6fr_1.2fr] items-end gap-2">
@@ -279,7 +285,7 @@ async function VerifyCard({ p, manager }: { p: Property; manager: boolean }) {
     );
   }
   if (!manager) {
-    const wa = `https://wa.me/256776593482?text=${encodeURIComponent(`Hello CasaVilla, please visit ${p.name} (${p.location}) to verify it.`)}`;
+    const wa = waLink(`Hello CasaVilla, please visit ${p.name} (${p.location}) to verify it.`);
     return (
       <div className="card flex items-start gap-3">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-stone-100 text-stone-500"><ShieldCheck className="h-5 w-5" /></span>

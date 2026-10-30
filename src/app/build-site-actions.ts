@@ -9,12 +9,11 @@ import { notify } from "@/lib/notify";
 import { saveUpload } from "@/lib/uploads";
 import { fmtDate, networkFor, normalizePhone, ugx } from "@/lib/format";
 import { initiateCharge, provider } from "@/lib/momo";
-import { id, oneOf, reqText, text } from "@/lib/validate";
+import { id, num, oneOf, reqText, text } from "@/lib/validate";
 import { MOMO_MAX, canSeeSite, completeBuildPayment, failBuildPayment, newBuildRef, siteSummary } from "@/lib/build-sites";
 import { STAGE_STATUS_KEYS, SITE_STATUS_KEYS, STAGE_TEMPLATE } from "@/lib/build";
 
 const refresh = () => revalidatePath("/", "layout");
-const num = (fd: FormData, k: string) => { const v = String(fd.get(k) ?? "").replace(/[,\s]/g, ""); return v === "" ? null : Number(v); };
 const day = (fd: FormData, k: string) => { const v = String(fd.get(k) ?? ""); return /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(`${v}T00:00:00Z`) : null; };
 const siteHref = (siteId: number) => `/manager/build/sites/${siteId}`;
 const clientHref = (siteId: number) => `/build/my/${siteId}`;

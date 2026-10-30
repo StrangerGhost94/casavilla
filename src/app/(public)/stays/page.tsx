@@ -10,6 +10,7 @@ import { StayCard } from "@/components/PropertyCard";
 import { LocationPicker } from "@/components/LocationPicker";
 import { DiscoverTabs } from "@/components/DiscoverTabs";
 import { SearchBand } from "@/components/ListingParts";
+import { waLink } from "@/lib/social";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
@@ -54,7 +55,7 @@ export default async function Stays({ searchParams }: { searchParams: Promise<Re
   };
   const q = (id: number) => `/stays/${id}?${new URLSearchParams(Object.entries({ checkIn: sp.checkIn, checkOut: sp.checkOut, guests: sp.guests }).filter(([, v]) => v) as [string, string][])}`;
   const sortLabel = sorts.find(([k]) => k === (sp.sort ?? ""))?.[1] ?? "Lowest price";
-  const wa = `https://wa.me/256776593482?text=${encodeURIComponent(`Hello CasaVilla, I'm looking for a short stay${dated ? ` from ${sp.checkIn} to ${sp.checkOut}` : ""} for ${guests} guest${guests === 1 ? "" : "s"}.`)}`;
+  const wa = waLink(`Hello CasaVilla, I'm looking for a short stay${dated ? ` from ${sp.checkIn} to ${sp.checkOut}` : ""} for ${guests} guest${guests === 1 ? "" : "s"}.`);
 
   return (
     <main>
