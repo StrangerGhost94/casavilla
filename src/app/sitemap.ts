@@ -31,6 +31,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     page("/listings", 0.9, "hourly"), page("/stays", 0.8, "daily"), page("/sale", 0.8, "daily"),
     page("/build", 0.8, "weekly"), page("/build/plans", 0.7, "weekly"), page("/build/start", 0.5, "monthly"),
     page("/services", 0.7, "weekly"), page("/shop", 0.6, "weekly"), page("/list", 0.6, "monthly"),
+    page("/about", 0.5, "monthly"), page("/how-it-works", 0.5, "monthly"), page("/contact", 0.5, "monthly"),
     ...areas,
     ...units.map((u) => page(rentHref({ id: u.id, bedrooms: u.bedrooms, type: u.property.type, location: u.property.location }), 0.7, "weekly", u.createdAt)),
     ...stays.map((u) => page(stayHref(u), 0.6, "weekly", u.createdAt)),
