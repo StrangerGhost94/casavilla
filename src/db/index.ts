@@ -11,13 +11,15 @@ export const SERVICE_CATEGORIES = [
   "Painting", "Security", "Gardening", "Moving", "Other",
 ] as const;
 
-/** Build & fit-out: new construction, interiors and house plans (offered by providers, not repair types). */
-export const BUILD_CATEGORIES = ["Construction", "Interior design", "House plans"] as const;
+/** Fit-out offered by providers (not a repair type). Construction and house plans are CasaVilla's own service (/build). */
+export const BUILD_CATEGORIES = ["Interior design"] as const;
+/** Categories providers used to offer that CasaVilla now does itself; old services in them are no longer shown. */
+export const CASAVILLA_ONLY: string[] = ["Construction", "House plans"];
 /** Everything a provider can offer: repairs and upkeep, then build & fit-out. */
 export const ALL_SERVICE_CATEGORIES = [...SERVICE_CATEGORIES, ...BUILD_CATEGORIES] as const;
 
 /** Shop sections. */
 export const PRODUCT_CATEGORIES = [
   "Building materials", "Plumbing & fittings", "Electrical", "Paint & finishes", "Furniture & interiors",
-  "Cleaning & pest control", "House plans", "Other",
+  "Cleaning & pest control", "Other",
 ] as const;

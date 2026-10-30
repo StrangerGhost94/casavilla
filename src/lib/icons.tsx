@@ -23,7 +23,7 @@ export const categoryIcon: Record<string, LucideIcon> = {
 
 /** Friendly plural labels for the services grid. */
 export const categoryLabel: Record<string, string> = {
-  Cleaning: "Cleaners", Plumbing: "Plumbers", Electrical: "Electricians", Structural: "Builders",
+  Cleaning: "Cleaners", Plumbing: "Plumbers", Electrical: "Electricians", Structural: "Masons",
   "Pest control": "Pest control", Carpentry: "Carpenters", Painting: "Painters", Security: "Security",
   Gardening: "Gardeners", Moving: "Movers", Other: "More",
   Construction: "New builds", "Interior design": "Interiors", "House plans": "House plans",

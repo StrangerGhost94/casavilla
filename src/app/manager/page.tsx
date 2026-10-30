@@ -18,12 +18,13 @@ export default async function ManagerHome() {
   await requireUser("manager");
   await ensureChargesFor("all");
   const s = await portfolioStats();
-  const [pending, pendingApps, unassigned, recentRaw, efrisMissing] = await Promise.all([
+  const [pending, pendingApps, unassigned, recentRaw, efrisMissing, newBuild] = await Promise.all([
     db.user.count({ where: { status: "pending" } }),
     db.application.count({ where: { status: "pending" } }).then(async (n) => n + await db.tenantLink.count({ where: { status: "pending" } })),
     db.job.count({ where: { providerId: null, status: { notIn: ["done", "cancelled"] } } }),
     db.payment.findMany({ where: { status: "success" }, orderBy: { paidAt: "desc" }, take: 6, include: { tenant: { select: { name: true } }, charge: { select: { kind: true, period: true } } } }),
     missingCount(),
+    db.buildRequest.count({ where: { status: "new" } }),
   ]);
   const dataIssues = (await runChecks()).filter((c) => c.count > 0).length;
   const vacant = s.units - s.occupied;
@@ -47,6 +48,7 @@ export default async function ManagerHome() {
           { href: "/manager/tenants", count: s.lateTenants, label: "Tenants behind on rent", tone: "red" },
           { href: "/manager/people?status=pending", count: pending, label: "Landlords & providers to approve", tone: "blue" },
           { href: "/manager/applications", count: pendingApps, label: "Applications & tenants to connect", tone: "blue" },
+          { href: "/manager/build", count: newBuild, label: "New build requests to call back", tone: "blue" },
           { href: "/manager/jobs", count: unassigned, label: "Repairs with no provider", tone: "gold" },
           { href: "/manager/efris", count: efrisMissing, label: "Payments waiting for an EFRIS receipt", tone: "gold" },
           { href: "/manager/tenants#former", count: s.pastTenants, label: s.pastArrears ? `Former tenants who still owe (${ugx(s.pastArrears)})` : "Former tenants who still owe", tone: "gold" },

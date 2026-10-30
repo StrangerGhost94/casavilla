@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Banknote, Building2, CalendarRange, CircleDollarSign, PieChart, Plus, Receipt, Wallet } from "lucide-react";
+import { AlertTriangle, Banknote, Building2, CalendarRange, ChevronRight, CircleDollarSign, HardHat, PieChart, Plus, Receipt, Wallet } from "lucide-react";
 import { CollectedCard, DashHeader, MiniStat, TodoList } from "@/components/Dashboard";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
@@ -65,6 +65,16 @@ export default async function LandlordHome() {
       </div>
 
       <SmartPanel landlordId={u.id} base="/landlord" />
+
+      {/* CasaVilla's design & build: more units for a landlord who already rents through us */}
+      <Link href="/build/start?kind=apartments" className="group mt-6 flex items-center gap-4 rounded-3xl bg-brand-900 p-4 text-white md:p-5">
+        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gold-400 text-brand-950"><HardHat className="h-5 w-5" /></span>
+        <span className="min-w-0 flex-1">
+          <span className="block font-semibold">Build more units, or extend?</span>
+          <span className="block text-sm text-white/75">CasaVilla designs, gets approval and builds — then lets and manages the new units for you.</span>
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-white/60 group-hover:text-white" />
+      </Link>
 
       <SectionTitle title="By district" href="/landlord/areas" cta="All areas" />
       <AreaReport landlordId={u.id} by="district" base="/landlord/areas" limit={5} />

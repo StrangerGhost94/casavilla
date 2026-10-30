@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowDownUp, BadgeCheck, Check, MapPin, MessageCircle, Search, Star, Wrench, X } from "lucide-react";
+import { ArrowDownUp, BadgeCheck, Check, ChevronRight, HardHat, MapPin, MessageCircle, Search, Star, Wrench, X } from "lucide-react";
 import { BUILD_CATEGORIES, SERVICE_CATEGORIES } from "@/db";
 import { activeProviders } from "@/lib/queries";
 import { categoryLabel } from "@/lib/icons";
@@ -10,8 +10,8 @@ import { crumbText, trailFor } from "@/lib/geo";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Plumbers, Electricians, Cleaners & Builders in Kampala",
-  description: "Vetted home service providers in Kampala and Uganda: plumbers, electricians, cleaners, painters, carpenters, pest control, builders, interior designers and house plans. Rated after every job.",
+  title: "Plumbers, Electricians, Cleaners & More in Kampala",
+  description: "Vetted home service providers in Kampala and Uganda: plumbers, electricians, cleaners, painters, carpenters, pest control and interior designers. Rated after every job. Building? CasaVilla designs and builds.",
   alternates: { canonical: "/services" },
 };
 
@@ -62,18 +62,23 @@ export default async function Services({ searchParams }: { searchParams: Promise
           {SERVICE_CATEGORIES.map((c) => <CategoryTile key={c} c={c} n={perCat.get(c) ?? 0} on={category === c} href={href({ category: category === c ? undefined : c })} />)}
         </div>
 
-        {/* Build & fit-out: new homes, interiors, plans — and the materials in the shop */}
-        <section className="mt-5 rounded-3xl border border-stone-200/70 bg-white p-4 shadow-card">
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <h2 className="text-base font-bold text-brand-950">Build & fit-out</h2>
-              <p className="text-xs text-stone-500">Building a home or doing it up? Builders, interior designers, house plans and materials.</p>
+        {/* Construction and house plans are CasaVilla's own service; interiors and materials stay with providers and the shop */}
+        <section className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-3">
+          <Link href="/build" className="group relative flex items-center gap-4 overflow-hidden rounded-3xl bg-brand-900 p-5 text-white md:col-span-2">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gold-400 text-brand-950"><HardHat className="h-6 w-6" /></span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[11px] font-semibold uppercase tracking-[0.15em] text-gold-300">Building or renovating?</span>
+              <span className="block text-lg font-bold">Build with CasaVilla</span>
+              <span className="block text-sm text-white/75">House plans, approvals and construction — designed and built by CasaVilla.</span>
+            </span>
+            <ChevronRight className="h-5 w-5 shrink-0 text-white/60 group-hover:text-white" />
+          </Link>
+          <div className="flex flex-col gap-2 rounded-3xl border border-stone-200/70 bg-white p-4 shadow-card">
+            <div className="text-sm font-bold text-brand-950">Fit-out</div>
+            <div className="grid grid-cols-2 gap-2">
+              {BUILD_CATEGORIES.map((c) => <CategoryTile key={c} c={c} n={perCat.get(c) ?? 0} on={category === c} href={href({ category: category === c ? undefined : c })} />)}
+              <Link href="/shop?sec=Building%20materials" className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-stone-300 px-1 py-3 text-center text-[11px] font-semibold text-stone-600 hover:border-brand-300">Building materials<span className="text-[10px] font-normal text-stone-400">in the shop</span></Link>
             </div>
-            <Link href="/shop?sec=Building%20materials" className="text-xs font-semibold text-brand-700 hover:underline">Building materials in the shop →</Link>
-          </div>
-          <div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-4">
-            {BUILD_CATEGORIES.map((c) => <CategoryTile key={c} c={c} n={perCat.get(c) ?? 0} on={category === c} href={href({ category: category === c ? undefined : c })} />)}
-            <Link href="/shop?sec=House%20plans" className="hidden flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-stone-300 px-1 py-3 text-center text-[11px] font-semibold text-stone-600 hover:border-brand-300 sm:flex">Ready-made plans<span className="text-[10px] font-normal text-stone-400">in the shop</span></Link>
           </div>
         </section>
 

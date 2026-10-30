@@ -4,7 +4,7 @@ import { JsonLd } from "@/components/JsonLd";
 import { fileUrl } from "@/lib/file-url";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BadgeCheck, BedDouble, Bath, FileCheck2, Landmark, MapPin, MessageCircle, Phone, Ruler, ShieldAlert } from "lucide-react";
+import { BadgeCheck, BedDouble, Bath, FileCheck2, HardHat, Landmark, MapPin, MessageCircle, Phone, Ruler, ShieldAlert } from "lucide-react";
 import { db } from "@/db";
 import { getUser } from "@/lib/auth";
 import { crumbText, trailFor } from "@/lib/geo";
@@ -123,6 +123,19 @@ export default async function SaleListingPage({ params }: { params: Promise<{ id
               </section>
             )}
             <LocationCard address={l.location} landmark={l.landmark} lat={l.lat} lng={l.lng} />
+            {isLand && l.status !== "sold" && (
+              <section className="mt-6 flex flex-col gap-4 rounded-3xl bg-brand-900 p-5 text-white sm:flex-row sm:items-center">
+                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gold-400 text-brand-950"><HardHat className="h-6 w-6" /></span>
+                <div className="min-w-0 flex-1">
+                  <h2 className="font-semibold">Build on this plot with CasaVilla</h2>
+                  <p className="text-sm text-white/75">House plans, approvals and construction — and a free site visit before you buy.</p>
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-2">
+                  <Link href={`/build/start?plot=${l.id}`} className="btn-gold btn-sm">Build on this plot</Link>
+                  <Link href="/build/plans" className="btn-sm rounded-lg px-3 py-1.5 text-xs font-semibold text-white ring-1 ring-white/30 hover:bg-white/10">House plans</Link>
+                </div>
+              </section>
+            )}
             <div className="mt-6 flex items-start gap-2.5 rounded-2xl border border-gold-200 bg-gold-50/60 p-3.5 text-xs text-stone-700">
               <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-gold-600" />
               <span>Before paying any deposit, do an official land search at the Ministry of Lands and visit the land. Never send money to someone you haven&apos;t met — CasaVilla can arrange the search and the viewing.</span>

@@ -3,7 +3,7 @@ import { abs, breadcrumbLd, idFrom, providerHref } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { db } from "@/db";
+import { CASAVILLA_ONLY, db } from "@/db";
 import { getUser } from "@/lib/auth";
 import { shopProducts } from "@/lib/queries";
 import { fmtDate, ugx } from "@/lib/format";
@@ -18,7 +18,7 @@ import { ProductCard, Stars } from "@/components/MarketCards";
 export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
-  const p = await db.user.findFirst({ where: { id: idFrom((await params).id), role: "provider", status: "active" }, include: { services: { where: { active: true }, select: { category: true } } } });
+  const p = await db.user.findFirst({ where: { id: idFrom((await params).id), role: "provider", status: "active" }, include: { services: { where: { active: true, category: { notIn: CASAVILLA_ONLY } }, select: { category: true } } } });
   if (!p) return {};
   const name = p.businessName || p.name;
   const cats = [...new Set(p.services.map((s) => s.category))];
@@ -32,7 +32,7 @@ export default async function ProviderPage({ params }: { params: Promise<{ id: s
   const p = await db.user.findFirst({ where: { id: idFrom(id), role: "provider", status: "active" }, include: { serviceAreas: { include: { location: { select: { name: true } } } } } });
   if (!p) notFound();
   const [svcs, prods, me, stats, reviews] = await Promise.all([
-    db.service.findMany({ where: { providerId: p.id, active: true }, orderBy: { category: "asc" } }),
+    db.service.findMany({ where: { providerId: p.id, active: true, category: { notIn: CASAVILLA_ONLY } }, orderBy: { category: "asc" } }),
     shopProducts(p.id),
     getUser(),
     db.job.aggregate({ where: { providerId: p.id, status: "done" }, _count: { _all: true, rating: true }, _avg: { rating: true } }),

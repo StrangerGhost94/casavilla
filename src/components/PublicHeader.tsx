@@ -16,7 +16,7 @@ export async function PublicHeader() {
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4 md:h-16">
           <Link href="/" aria-label="CasaVilla home" className="flex items-center"><Logo tile size="sm" className="[&_img]:h-8 md:[&_img]:h-10" /></Link>
           <nav className="hidden items-center gap-1 md:flex">
-            {[["/listings", "To rent"], ["/stays", "Short stays"], ["/sale", "For sale"], ["/services", "Services"], ["/shop", "Shop"]].map(([h, l]) => (
+            {[["/listings", "To rent"], ["/stays", "Short stays"], ["/sale", "For sale"], ["/build", "Build"], ["/services", "Services"], ["/shop", "Shop"]].map(([h, l]) => (
               <Link key={h} href={h} className="rounded-lg px-3 py-2 text-sm font-medium text-white/75 hover:bg-white/10 hover:text-white">{l}</Link>
             ))}
           </nav>

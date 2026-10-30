@@ -1,6 +1,6 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
-import { db } from "@/db";
+import { CASAVILLA_ONLY, db } from "@/db";
 import { distanceKm, insideFilter, searchKey, searchPlaces } from "./geo";
 
 /**
@@ -86,10 +86,10 @@ export async function activeProviders(category?: string, inId?: string) {
   const sel = inId ? await db.location.findUnique({ where: { id: inId }, select: { path: true } }) : null;
   const list = await db.user.findMany({
     where: {
-      role: "provider", status: "active", services: { some: { active: true, ...(category ? { category } : {}) } },
+      role: "provider", status: "active", services: { some: { active: true, category: category && !CASAVILLA_ONLY.includes(category) ? category : { notIn: CASAVILLA_ONLY } } },
       ...(sel ? { serviceAreas: { some: { location: { OR: [{ path: { startsWith: sel.path } }, { id: { in: sel.path.split("/").filter(Boolean) } }] } } } } : {}),
     },
-    include: { services: { where: { active: true } }, serviceAreas: { include: { location: { select: { name: true } } } } },
+    include: { services: { where: { active: true, category: { notIn: CASAVILLA_ONLY } } }, serviceAreas: { include: { location: { select: { name: true } } } } },
     orderBy: { id: "asc" },
   });
   // Track record: finished jobs and their average star rating.
@@ -108,7 +108,8 @@ export async function activeProviders(category?: string, inId?: string) {
 
 export async function shopProducts(providerId?: number) {
   const rows = await db.product.findMany({
-    where: { active: true, provider: { status: "active" }, ...(providerId ? { providerId } : {}) },
+    // House plans are CasaVilla's own now (/build/plans), not sold by shops.
+    where: { active: true, provider: { status: "active" }, OR: [{ category: null }, { category: { not: "House plans" } }], ...(providerId ? { providerId } : {}) },
     include: { provider: { select: { id: true, name: true, businessName: true } } },
     orderBy: { id: "desc" },
   });

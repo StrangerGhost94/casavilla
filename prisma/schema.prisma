@@ -86,6 +86,7 @@ model User {
   utilityBills     UtilityBill[]
   saleListings     SaleListing[]
   saleEnquiries    SaleEnquiry[]
+  buildRequests    BuildRequest[]
   efrisProfile     EfrisProfile?
   efrisRecorded    EfrisReceipt[]        @relation("EfrisRecordedBy")
   efrisCredits     EfrisCreditNote[]     @relation("EfrisCreditBy")
@@ -905,53 +906,54 @@ model UtilityBill {
 /// Land or property for sale. Separate from rentals: land has no units, tenants or rent.
 /// Landlords' listings are reviewed by CasaVilla before they go public.
 model SaleListing {
-  id             Int           @id @default(autoincrement())
-  ownerId        Int           @map("owner_id")
-  owner          User          @relation(fields: [ownerId], references: [id])
+  id             Int            @id @default(autoincrement())
+  ownerId        Int            @map("owner_id")
+  owner          User           @relation(fields: [ownerId], references: [id])
   /// land | house | apartment | commercial | farm
   kind           String
   title          String
   description    String?
   /// Asking price in UGX (double precision: land prices can pass 2 billion).
   price          Float
-  negotiable     Boolean       @default(true)
+  negotiable     Boolean        @default(true)
   /// Land size: value + unit (acres | decimals | hectares | sqm); plotDims for e.g. "50 × 100 ft".
-  sizeValue      Float?        @map("size_value")
-  sizeUnit       String?       @map("size_unit")
-  plotDims       String?       @map("plot_dims")
+  sizeValue      Float?         @map("size_value")
+  sizeUnit       String?        @map("size_unit")
+  plotDims       String?        @map("plot_dims")
   bedrooms       Int?
   bathrooms      Int?
   /// mailo | freehold | leasehold | customary | kibanja
   tenure         String?
   /// titled | processing | none
-  titleStatus    String        @default("titled") @map("title_status")
+  titleStatus    String         @default("titled") @map("title_status")
   /// CasaVilla has seen the title and done a land search.
-  titleVerified  Boolean       @default(false) @map("title_verified")
-  features       String[]      @default([])
-  videoUrl       String?       @map("video_url")
+  titleVerified  Boolean        @default(false) @map("title_verified")
+  features       String[]       @default([])
+  videoUrl       String?        @map("video_url")
   location       String
-  locationId     String?       @map("location_id")
-  place          Location?     @relation(fields: [locationId], references: [id])
+  locationId     String?        @map("location_id")
+  place          Location?      @relation(fields: [locationId], references: [id])
   estate         String?
   street         String?
   plot           String?
   landmark       String?
   lat            Float?
   lng            Float?
-  coordAccuracyM Int?          @map("coord_accuracy_m")
-  coordSource    String?       @map("coord_source")
+  coordAccuracyM Int?           @map("coord_accuracy_m")
+  coordSource    String?        @map("coord_source")
   /// pending (waiting for CasaVilla) | active | under_offer | sold | withdrawn | rejected
-  status         String        @default("pending")
-  reviewNote     String?       @map("review_note")
-  photoId        Int?          @map("photo_id")
-  views          Int           @default(0)
-  publishedAt    DateTime?     @map("published_at")
-  soldAt         DateTime?     @map("sold_at")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @default(now()) @updatedAt @map("updated_at")
+  status         String         @default("pending")
+  reviewNote     String?        @map("review_note")
+  photoId        Int?           @map("photo_id")
+  views          Int            @default(0)
+  publishedAt    DateTime?      @map("published_at")
+  soldAt         DateTime?      @map("sold_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @default(now()) @updatedAt @map("updated_at")
   photos         SalePhoto[]
   enquiries      SaleEnquiry[]
   viewings       Viewing[]
+  buildRequests  BuildRequest[]
 
   @@index([status, kind])
   @@index([ownerId])
@@ -1263,4 +1265,109 @@ model Viewing {
   @@index([hostId, status])
   @@index([requesterId])
   @@map("viewings")
+}
+
+/// Build with CasaVilla: house plans CasaVilla sells, past projects it shows, and people asking it to design or build.
+/// A ready-made house plan from CasaVilla's own catalogue.
+model HousePlan {
+  id          Int            @id @default(autoincrement())
+  title       String
+  /// bungalow | storeyed | apartments | commercial
+  style       String
+  bedrooms    Int?
+  bathrooms   Int?
+  floors      Int            @default(1)
+  /// Built-up floor area in square metres
+  areaSqm     Int?           @map("area_sqm")
+  /// Smallest plot it fits, e.g. "50 × 100 ft"
+  plotSize    String?        @map("plot_size")
+  /// Price of the drawings in UGX
+  price       Int
+  /// CasaVilla's estimate to build it, UGX (a range)
+  buildFrom   Float?         @map("build_from")
+  buildTo     Float?         @map("build_to")
+  summary     String?
+  description String?
+  features    String[]       @default([])
+  photoId     Int?           @map("photo_id")
+  published   Boolean        @default(false)
+  sort        Int            @default(0)
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @default(now()) @updatedAt @map("updated_at")
+  photos      BuildPhoto[]
+  requests    BuildRequest[]
+
+  @@index([published, sort])
+  @@map("house_plans")
+}
+
+/// A project CasaVilla has designed or built, shown on the Build page.
+model BuildProject {
+  id        Int          @id @default(autoincrement())
+  title     String
+  /// house | apartments | commercial | renovation
+  kind      String
+  location  String
+  year      Int?
+  summary   String?
+  photoId   Int?         @map("photo_id")
+  published Boolean      @default(false)
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @default(now()) @updatedAt @map("updated_at")
+  photos    BuildPhoto[]
+
+  @@map("build_projects")
+}
+
+/// A photo or drawing of a house plan or a past project (exactly one of the two).
+model BuildPhoto {
+  id        Int           @id @default(autoincrement())
+  planId    Int?          @map("plan_id")
+  plan      HousePlan?    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  projectId Int?          @map("project_id")
+  project   BuildProject? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fileId    Int           @map("file_id")
+  sort      Int           @default(0)
+  isCover   Boolean       @default(false) @map("is_cover")
+  createdAt DateTime      @default(now()) @map("created_at")
+
+  @@index([planId])
+  @@index([projectId])
+  @@map("build_photos")
+}
+
+/// Someone asking CasaVilla to design or build. Works without an account (name + phone).
+model BuildRequest {
+  id            Int          @id @default(autoincrement())
+  userId        Int?         @map("user_id")
+  user          User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name          String
+  phone         String
+  email         String?
+  /// house | apartments | commercial | renovation | plans
+  kind          String
+  planId        Int?         @map("plan_id")
+  plan          HousePlan?   @relation(fields: [planId], references: [id], onDelete: SetNull)
+  /// "Build on this plot" from a land listing
+  saleListingId Int?         @map("sale_listing_id")
+  saleListing   SaleListing? @relation(fields: [saleListingId], references: [id], onDelete: SetNull)
+  location      String?
+  /// yes | buying | no
+  plot          String?
+  /// Budget in UGX, if they gave one
+  budget        Float?
+  /// asap | 3m | 6m | later
+  timeline      String?
+  message       String?
+  /// new | contacted | site_visit | quoted | won | lost
+  status        String       @default("new")
+  /// CasaVilla's quote in UGX, once given
+  quote         Float?
+  staffNote     String?      @map("staff_note")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @default(now()) @updatedAt @map("updated_at")
+
+  @@index([status, createdAt])
+  @@index([phone, createdAt])
+  @@map("build_requests")
 }

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BadgeCheck, BedDouble, Building2, ChevronRight, KeyRound, LayoutDashboard, ShoppingBag, Trees, Wallet, Wrench } from "lucide-react";
+import { BadgeCheck, BedDouble, Building2, ChevronRight, HardHat, KeyRound, LayoutDashboard, ShoppingBag, Trees, Wallet, Wrench } from "lucide-react";
 import { db, SERVICE_CATEGORIES, type User } from "@/db";
 import { getUser, homeFor } from "@/lib/auth";
 import { areaMatch, listedUnits } from "@/lib/queries";
@@ -8,6 +8,7 @@ import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { Photo } from "@/components/ui";
 import { PropertyCard, StayCard } from "@/components/PropertyCard";
 import { SaleCard } from "@/components/SaleCard";
+import { PlanCard } from "@/components/BuildCards";
 import { MarketSearch } from "@/components/MarketSearch";
 import { Journey } from "@/components/Journey";
 import { MobileFooter } from "@/components/SiteFooter";
@@ -88,7 +89,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
     orderBy: [{ status: "asc" }, { publishedAt: "desc" }], take: 10, include: { _count: { select: { photos: true } } },
   });
   const liveLandlord = { archivedAt: null, landlord: { status: "active" as const } };
-  const [homes, stays, land, buildings, counts, products] = await Promise.all([
+  const [homes, stays, land, buildings, counts, products, plans] = await Promise.all([
     listedUnits({ limit: 10, q: area }),
     db.unit.findMany({
       where: { mode: "short", listed: true, nightlyRate: { not: null }, property: { archivedAt: null, landlord: { status: "active" }, ...(where ? { OR: where } : {}) } },
@@ -105,6 +106,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
       db.product.count({ where: { active: true, stock: { gt: 0 }, provider: { status: "active" } } }),
     ]),
     db.product.findMany({ where: { active: true, stock: { gt: 0 }, provider: { status: "active" } }, orderBy: { id: "desc" }, take: 8, select: { id: true, name: true, price: true, photoId: true } }),
+    db.housePlan.findMany({ where: { published: true }, orderBy: [{ sort: "asc" }, { id: "desc" }], take: 6, include: { _count: { select: { photos: true } } } }),
   ]);
   const [nRent, nStays, nLand, nHouses, nPros, nShop] = counts;
   const categories: [string, string, React.ComponentType<{ className?: string }>, number, string][] = [
@@ -195,6 +197,27 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
                 </div>
               </Link>
             ))}
+          </Rail>
+        )}
+
+        {/* Build with CasaVilla: CasaVilla's own design & build service */}
+        <section className="mt-8 overflow-hidden rounded-3xl bg-brand-900 text-white">
+          <div className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:p-7">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gold-400 text-brand-950"><HardHat className="h-6 w-6" /></span>
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.15em] text-gold-300">Build with CasaVilla</div>
+              <h2 className="text-lg font-bold md:text-xl">Planning to build? We design it, get it approved and build it.</h2>
+              <p className="text-sm text-white/75">Houses, apartments and commercial buildings — from the plans to the keys{plans.length ? ", or start from one of our ready-made plans" : ""}.</p>
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Link href="/build/start" className="btn-gold">Start your project</Link>
+              <Link href={plans.length ? "/build/plans" : "/build"} className="btn rounded-xl px-4 py-2.5 font-semibold text-white ring-1 ring-white/30 hover:bg-white/10">{plans.length ? "House plans" : "How it works"}</Link>
+            </div>
+          </div>
+        </section>
+        {plans.length > 0 && (
+          <Rail title="Ready-made house plans" href="/build/plans">
+            {plans.map((p) => <PlanCard key={p.id} p={p} className={CARD} />)}
           </Rail>
         )}
 

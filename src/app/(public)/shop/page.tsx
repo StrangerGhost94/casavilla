@@ -8,8 +8,8 @@ import { ProductCard } from "@/components/MarketCards";
 
 export const dynamic = "force-dynamic";
 export const metadata = {
-  title: "Building Materials, Fittings & House Plans — Shop",
-  description: "Buy building materials, plumbing and electrical fittings, paint, furniture and house plans from vetted CasaVilla providers in Uganda. Pay the seller on delivery.",
+  title: "Building Materials, Fittings & Furniture — Shop",
+  description: "Buy building materials, plumbing and electrical fittings, paint and furniture from vetted CasaVilla providers in Uganda. Pay the seller on delivery.",
   alternates: { canonical: "/shop" },
 };
 

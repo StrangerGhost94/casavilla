@@ -18,6 +18,7 @@ export const rentHref = (h: { id: number; bedrooms: number; type: string; locati
 export const stayHref = (u: { id: number; label: string; property: { name: string; location: string } }) => `/stays/${u.id}-${slugify(`${u.property.name} ${place(u.property.location)}`)}`;
 export const saleHref = (l: { id: number; title: string }) => `/sale/${l.id}-${slugify(l.title)}`;
 export const providerHref = (p: { id: number; name: string }) => `/services/${p.id}-${slugify(p.name)}`;
+export const planHref = (p: { id: number; title: string }) => `/build/plans/${p.id}-${slugify(p.title)}`;
 
 // ---------------------------------------------------------------------------------------------------------------
 // Area pages: /houses-for-rent/ntinda, /land-for-sale/mukono, /short-stays/entebbe, /houses-for-sale/kira

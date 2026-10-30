@@ -13,6 +13,11 @@ const POPULAR: { kind: SeoKind; title: string; areas: string[] }[] = [
   { kind: "houses-for-sale", title: "Houses for sale", areas: ["Kampala", "Kira", "Najjera", "Mukono", "Entebbe", "Wakiso", "Namugongo"] },
 ];
 
+const BUILD_LINKS = [
+  ["/build", "House construction in Kampala"], ["/build/plans", "House plans in Uganda"], ["/build/plans?style=bungalow", "Bungalow plans"],
+  ["/build/plans?style=storeyed", "Storeyed house plans"], ["/build/plans?style=apartments", "Apartment building plans"], ["/build/start?kind=renovation", "Renovations & extensions"],
+] as const;
+
 export function PopularSearches({ compact = false }: { compact?: boolean }) {
   return (
     <div className={compact ? "space-y-4" : "grid grid-cols-4 gap-8 border-b border-white/10 py-10 text-sm"}>
@@ -24,12 +29,18 @@ export function PopularSearches({ compact = false }: { compact?: boolean }) {
           </ul>
         </nav>
       ))}
+      <nav aria-label="Building" className={compact ? "" : "col-span-4 -mt-2 flex flex-wrap items-center gap-x-5 gap-y-1.5"}>
+        <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">Building</div>
+        <ul className={compact ? "mt-2 flex flex-wrap gap-x-3 gap-y-1.5 text-xs" : "contents"}>
+          {BUILD_LINKS.map(([href, label]) => <li key={href}><Link href={href} className="transition hover:text-white">{label}</Link></li>)}
+        </ul>
+      </nav>
     </div>
   );
 }
 
 const COLUMNS = [
-  { title: "Explore", links: [["/listings", "Homes for rent"], ["/stays", "Short stays"], ["/sale", "Land & property for sale"], ["/services", "Home services"], ["/shop", "Shop"]] },
+  { title: "Explore", links: [["/listings", "Homes for rent"], ["/stays", "Short stays"], ["/sale", "Land & property for sale"], ["/build", "Build with CasaVilla"], ["/build/plans", "House plans"], ["/services", "Home services"], ["/shop", "Shop"]] },
   { title: "For owners", links: [["/list", "List a property"], ["/sale?kind=land", "Sell land"], ["/register?role=landlord", "Landlord account"], ["/register?role=provider", "Become a provider"]] },
 ] as const;
 

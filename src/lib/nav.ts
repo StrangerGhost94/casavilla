@@ -76,6 +76,7 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/manager/properties", label: "Properties", icon: "building", group: "Properties" },
     { href: "/manager/stays", label: "Short stays", icon: "calendar" },
     { href: "/manager/sale", label: "For sale", icon: "tag" },
+    { href: "/manager/build", label: "Build & construction", icon: "hardHat" },
     { href: "/manager/areas", label: "By area", icon: "map" },
     { href: "/manager/jobs", label: "Maintenance jobs", icon: "wrench", group: "Day to day" },
     { href: "/manager/inspections", label: "Inspections", icon: "clipboardCheck" },

@@ -22,11 +22,17 @@ const MODES = {
     types: [["", "Land or property"], ["land", "Land & plots"], ["house", "Houses"], ["apartment", "Apartments"], ["commercial", "Commercial"], ["farm", "Farms"]] as Opt[],
     budgets: [50e6, 100e6, 250e6, 500e6, 1e9], per: "",
   },
+  // CasaVilla's own design & build: opens the request form with these filled in.
+  build: {
+    label: "Build", path: "/build/start", hint: "Where will you build? e.g. Kira, Mukono", typeKey: "kind", typeLabel: "Project",
+    types: [["house", "A house"], ["apartments", "Apartments / rentals"], ["commercial", "Commercial"], ["renovation", "Renovate / extend"], ["plans", "Plans only"]] as Opt[],
+    budgets: [80e6, 150e6, 250e6, 500e6, 1e9], per: "", qKey: "where", maxKey: "budget", cta: "Get started",
+  },
 } as const;
 type Mode = keyof typeof MODES;
 
 /**
- * One search for the whole marketplace: rent, stays or buy, then area, type and budget in one bar
+ * One search for the whole marketplace: rent, stays, buy or build, then area, type and budget in one bar
  * (type and budget fold behind "Filters" on phones). Opens the matching results page with those filters set.
  */
 export function MarketSearch() {
@@ -41,9 +47,10 @@ export function MarketSearch() {
   const go = (e: React.FormEvent) => {
     e.preventDefault();
     const p = new URLSearchParams();
-    if (q.trim()) p.set("q", q.trim());
+    const keys = "qKey" in m ? m : { qKey: "q", maxKey: "max" };
+    if (q.trim()) p.set(keys.qKey, q.trim());
     if (type) p.set(m.typeKey, type);
-    if (max) p.set("max", max);
+    if (max) p.set(keys.maxKey, max);
     router.push(`${m.path}${p.size ? `?${p}` : ""}`);
   };
   const pick = (k: Mode) => { setMode(k); setType(""); setMax(""); };
@@ -51,7 +58,7 @@ export function MarketSearch() {
 
   return (
     <form onSubmit={go} className="rounded-2xl bg-white p-1.5 shadow-float">
-      <div className="grid grid-cols-3 gap-1 rounded-xl bg-stone-100 p-1 text-sm font-semibold">
+      <div className="grid grid-cols-4 gap-1 rounded-xl bg-stone-100 p-1 text-sm font-semibold">
         {(Object.keys(MODES) as Mode[]).map((k) => (
           <button key={k} type="button" onClick={() => pick(k)} aria-pressed={mode === k}
             className={`rounded-lg py-1.5 transition ${mode === k ? "bg-white text-brand-950 shadow-sm" : "text-stone-500"}`}>{MODES[k].label}</button>
@@ -82,7 +89,7 @@ export function MarketSearch() {
             </select>
           </label>
         </div>
-        <button className="btn-primary shrink-0 px-5 py-2.5"><Search className="h-4 w-4" /> Search</button>
+        <button className="btn-primary shrink-0 px-5 py-2.5"><Search className="h-4 w-4" /> {"cta" in m ? m.cta : "Search"}</button>
       </div>
     </form>
   );
