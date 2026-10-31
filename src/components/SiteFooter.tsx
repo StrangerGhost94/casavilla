@@ -80,7 +80,8 @@ export function PublicFooter() {
                 </a>
               </li>
             </ul>
-            <SocialLinks className="mt-5" />
+            <div className={`${heading} mt-6`}>Follow us</div>
+            <SocialLinks className="mt-3" />
           </div>
           {COLUMNS.map((c) => (
             <nav key={c.title} aria-label={c.title}>
@@ -137,7 +138,8 @@ export function MobileFooter() {
           <div className="mt-3"><PopularSearches /></div>
         </details>
 
-        <SocialLinks size="sm" className="mt-5" />
+        <div className="mt-6 text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300">Follow us</div>
+        <SocialLinks size="sm" className="mt-3" />
 
         <a href={CONTACT.maps} target="_blank" rel="noopener noreferrer" className="mt-5 flex items-start gap-2 text-xs text-white/60">
           <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-gold-300/80" /> <span>{CONTACT.address} · <span className="font-semibold text-gold-300">Map</span></span>
