@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowDownUp, BadgeCheck, Check, ChevronRight, HardHat, MapPin, MessageCircle, Search, Star, Wrench, X } from "lucide-react";
 import { BUILD_CATEGORIES, SERVICE_CATEGORIES } from "@/db";
 import { activeProviders } from "@/lib/queries";
+import { getUser } from "@/lib/auth";
 import { categoryLabel } from "@/lib/icons";
 import { LocationPicker } from "@/components/LocationPicker";
 import { SearchBand } from "@/components/ListingParts";
@@ -23,7 +24,7 @@ export default async function Services({ searchParams }: { searchParams: Promise
   const { category, q, in: inId } = sp;
   const area = await trailFor(inId);
   const inArea = area.length > 1 ? inId : undefined;
-  const [all, everyone] = await Promise.all([activeProviders(category, inArea), category ? activeProviders(undefined, inArea) : null]);
+  const [all, everyone, me] = await Promise.all([activeProviders(category, inArea), category ? activeProviders(undefined, inArea) : null, getUser()]);
   // How many providers offer each category (in the chosen area), for the tiles.
   const perCat = new Map([...SERVICE_CATEGORIES, ...BUILD_CATEGORIES].map((c) => [c as string, (everyone ?? all).filter((p) => p.categories.has(c)).length]));
   const needle = q?.trim().toLowerCase();
@@ -136,13 +137,16 @@ export default async function Services({ searchParams }: { searchParams: Promise
             </div>
             <a href={wa} className="btn-gold"><MessageCircle className="h-4 w-4" /> Ask on WhatsApp</a>
           </div>
-          <div className="flex flex-col items-start gap-3 rounded-3xl border border-stone-200 bg-white p-5">
-            <div>
-              <div className="font-semibold text-brand-950">Do you offer a service?</div>
-              <p className="text-sm text-stone-500">Get jobs from landlords and tenants across Kampala, and sell supplies in the shop.</p>
+          {/* Invite new providers; a provider sees their own services instead; other signed-in people don't need it. */}
+          {(!me || me.role === "provider") && (
+            <div className="flex flex-col items-start gap-3 rounded-3xl border border-stone-200 bg-white p-5">
+              <div>
+                <div className="font-semibold text-brand-950">{me ? "Your services" : "Do you offer a service?"}</div>
+                <p className="text-sm text-stone-500">{me ? "Keep your services, prices and areas up to date to get more jobs." : "Get jobs from landlords and tenants across Kampala, and sell supplies in the shop."}</p>
+              </div>
+              <Link href={me ? "/provider/services" : "/register?role=provider"} className="btn-outline">{me ? "Manage my services" : "Become a provider"}</Link>
             </div>
-            <Link href="/register?role=provider" className="btn-outline">Become a provider</Link>
-          </div>
+          )}
         </div>
       </div>
     </main>

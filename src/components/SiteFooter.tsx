@@ -4,6 +4,8 @@ import { BuildingArt, Logo } from "./ui";
 import { SocialLinks } from "./SocialLinks";
 import { CONTACT, tel } from "@/lib/social";
 import { areaHref, type SeoKind } from "@/lib/seo";
+import { getUser, homeFor } from "@/lib/auth";
+import type { User } from "@/db";
 
 /** Popular searches: links to the area pages people look for on Google (also how Google finds them). */
 const POPULAR: { kind: SeoKind; title: string; areas: string[] }[] = [
@@ -39,32 +41,45 @@ export function PopularSearches() {
   );
 }
 
-const COLUMNS = [
-  { title: "Explore", links: [["/listings", "Homes for rent"], ["/stays", "Short stays"], ["/sale", "Land & property for sale"], ["/build", "Build with CasaVilla"], ["/services", "Home services"], ["/shop", "Shop"]] },
-  { title: "For owners", links: [["/list", "List a property"], ["/sale?kind=land", "Sell land"], ["/build/start?kind=apartments", "Build or extend"], ["/register?role=landlord", "Landlord account"], ["/register?role=provider", "Become a provider"]] },
-  { title: "CasaVilla", links: [["/about", "About us"], ["/how-it-works", "How it works"], ["/get-app", "Get the app"], ["/contact", "Contact"], ["/privacy", "Privacy"], ["/terms", "Terms of use"]] },
-] as const;
+/** The link columns, for whoever is looking: visitors get sign-up links; a landlord gets their own shortcuts. */
+function columns(me: User | null): { title: string; links: [string, string][] }[] {
+  const owners: [string, string][] = !me
+    ? [["/list", "List a property"], ["/sale?kind=land", "Sell land"], ["/build/start?kind=apartments", "Build or extend"], ["/register?role=landlord", "Landlord account"], ["/register?role=provider", "Become a provider"]]
+    : me.role === "landlord"
+      ? [["/landlord/properties/new", "Add a property"], ["/landlord/sale/new", "Sell land or a house"], ["/build/start?kind=apartments", "Build or extend"], ["/landlord", "My dashboard"]]
+      : [["/list", "List a property"], ["/sale?kind=land", "Sell land"], ["/build/start?kind=apartments", "Build or extend"], [homeFor(me.role), me.role === "tenant" ? "My home" : "My dashboard"]];
+  return [
+    { title: "Explore", links: [["/listings", "Homes for rent"], ["/stays", "Short stays"], ["/sale", "Land & property for sale"], ["/build", "Build with CasaVilla"], ["/services", "Home services"], ["/shop", "Shop"]] },
+    { title: me ? "Your property" : "For owners", links: owners },
+    { title: "CasaVilla", links: [["/about", "About us"], ["/how-it-works", "How it works"], ["/get-app", "Get the app"], ["/contact", "Contact"], ["/privacy", "Privacy"], ["/terms", "Terms of use"]] },
+  ];
+}
 
 const heading = "text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300";
 
 /** Computers: the full footer. (Phones use the tab bar for navigation; the home page ends with MobileFooter.) */
-export function PublicFooter() {
+export async function PublicFooter() {
   const year = new Date().getFullYear();
+  const me = await getUser();
+  // The owner banner is for visitors and tenants (who may own property too); landlords get "add another"; staff and providers none.
+  const banner = !me || me.role === "tenant" ? "invite" : me.role === "landlord" ? "landlord" : null;
   return (
     <footer className="no-print web-only relative mt-16 hidden overflow-hidden bg-brand-950 text-white/70 lg:block">
       <BuildingArt className="pointer-events-none absolute inset-x-0 bottom-0 h-56 w-full text-white/[0.035]" />
       <div className="relative mx-auto max-w-6xl px-4">
         {/* Owner call-to-action */}
-        <div className="mt-10 flex items-center justify-between gap-6 rounded-3xl bg-white/[0.04] px-7 py-6 ring-1 ring-white/10">
-          <div>
-            <div className={heading}>Own property in Uganda?</div>
-            <div className="mt-1 text-xl font-semibold text-white">Let CasaVilla find tenants, collect your rent — or build your next one.</div>
+        {banner && (
+          <div className="mt-10 flex items-center justify-between gap-6 rounded-3xl bg-white/[0.04] px-7 py-6 ring-1 ring-white/10">
+            <div>
+              <div className={heading}>{banner === "landlord" ? "Growing your portfolio?" : "Own property in Uganda?"}</div>
+              <div className="mt-1 text-xl font-semibold text-white">{banner === "landlord" ? "Add your next property, or let CasaVilla build it for you." : "Let CasaVilla find tenants, collect your rent — or build your next one."}</div>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Link href={banner === "landlord" ? "/landlord/properties/new" : "/list"} className="btn-gold">{banner === "landlord" ? "Add a property" : "List a property"}</Link>
+              <a href={CONTACT.whatsapp} className="btn border border-white/20 text-white hover:bg-white/10"><MessageCircle className="h-4 w-4" /> Talk to us</a>
+            </div>
           </div>
-          <div className="flex shrink-0 gap-2">
-            <Link href="/list" className="btn-gold">List a property</Link>
-            <a href={CONTACT.whatsapp} className="btn border border-white/20 text-white hover:bg-white/10"><MessageCircle className="h-4 w-4" /> Talk to us</a>
-          </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-[1.5fr_1fr_1fr_0.9fr] gap-10 py-12 text-sm">
           <div>
@@ -83,7 +98,7 @@ export function PublicFooter() {
             <div className={`${heading} mt-6`}>Follow us</div>
             <SocialLinks className="mt-3" />
           </div>
-          {COLUMNS.map((c) => (
+          {columns(me).map((c) => (
             <nav key={c.title} aria-label={c.title}>
               <div className={heading}>{c.title}</div>
               <ul className="mt-4 space-y-2.5">
@@ -129,7 +144,8 @@ export function MobileFooter() {
 
         <nav aria-label="CasaVilla" className="mt-5 grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm text-white/75">
           {[["/about", "About us"], ["/how-it-works", "How it works"], ["/get-app", "Get the app"], ["/list", "List a property"], ["/contact", "Contact"], ["/privacy", "Privacy & terms"]].map(([href, l]) => (
-            <Link key={href} href={href} className="active:text-white">{l}</Link>
+            // Inside the installed app, "Get the app" makes no sense (web-only hides it there).
+            <Link key={href} href={href} className={`active:text-white ${href === "/get-app" ? "web-only" : ""}`}>{l}</Link>
           ))}
         </nav>
 

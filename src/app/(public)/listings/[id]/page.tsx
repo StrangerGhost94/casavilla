@@ -52,6 +52,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const landlord = property.landlord;
   const others = await db.unit.findMany({ where: { propertyId: property.id, listed: true, status: "vacant", mode: "long" }, orderBy: { label: "asc" } });
   const user = await getUser();
+  // The landlord of this home, or CasaVilla staff: they manage it rather than apply for it.
+  const manages = !!user && (user.id === landlord.id || user.role === "manager");
+  const manageHref = user ? `/${user.role === "manager" ? "manager" : "landlord"}/properties/${property.id}` : "";
   const existing = user?.role === "tenant"
     ? await db.application.findFirst({ where: { unitId: unit.id, tenantId: user.id }, orderBy: { createdAt: "desc" } })
     : null;
@@ -159,8 +162,13 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               </div>
             </div>
             <div className="my-4 border-t border-stone-100" />
-            {unit.status === "vacant" && <div className="mb-4"><ViewingBox unitId={unit.id} hostId={landlord.id} next={`/listings/${unit.id}`} /></div>}
-            {unit.status !== "vacant" ? (
+            {unit.status === "vacant" && !manages && <div className="mb-4"><ViewingBox unitId={unit.id} hostId={landlord.id} next={`/listings/${unit.id}`} /></div>}
+            {manages ? (
+              <div className="space-y-2">
+                <Link href={manageHref} className="btn-primary btn-lg w-full">Manage this property</Link>
+                <p className="text-center text-xs text-stone-500">This is how tenants see your listing{unit.status === "vacant" ? "" : " (it's let, so it isn't shown in search)"}.</p>
+              </div>
+            ) : unit.status !== "vacant" ? (
               <Badge>occupied</Badge>
             ) : sent || existing ? (
               <div className="rounded-xl bg-brand-50 p-3 text-sm text-brand-800">
@@ -192,7 +200,11 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
       </div>
 
       {/* Phones: price and the main action always in reach, above the tab bar */}
-      {unit.status === "vacant" && !sent && !existing && (
+      {manages ? (
+        <ActionBar price={ugx(unit.rent)} per="/ month" sub={`${title} · ${property.name}`}>
+          <Link href={manageHref} className="btn-primary btn-sm">Manage</Link>
+        </ActionBar>
+      ) : unit.status === "vacant" && !sent && !existing && (!user || user.role === "tenant") && (
         <ActionBar price={ugx(unit.rent)} per="/ month" sub={`${title} · ${property.name}`}>
           <a href={wa} aria-label="Message on WhatsApp" className="btn-outline btn-sm px-2.5"><MessageCircle className="h-4 w-4" /></a>
           <a href="#viewing" aria-label="Book a viewing" className="btn-outline btn-sm px-2.5"><CalendarCheck className="h-4 w-4" /></a>

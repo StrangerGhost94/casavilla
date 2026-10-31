@@ -1,11 +1,16 @@
 import Link from "next/link";
 import { LoginForm } from "@/components/AuthForms";
 import { Logo } from "@/components/ui";
+import { redirect } from "next/navigation";
+import { getUser, homeFor } from "@/lib/auth";
 
 export const metadata = { title: "Sign in", robots: { index: false, follow: true } };
 
 export default async function Login({ searchParams }: { searchParams: Promise<{ next?: string }> }) {
   const { next } = await searchParams;
+  // Already signed in (e.g. the installed app kept them signed in): go where they were heading.
+  const me = await getUser();
+  if (me) redirect(next?.startsWith("/") && !next.startsWith("//") ? next : homeFor(me.role));
   return (
     <main className="md:py-12">
       <div className="mx-auto max-w-md overflow-hidden md:rounded-3xl md:bg-white md:shadow-float">

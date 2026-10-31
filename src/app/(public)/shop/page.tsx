@@ -104,13 +104,15 @@ export default async function Shop({ searchParams }: { searchParams: Promise<{ e
         )}
 
         {me && <p className="mt-6 text-center text-xs text-stone-500">Your orders and their delivery status are under <Link href="/orders" className="link">My orders</Link>.</p>}
-        <div className="mt-6 flex flex-col items-start gap-3 rounded-3xl border border-stone-200 bg-white p-5 sm:flex-row sm:items-center">
-          <div className="min-w-0 flex-1">
-            <div className="font-semibold text-brand-950">Sell supplies to landlords and tenants</div>
-            <p className="text-sm text-stone-500">Hardware shops and providers can list items here and get orders straight to their phone.</p>
+        {(!me || me.role === "provider") && (
+          <div className="mt-6 flex flex-col items-start gap-3 rounded-3xl border border-stone-200 bg-white p-5 sm:flex-row sm:items-center">
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-brand-950">{me ? "Your items in the shop" : "Sell supplies to landlords and tenants"}</div>
+              <p className="text-sm text-stone-500">{me ? "Add items, update stock and see orders from your dashboard." : "Hardware shops and providers can list items here and get orders straight to their phone."}</p>
+            </div>
+            <Link href={me ? "/provider/products" : "/register?role=provider"} className="btn-outline shrink-0">{me ? "Manage my items" : "Start selling"}</Link>
           </div>
-          <Link href="/register?role=provider" className="btn-outline shrink-0">Start selling</Link>
-        </div>
+        )}
       </div>
     </main>
   );

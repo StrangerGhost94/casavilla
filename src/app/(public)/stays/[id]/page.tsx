@@ -56,6 +56,9 @@ export default async function StayPage({ params, searchParams }: { params: Promi
   ];
   const amenities = [u.selfContained ? "Self-contained" : null, u.furnished ? "Furnished" : null, u.sizeSqm ? `${u.sizeSqm} m²` : null, ...u.amenities].filter(Boolean) as string[];
   const bookHref = user ? "#book" : `/register?role=tenant&next=/stays/${u.id}`;
+  // The host or CasaVilla staff manage the place; they don't book it.
+  const manages = !!user && (user.id === p.landlordId || user.role === "manager");
+  const manageHref = user ? `/${user.role === "manager" ? "manager" : "landlord"}/stays` : "";
   return (
     <main className="mx-auto max-w-6xl md:px-4 md:pt-6">
       <JsonLd data={[
@@ -92,7 +95,12 @@ export default async function StayPage({ params, searchParams }: { params: Promi
               <div className="text-2xl font-bold text-brand-950">{ugx(u.nightlyRate)} <span className="text-sm font-normal text-stone-500">/ night</span></div>
               <div className="mt-0.5 text-xs text-stone-500">{u.cleaningFee > 0 ? `+ ${ugx(u.cleaningFee)} cleaning · ` : ""}Paid with MTN or Airtel MoMo</div>
             </div>
-            {user ? (
+            {manages ? (
+              <div className="space-y-2">
+                <Link href={manageHref} className="btn-primary btn-lg w-full">Manage bookings & dates</Link>
+                <p className="text-center text-xs text-stone-500">This is how guests see your place.</p>
+              </div>
+            ) : user ? (
               <StayBooker unitId={u.id} nightly={u.nightlyRate} cleaningFee={u.cleaningFee} minNights={u.minNights} maxGuests={u.maxGuests} booked={[...booked]} today={today} phone={user.phone}
                 initial={{ checkIn: sp.checkIn, checkOut: sp.checkOut, guests: Number(sp.guests) || 1 }} />
             ) : (
@@ -106,7 +114,7 @@ export default async function StayPage({ params, searchParams }: { params: Promi
         </aside>
       </div>
       <ActionBar price={ugx(u.nightlyRate)} per="/ night" sub={`${p.name} · ${u.label}`}>
-        <a href={bookHref} className="btn-primary btn-sm">{user ? "Choose dates" : "Book"}</a>
+        {manages ? <Link href={manageHref} className="btn-primary btn-sm">Manage</Link> : <a href={bookHref} className="btn-primary btn-sm">{user ? "Choose dates" : "Book"}</a>}
       </ActionBar>
     </main>
   );
