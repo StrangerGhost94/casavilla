@@ -112,3 +112,36 @@ export function InstallPrompt() {
     </>
   );
 }
+
+/**
+ * The "Get the app" page's button: one-tap install on Android/Chrome, the two Safari steps on iPhone,
+ * and "already installed" inside the app.
+ */
+export function InstallNow() {
+  const [mode, setMode] = useState<"loading" | "android" | "ios" | "installed" | "other">("loading");
+  const [evt, setEvt] = useState<BIPEvent | null>(null);
+  useEffect(() => {
+    if (isStandalone()) { setMode("installed"); return; }
+    const ua = navigator.userAgent;
+    const ios = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+    setMode(ios ? "ios" : "other");
+    const onPrompt = (e: Event) => { e.preventDefault(); setEvt(e as BIPEvent); setMode("android"); };
+    const onInstalled = () => setMode("installed");
+    window.addEventListener("beforeinstallprompt", onPrompt);
+    window.addEventListener("appinstalled", onInstalled);
+    return () => { window.removeEventListener("beforeinstallprompt", onPrompt); window.removeEventListener("appinstalled", onInstalled); };
+  }, []);
+  if (mode === "installed") return <p className="rounded-2xl bg-brand-50 p-4 text-sm font-semibold text-brand-800">You&apos;re using the CasaVilla app. 🎉</p>;
+  if (mode === "ios") return (
+    <ol className="space-y-3 text-sm text-stone-700">
+      <li className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><Share className="h-[18px] w-[18px]" /></span><span>In Safari, tap the <b>Share</b> button</span></li>
+      <li className="flex items-center gap-3"><span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><PlusSquare className="h-[18px] w-[18px]" /></span><span>Choose <b>Add to Home Screen</b>, then <b>Add</b></span></li>
+    </ol>
+  );
+  if (mode === "android" && evt) return (
+    <button type="button" className="btn-primary btn-lg w-full rounded-2xl sm:w-auto" onClick={async () => { await evt.prompt(); const { outcome } = await evt.userChoice; if (outcome === "accepted") setMode("installed"); setEvt(null); }}>
+      Install CasaVilla — free
+    </button>
+  );
+  return <p className="text-sm text-stone-600">On your phone, open this page in Chrome (Android) or Safari (iPhone) and install from there — or use your browser&apos;s menu: <b>Install app</b> / <b>Add to Home screen</b>.</p>;
+}

@@ -4,6 +4,11 @@ import { SESSION_COOKIE, verifySession } from "@/lib/session";
 const areas = ["tenant", "landlord", "provider", "manager", "caretaker"] as const;
 
 export async function middleware(req: NextRequest) {
+  // One address for Google and for the Play Store app: www.casavillaproperties.com → casavillaproperties.com (same path).
+  const host = (req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "").split(",")[0].trim();
+  if (host.startsWith("www.")) {
+    return NextResponse.redirect(`https://${host.slice(4)}${req.nextUrl.pathname}${req.nextUrl.search}`, 308);
+  }
   const area = req.nextUrl.pathname.split("/")[1];
   if (!(areas as readonly string[]).includes(area)) {
     // Public pages: tell the service worker not to keep a copy when someone is signed in.
@@ -18,5 +23,6 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/listings/:path*", "/stays/:path*", "/sale/:path*", "/services", "/shop", "/tenant/:path*", "/landlord/:path*", "/provider/:path*", "/manager/:path*", "/caretaker/:path*"],
+  // Every page (for the www redirect), but not Next's static files or the API (payment webhooks must never be redirected).
+  matcher: ["/((?!_next/static|_next/image|api/).*)"],
 };

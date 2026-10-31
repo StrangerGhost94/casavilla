@@ -42,7 +42,7 @@ export function PopularSearches() {
 const COLUMNS = [
   { title: "Explore", links: [["/listings", "Homes for rent"], ["/stays", "Short stays"], ["/sale", "Land & property for sale"], ["/build", "Build with CasaVilla"], ["/services", "Home services"], ["/shop", "Shop"]] },
   { title: "For owners", links: [["/list", "List a property"], ["/sale?kind=land", "Sell land"], ["/build/start?kind=apartments", "Build or extend"], ["/register?role=landlord", "Landlord account"], ["/register?role=provider", "Become a provider"]] },
-  { title: "CasaVilla", links: [["/about", "About us"], ["/how-it-works", "How it works"], ["/contact", "Contact"], ["/privacy", "Privacy"], ["/terms", "Terms of use"]] },
+  { title: "CasaVilla", links: [["/about", "About us"], ["/how-it-works", "How it works"], ["/get-app", "Get the app"], ["/contact", "Contact"], ["/privacy", "Privacy"], ["/terms", "Terms of use"]] },
 ] as const;
 
 const heading = "text-[11px] font-semibold uppercase tracking-[0.2em] text-gold-300";
@@ -127,7 +127,7 @@ export function MobileFooter() {
         </div>
 
         <nav aria-label="CasaVilla" className="mt-5 grid grid-cols-2 gap-x-4 gap-y-2.5 text-sm text-white/75">
-          {[["/about", "About us"], ["/how-it-works", "How it works"], ["/list", "List a property"], ["/build", "Build with us"], ["/contact", "Contact"], ["/privacy", "Privacy & terms"]].map(([href, l]) => (
+          {[["/about", "About us"], ["/how-it-works", "How it works"], ["/get-app", "Get the app"], ["/list", "List a property"], ["/contact", "Contact"], ["/privacy", "Privacy & terms"]].map(([href, l]) => (
             <Link key={href} href={href} className="active:text-white">{l}</Link>
           ))}
         </nav>

@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { ANDROID_PACKAGE, PLAY_URL } from "@/lib/android";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
@@ -13,6 +14,8 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#0e3628",
     theme_color: "#0e3628",
     categories: ["business", "lifestyle", "finance"],
+    // Once the Play Store app is live, Android can point people to it (the web install keeps working too).
+    ...(PLAY_URL ? { related_applications: [{ platform: "play", url: PLAY_URL, id: ANDROID_PACKAGE }], prefer_related_applications: false } : {}),
     icons: [
       { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
       { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
