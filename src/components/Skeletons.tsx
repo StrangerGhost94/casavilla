@@ -34,6 +34,35 @@ export function MarketSkeleton() {
   );
 }
 
+/** The cards still loading on a page whose top is already shown. */
+export function CardsSkeleton({ count = 3 }: { count?: number }) {
+  return (
+    <div aria-busy="true" aria-label="Loading" className="mx-auto max-w-6xl px-4 pt-5">
+      <Bone className="h-6 w-40" />
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{Array.from({ length: count }, (_, i) => <Card key={i} />)}</div>
+    </div>
+  );
+}
+
+/** Home page: dark search band, then the six tiles and a row of listings. */
+export function HomeSkeleton() {
+  return (
+    <main aria-busy="true" aria-label="Loading">
+      <section className="bg-brand-950">
+        <div className="mx-auto max-w-3xl px-4 pb-9 pt-2 md:pb-14 md:pt-10">
+          <div className="h-7 w-64 max-w-full animate-pulse rounded-lg bg-white/15 motion-reduce:animate-none" />
+          <div className="mt-3 h-40 animate-pulse rounded-2xl bg-white/15 motion-reduce:animate-none md:mt-5 md:h-28" />
+        </div>
+      </section>
+      <div className="relative z-10 mx-auto -mt-5 max-w-6xl rounded-t-3xl bg-cream px-4 pt-4 md:rounded-none md:pt-8">
+        <div className="grid grid-cols-3 gap-2 md:grid-cols-6 md:gap-3">{[0, 1, 2, 3, 4, 5].map((i) => <Bone key={i} className="h-28 rounded-2xl" />)}</div>
+        <Bone className="mt-6 h-6 w-40" />
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((i) => <Card key={i} />)}</div>
+      </div>
+    </main>
+  );
+}
+
 /** One listing, stay, plot, plan or provider: big photo, details, action panel. */
 export function DetailSkeleton() {
   return (

@@ -4,17 +4,16 @@
 
 Mobile Lighthouse (simulated slow 4G, throttled phone).
 
-| Page | Measure | Before (live, 1 Nov 2026) | After (local production build, no real network distance) |
+| Page | Measure | Before (live, 1 Nov 2026) | After (live, 1 Nov 2026) |
 |---|---|---|---|
-| Home | Score | 68 | 89 |
-| Home | Main content visible (LCP) | 5.8 s | 3.7 s |
-| Home | Page weight | 984 KB | 460 KB |
-| Listings | Score | 85 | 96 |
-| Listings | Main content visible (LCP) | 4.2 s | 2.7 s |
-| Listings | Page weight | 639 KB | 287 KB |
+| Home | Score | 68 | 87 |
+| Home | Main content visible (LCP) | 5.8 s | 3.5 s |
+| Home | Page weight | 984 KB | 539 KB |
+| Listings | Score | 85 | 93 |
+| Listings | Main content visible (LCP) | 4.2 s | 2.8 s |
+| Listings | Page weight | 639 KB | 367 KB |
 
-Page weight is comparable. Scores and LCP are not a fair comparison until re-measured on the live site, because "after" ran
-without the distance to the server. To fill in once deployed: `npx lighthouse https://casavillaproperties.com --form-factor=mobile`.
+Re-measure with `npx lighthouse https://casavillaproperties.com --form-factor=mobile`.
 
 Real visitors' speed (including INP, which lab tests can't measure) is on **Manager → System health → Real-user speed**.
 
