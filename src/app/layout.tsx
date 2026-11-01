@@ -1,7 +1,5 @@
 import type { Metadata, Viewport } from "next";
 import "@fontsource-variable/inter";
-import "@fontsource/playfair-display/600.css";
-import "@fontsource/playfair-display/700.css";
 import "./globals.css";
 import { Suspense } from "react";
 import { RegisterSW } from "@/components/InstallApp";
@@ -9,6 +7,7 @@ import { Flash } from "@/components/Flash";
 import { StandaloneFileLinks, ViewportFix } from "@/components/FileButton";
 import { startupImages } from "@/lib/splash";
 import { SITE } from "@/lib/seo";
+import { WebVitals } from "@/components/WebVitals";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),
@@ -32,7 +31,7 @@ export const viewport: Viewport = { themeColor: "#0e3628", width: "device-width"
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en-UG">
-      <body>{children}<Suspense fallback={null}><Flash /></Suspense><RegisterSW /><StandaloneFileLinks /><ViewportFix /></body>
+      <body>{children}<Suspense fallback={null}><Flash /></Suspense><RegisterSW /><StandaloneFileLinks /><ViewportFix /><WebVitals /></body>
     </html>
   );
 }

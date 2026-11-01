@@ -130,7 +130,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ a
       {/* Compact search band: continues the dark header, so listings start high on the screen */}
       <section className="relative overflow-hidden bg-brand-950 text-white">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/launch.jpg" alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover object-[50%_60%] opacity-35" />
+        <img src="/launch-1200.webp" srcSet="/launch-720.webp 720w, /launch-1200.webp 941w" sizes="(max-width: 768px) 400px, 100vw" fetchPriority="high" alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover object-[50%_60%] opacity-35" />
         <div className="absolute inset-0 bg-gradient-to-b from-brand-950 via-brand-950/70 to-brand-950" />
         <div className="relative mx-auto max-w-3xl px-4 pb-9 pt-2 md:pb-14 md:pt-10">
           <h1 className="text-xl font-bold md:text-4xl">{hello}</h1>

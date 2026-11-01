@@ -16,7 +16,7 @@ export async function initiateCharge(opts: {
   if (provider === "sandbox") return { ok: true };
   const appUrl = process.env.APP_URL || "http://localhost:3000";
   try {
-    const res = await fetch(`${FLW}/charges?type=mobile_money_uganda`, {
+    const res = await fetch(`${FLW}/charges?type=mobile_money_uganda`, { signal: AbortSignal.timeout(30000),
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -37,7 +37,7 @@ export async function initiateCharge(opts: {
 export async function verifyCharge(reference: string, expectedAmount: number): Promise<"success" | "failed" | "pending"> {
   if (provider === "sandbox") return "pending";
   try {
-    const res = await fetch(`${FLW}/transactions/verify_by_reference?tx_ref=${encodeURIComponent(reference)}`, {
+    const res = await fetch(`${FLW}/transactions/verify_by_reference?tx_ref=${encodeURIComponent(reference)}`, { signal: AbortSignal.timeout(20000),
       headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` }, cache: "no-store",
     });
     const json = await res.json();
@@ -63,7 +63,7 @@ export async function sendTransfer(o: {
   if (mobile && !o.phone) return { ok: false, error: "No Mobile Money number" };
   if (!mobile && (!o.bankCode || !o.accountNumber)) return { ok: false, error: "Bank code or account number missing" };
   try {
-    const res = await fetch(`${FLW}/transfers`, {
+    const res = await fetch(`${FLW}/transfers`, { signal: AbortSignal.timeout(45000),
       method: "POST",
       headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}`, "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -82,7 +82,7 @@ export async function sendTransfer(o: {
 
 export async function transferStatus(id: string): Promise<"paid" | "failed" | "pending"> {
   try {
-    const res = await fetch(`${FLW}/transfers/${encodeURIComponent(id)}`, { headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` }, cache: "no-store" });
+    const res = await fetch(`${FLW}/transfers/${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(20000), headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` }, cache: "no-store" });
     const s = (await res.json()).data?.status;
     return s === "SUCCESSFUL" ? "paid" : s === "FAILED" ? "failed" : "pending";
   } catch {

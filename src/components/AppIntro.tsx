@@ -17,7 +17,7 @@ export function AppIntro({ to = "/" }: { to?: string }) {
   return (
     <main className="launch-screen relative w-full select-none overflow-hidden bg-brand-950 text-white">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/launch.jpg" alt="" aria-hidden draggable={false} className="absolute inset-0 h-full w-full animate-ken-burns object-cover" />
+      <img src="/launch-1200.webp" srcSet="/launch-720.webp 720w, /launch-1200.webp 941w" sizes="(max-width: 768px) 400px, 100vw" fetchPriority="high" alt="" aria-hidden draggable={false} className="absolute inset-0 h-full w-full animate-ken-burns object-cover" />
       <div className="absolute inset-x-0 top-0 h-48 bg-gradient-to-b from-black/45 to-transparent" />
       <div className="absolute inset-x-0 bottom-0 h-[55%] bg-gradient-to-t from-black/85 via-black/45 to-transparent" />
       <div className="absolute inset-x-0 top-[calc(11vh+env(safe-area-inset-top))] flex justify-center px-8">

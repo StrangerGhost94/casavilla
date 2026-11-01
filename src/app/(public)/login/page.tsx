@@ -16,7 +16,7 @@ export default async function Login({ searchParams }: { searchParams: Promise<{ 
       <div className="mx-auto max-w-md overflow-hidden md:rounded-3xl md:bg-white md:shadow-float">
         <div className="relative flex h-[38vh] min-h-64 items-center justify-center overflow-hidden bg-brand-900 pt-[env(safe-area-inset-top)] md:h-64">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/launch.jpg" alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover object-[50%_62%]" />
+          <img src="/launch-1200.webp" srcSet="/launch-720.webp 720w, /launch-1200.webp 941w" sizes="(max-width: 768px) 400px, 100vw" fetchPriority="high" alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover object-[50%_62%]" />
           <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/25" />
           <Logo tile size="md" className="relative -mt-8 animate-fade-up shadow-float [&_img]:h-14" />
           <Link href="/" className="absolute right-4 top-[calc(env(safe-area-inset-top)+0.9rem)] rounded-full bg-black/30 px-3.5 py-1.5 text-sm font-semibold text-white backdrop-blur">Skip</Link>

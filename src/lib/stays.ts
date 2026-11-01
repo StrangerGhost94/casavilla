@@ -39,6 +39,16 @@ export async function bookedNights(unitId: number, from: string, to: string) {
   return nights;
 }
 
+/** Of these units, the ones with a booking or block overlapping the dates: one query, however many units. */
+export async function takenUnits(unitIds: number[], checkIn: string, checkOut: string) {
+  if (!unitIds.length) return new Set<number>();
+  const rows = await db.booking.findMany({
+    where: { unitId: { in: unitIds }, checkIn: { lt: dateOnly(checkOut) }, checkOut: { gt: dateOnly(checkIn) }, ...occupying() },
+    select: { unitId: true }, distinct: ["unitId"],
+  });
+  return new Set(rows.map((r) => r.unitId));
+}
+
 export async function isFree(unitId: number, checkIn: string, checkOut: string, tx: Prisma.TransactionClient | typeof db = db) {
   return (await tx.booking.count({ where: { unitId, checkIn: { lt: dateOnly(checkOut) }, checkOut: { gt: dateOnly(checkIn) }, ...occupying() } })) === 0;
 }

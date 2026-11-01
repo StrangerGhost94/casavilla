@@ -49,13 +49,14 @@ export function LocationPicker({
   useEffect(() => {
     clearTimeout(timer.current);
     if (q.trim().length < 2) { setHits(null); setSearchError(false); return; }
+    let stale = false; // A newer search started: ignore this one's answer, however late it arrives.
     timer.current = setTimeout(async () => {
       setSearching(true); setSearchError(false);
-      try { setHits(await getJSON<Hit[]>(`/api/locations?q=${encodeURIComponent(q.trim())}`)); }
-      catch { setSearchError(true); setHits(null); }
-      finally { setSearching(false); }
-    }, 250);
-    return () => clearTimeout(timer.current);
+      try { const found = await getJSON<Hit[]>(`/api/locations?q=${encodeURIComponent(q.trim())}`); if (!stale) setHits(found); }
+      catch { if (!stale) { setSearchError(true); setHits(null); } }
+      finally { if (!stale) setSearching(false); }
+    }, 300);
+    return () => { stale = true; clearTimeout(timer.current); };
   }, [q]);
 
   const choose = (c: Child) => setTrail((t) => [...t, c]);

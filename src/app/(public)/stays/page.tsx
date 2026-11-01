@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { areaMatch } from "@/lib/queries";
 import { fmtDate, kampalaToday, ugx } from "@/lib/format";
 import { crumbText, insideFilter, trailFor } from "@/lib/geo";
-import { isFree, nightsBetween, checkStay } from "@/lib/stays";
+import { takenUnits, nightsBetween, checkStay } from "@/lib/stays";
 import { StayCard } from "@/components/PropertyCard";
 import { LocationPicker } from "@/components/LocationPicker";
 import { DiscoverTabs } from "@/components/DiscoverTabs";
@@ -43,11 +43,8 @@ export default async function Stays({ searchParams }: { searchParams: Promise<Re
     orderBy: sp.sort === "high" ? { nightlyRate: "desc" } : sp.sort === "new" ? { id: "desc" } : { nightlyRate: "asc" }, take: 100,
   });
   const n = dated ? nightsBetween(sp.checkIn!, sp.checkOut!) : 0;
-  const rows = (await Promise.all(units.map(async (u) => {
-    if (!dated) return { u, ok: true };
-    if (checkStay(u, sp.checkIn!, sp.checkOut!, guests)) return { u, ok: false };
-    return { u, ok: await isFree(u.id, sp.checkIn!, sp.checkOut!) };
-  }))).filter((r) => r.ok);
+  const taken = dated ? await takenUnits(units.map((u) => u.id), sp.checkIn!, sp.checkOut!) : new Set<number>();
+  const rows = units.map((u) => ({ u, ok: !dated || (!checkStay(u, sp.checkIn!, sp.checkOut!, guests) && !taken.has(u.id)) })).filter((r) => r.ok);
   const keep = { q: sp.q, checkIn: sp.checkIn, checkOut: sp.checkOut, guests: sp.guests, in: sp.in, max: sp.max, sort: sp.sort };
   const href = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams(Object.entries({ ...keep, ...patch }).filter(([, v]) => v) as [string, string][]);

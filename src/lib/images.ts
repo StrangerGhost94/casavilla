@@ -28,14 +28,18 @@ export async function normaliseUpload(data: Buffer, mimeType: string): Promise<{
   }
 }
 
-/** A smaller WebP copy of an image file, made once and then served from the database. */
-export async function variant(file: { id: number; mimeType: string; data: Uint8Array }, width: number) {
+/**
+ * A smaller WebP copy of an image file, made once and then served from the database.
+ * The original's bytes are read only the first time a size is asked for.
+ */
+export async function variant(file: { id: number; mimeType: string }, width: number) {
   if (!RESIZABLE.includes(file.mimeType)) return null;
   const w = snapWidth(width);
   const hit = await db.fileVariant.findUnique({ where: { fileId_width: { fileId: file.id, width: w } } });
   if (hit) return hit;
   try {
-    const data = await sharp(Buffer.from(file.data), { failOn: "none" })
+    const original = await db.file.findUniqueOrThrow({ where: { id: file.id }, select: { data: true } });
+    const data = await sharp(Buffer.from(original.data), { failOn: "none" })
       .rotate()
       .resize({ width: w, height: w, fit: "inside", withoutEnlargement: true })
       .webp({ quality: w <= 320 ? 68 : 74, effort: 4 })

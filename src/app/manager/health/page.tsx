@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { runChecks } from "@/lib/integrity";
+import { METRICS, vitalsSummary } from "@/lib/vitals";
 import { PageHeader, SectionTitle } from "@/components/ui";
 import { ConfirmSubmit, Submit } from "@/components/client";
 import { repairCheck, runMaintenance } from "../actions";
@@ -48,6 +49,9 @@ export default async function SystemHealth() {
         ))}
       </div>
 
+      <SectionTitle title="Real-user speed" />
+      <RealUserSpeed />
+
       <SectionTitle title="Location dataset" />
       <div className="card text-sm">
         {ds ? (
@@ -73,6 +77,31 @@ export default async function SystemHealth() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+/** What visitors' own phones report, since the server last restarted. The figure is the 75th percentile: most visits were this fast or faster. */
+function RealUserSpeed() {
+  const { metrics, slowest } = vitalsSummary();
+  const fmt = (m: keyof typeof METRICS, v: number) => (METRICS[m].unit === "ms" ? `${(v / 1000).toFixed(v < 1000 ? 2 : 1)} s` : v.toFixed(2));
+  if (!metrics.some((x) => x.count)) return <p className="card text-sm text-stone-500">No visits measured since the last restart yet.</p>;
+  return (
+    <div className="card space-y-3 text-sm">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {metrics.map(({ m, count, p75 }) => {
+          const c = METRICS[m];
+          const tone = p75 == null ? "text-stone-400" : p75 <= c.good ? "text-brand-700" : p75 <= c.poor ? "text-gold-700" : "text-maroon-600";
+          return <div key={m}><div className="text-xs text-stone-500">{c.label}</div><div className={`text-lg font-bold ${tone}`}>{p75 == null ? "—" : fmt(m, p75)}</div><div className="text-[11px] text-stone-400">{count} visit{count === 1 ? "" : "s"}</div></div>;
+        })}
+      </div>
+      {slowest.length > 0 && (
+        <div className="border-t border-stone-100 pt-2">
+          <div className="text-xs font-semibold text-stone-500">Slowest pages (main content visible)</div>
+          {slowest.map((s) => <div key={s.page} className="flex justify-between gap-3 py-0.5"><span className="truncate text-stone-700">{s.page}</span><span className="shrink-0 text-stone-500">{fmt("LCP", s.p75)} · {s.count}</span></div>)}
+        </div>
+      )}
+      <p className="text-[11px] text-stone-400">Green is good, gold needs work, red is poor. Most visits were this fast or faster. Resets when the server restarts.</p>
     </div>
   );
 }

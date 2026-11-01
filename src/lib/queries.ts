@@ -90,7 +90,7 @@ export async function activeProviders(category?: string, inId?: string) {
       ...(sel ? { serviceAreas: { some: { location: { OR: [{ path: { startsWith: sel.path } }, { id: { in: sel.path.split("/").filter(Boolean) } }] } } } } : {}),
     },
     include: { services: { where: { active: true, category: { notIn: CASAVILLA_ONLY } } }, serviceAreas: { include: { location: { select: { name: true } } } } },
-    orderBy: { id: "asc" },
+    orderBy: { id: "asc" }, take: 300,
   });
   // Track record: finished jobs and their average star rating.
   const stats = list.length ? await db.job.groupBy({ by: ["providerId"], where: { providerId: { in: list.map((p) => p.id) }, status: "done" }, _count: { _all: true, rating: true }, _avg: { rating: true } }) : [];
@@ -111,7 +111,7 @@ export async function shopProducts(providerId?: number) {
     // House plans are CasaVilla's own now (/build/plans), not sold by shops.
     where: { active: true, provider: { status: "active" }, OR: [{ category: null }, { category: { not: "House plans" } }], ...(providerId ? { providerId } : {}) },
     include: { provider: { select: { id: true, name: true, businessName: true } } },
-    orderBy: { id: "desc" },
+    orderBy: { id: "desc" }, take: 300,
   });
   return rows.map((p) => ({
     id: p.id, name: p.name, description: p.description, price: p.price, stock: p.stock, photoId: p.photoId, category: p.category,

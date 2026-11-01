@@ -1,11 +1,11 @@
 // CasaVilla service worker: makes the app installable, keeps app assets on the phone
 // so it opens fast, and copes with flaky connections (some networks drop or block requests).
 // Private pages (rent, payments, dashboards) always come fresh from the server and are never stored.
-const VERSION = "cv-v36";
+const VERSION = "cv-v37";
 const PAGES = "cv-pages-v1";
 const PHOTOS = "cv-photos-v1"; // public listing photos, kept on the phone so they open instantly next time
 const MAX_PHOTOS = 250;
-const SHELL = ["/offline.html", "/launch.jpg", "/logo.png", "/logo-light.png", "/icons/icon-192.png", "/icons/apple-touch-icon.png"];
+const SHELL = ["/offline.html", "/launch-720.webp", "/logo-480.webp", "/logo-light-480.webp", "/icons/icon-192.png", "/icons/apple-touch-icon.png"];
 
 // Public marketplace pages: kept as a fallback so the app still opens (with a "not up to date" note) when the
 // network fails. Nothing behind sign-in is kept, and nothing rendered for a signed-in person.

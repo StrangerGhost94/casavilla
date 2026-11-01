@@ -12,7 +12,8 @@ const PRIVATE_CACHE = "private, max-age=3600";
 export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   const width = Number(new URL(req.url).searchParams.get("w")) || 0;
-  const f = await db.file.findUnique({ where: { id: Number(id) || 0 } });
+  // Without the bytes: most requests are for a small copy, and photos can be megabytes.
+  const f = await db.file.findUnique({ where: { id: Number(id) || 0 }, select: { id: true, name: true, mimeType: true, isPublic: true, ownerId: true } });
   if (!f) return new NextResponse("Not found", { status: 404 });
   if (!f.isPublic) {
     const u = await getUser();
@@ -25,10 +26,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const v = await variant(f, width);
     if (v) return new NextResponse(new Uint8Array(v.data), { headers: { "Content-Type": v.mimeType, "Cache-Control": cache, "Content-Length": String(v.data.length) } });
   }
-  return new NextResponse(new Uint8Array(f.data), {
+  const { data } = await db.file.findUniqueOrThrow({ where: { id: f.id }, select: { data: true } });
+  return new NextResponse(new Uint8Array(data), {
     headers: {
       "Content-Type": f.mimeType,
-      "Content-Length": String(f.data.length),
+      "Content-Length": String(data.length),
       "Content-Disposition": `${f.mimeType.startsWith("image/") || f.mimeType === "application/pdf" ? "inline" : "attachment"}; filename="${encodeURIComponent(f.name)}"`,
       "Cache-Control": cache,
     },

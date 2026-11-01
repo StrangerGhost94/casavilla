@@ -1,8 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
-export const db = globalForPrisma.prisma ?? new PrismaClient();
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+// One client (and one connection pool) per server. PRISMA_LOG=1 prints every query, to spot slow pages and N+1s.
+export const db = globalForPrisma.prisma ?? new PrismaClient(process.env.PRISMA_LOG ? { log: ["query"] } : undefined);
+globalForPrisma.prisma = db;
 
 export type { User, Role, Lease, Charge, Payment, Job, Property, Unit } from "@prisma/client";
 

@@ -51,7 +51,7 @@ export default async function Build() {
 
       <section className="relative overflow-hidden bg-brand-950 text-white">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/launch.jpg" alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover object-[30%_55%] opacity-40" />
+        <img src="/launch-1200.webp" srcSet="/launch-720.webp 720w, /launch-1200.webp 941w" sizes="(max-width: 768px) 400px, 100vw" fetchPriority="high" alt="" aria-hidden className="absolute inset-0 h-full w-full object-cover object-[30%_55%] opacity-40" />
         <div className="absolute inset-0 bg-gradient-to-r from-brand-950 via-brand-950/80 to-brand-950/30" />
         <div className="relative mx-auto max-w-6xl px-4 pb-10 pt-6 md:pb-16 md:pt-14">
           <div className="text-xs font-semibold uppercase tracking-[0.2em] text-gold-300">Build with CasaVilla</div>

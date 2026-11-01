@@ -5,7 +5,7 @@ import { fileSrcSet, fileUrl } from "@/lib/file-url";
 /** The roofline from the CasaVilla logo (no lettering). Size it by height, e.g. "h-8". */
 export function LogoMark({ className = "h-8" }: { className?: string }) {
   // eslint-disable-next-line @next/next/no-img-element
-  return <img src="/logo-mark.png" alt="" aria-hidden className={`w-auto select-none ${className}`} draggable={false} />;
+  return <img src="/logo-mark.webp" width={240} height={60} alt="" aria-hidden className={`w-auto select-none ${className}`} draggable={false} />;
 }
 
 /**
@@ -14,19 +14,24 @@ export function LogoMark({ className = "h-8" }: { className?: string }) {
  */
 export function Logo({ tone = "dark", size = "md", className = "", tile = false }: { tone?: "light" | "dark"; stacked?: boolean; size?: "sm" | "md" | "lg" | "xl"; className?: string; tile?: boolean }) {
   const h = { sm: "h-9", md: "h-12", lg: "h-20", xl: "h-32" }[size];
+  // Small WebP copies (the originals are 280 KB); the browser picks one for the size shown.
+  const sized = (base: string) => ({
+    src: `/${base}-480.webp`, srcSet: `/${base}-240.webp 240w, /${base}-480.webp 480w, /${base}-720.webp 720w`,
+    sizes: { sm: "90px", md: "110px", lg: "170px", xl: "270px" }[size], width: 720, height: 350,
+  });
   // On dark green the logo's own red and green get lost at small sizes, so it sits on a light tile.
   if (tile)
     return (
       <span className={`inline-flex items-center rounded-xl bg-cream px-2.5 py-1 shadow-sm ring-1 ring-black/5 ${className}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.png" alt="CasaVilla Property Management" draggable={false} className={`${h} w-auto select-none`} />
+        <img {...sized("logo")} alt="CasaVilla Property Management" draggable={false} className={`${h} w-auto select-none`} />
       </span>
     );
   const light = tone === "light";
   return (
     <span className={`inline-flex ${className}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={light ? "/logo-light.png" : "/logo.png"} alt="CasaVilla Property Management" draggable={false}
+      <img {...sized(light ? "logo-light" : "logo")} alt="CasaVilla Property Management" draggable={false}
         className={`${h} w-auto select-none ${light ? "drop-shadow-[0_3px_10px_rgba(0,0,0,0.45)]" : ""}`} />
     </span>
   );

@@ -50,8 +50,12 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   if (row.mode === "short") redirect(`/stays/${row.id}`);
   const { property, ...unit } = row;
   const landlord = property.landlord;
-  const others = await db.unit.findMany({ where: { propertyId: property.id, listed: true, status: "vacant", mode: "long" }, orderBy: { label: "asc" } });
-  const user = await getUser();
+  const [others, user, trail, nearbyRent] = await Promise.all([
+    db.unit.findMany({ where: { propertyId: property.id, listed: true, status: "vacant", mode: "long" }, orderBy: { label: "asc" } }),
+    getUser(),
+    trailFor(property.locationId),
+    listedUnits({ max: Math.round(unit.rent * 1.35), exclude: unit.id, limit: 30 }),
+  ]);
   // The landlord of this home, or CasaVilla staff: they manage it rather than apply for it.
   const manages = !!user && (user.id === landlord.id || user.role === "manager");
   const manageHref = user ? `/${user.role === "manager" ? "manager" : "landlord"}/properties/${property.id}` : "";
@@ -59,10 +63,9 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
     ? await db.application.findFirst({ where: { unitId: unit.id, tenantId: user.id }, orderBy: { createdAt: "desc" } })
     : null;
   const wa = waLink(`Hello CasaVilla, I'm interested in ${property.name} ${unit.label} (${property.location}).`);
-  const trail = await trailFor(property.locationId);
   const area = [...trail].reverse().find((c) => ["subcounty", "county", "district"].includes(c.level));
   // Similar: other vacant homes within about a third of this rent, nearest in price first.
-  const similar = (await listedUnits({ max: Math.round(unit.rent * 1.35), exclude: unit.id, limit: 30 }))
+  const similar = nearbyRent
     .filter((h) => h.rent >= unit.rent * 0.65)
     .sort((a, b) => Math.abs(a.rent - unit.rent) - Math.abs(b.rent - unit.rent)).slice(0, 3);
   const title = homeTitle(unit.bedrooms, property.type);

@@ -99,6 +99,8 @@ model User {
   taxRemittances   TaxRemittance[]       @relation("TaxLandlord")
   taxRecorded      TaxRemittance[]       @relation("TaxRecordedBy")
 
+  @@index([role, status])
+  @@index([phone])
   @@map("users")
 }
 
@@ -209,6 +211,7 @@ model Unit {
   viewings      Viewing[]
 
   @@index([propertyId])
+  @@index([listed, status, mode])
   @@map("units")
 }
 
@@ -263,6 +266,8 @@ model Lease {
 
   @@index([tenantId])
   @@index([landlordId])
+  @@index([unitId])
+  @@index([status])
   @@map("leases")
 }
 
@@ -314,6 +319,7 @@ model Payment {
   @@index([leaseId])
   @@index([chargeId])
   @@index([status, createdAt])
+  @@index([tenantId])
   @@map("payments")
 }
 
@@ -344,6 +350,8 @@ model Service {
   active      Boolean @default(true)
   jobs        Job[]
 
+  @@index([providerId])
+  @@index([category, active])
   @@map("services")
 }
 
@@ -361,6 +369,8 @@ model Product {
   /// Shop section, e.g. "Building materials" or "House plans"
   category    String?
 
+  @@index([providerId])
+  @@index([active])
   @@map("products")
 }
 
@@ -380,6 +390,7 @@ model Order {
 
   @@index([providerId])
   @@index([buyerId])
+  @@index([productId])
   @@map("orders")
 }
 
@@ -423,6 +434,8 @@ model Job {
   @@index([requesterId])
   @@index([status])
   @@index([locationId])
+  @@index([propertyId])
+  @@index([unitId])
   @@map("jobs")
 }
 
@@ -455,6 +468,9 @@ model Document {
   kind         String    @default("upload")
   createdAt    DateTime  @default(now()) @map("created_at")
 
+  @@index([leaseId])
+  @@index([propertyId])
+  @@index([fileId])
   @@map("documents")
 }
 
@@ -487,6 +503,7 @@ model Notification {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@index([userId, read])
+  @@index([userId, createdAt])
   @@map("notifications")
 }
 
@@ -1268,6 +1285,8 @@ model Viewing {
 
   @@index([hostId, status])
   @@index([requesterId])
+  @@index([unitId])
+  @@index([saleListingId])
   @@map("viewings")
 }
 
@@ -1456,6 +1475,7 @@ model BuildUpdatePhoto {
   createdAt DateTime    @default(now()) @map("created_at")
 
   @@index([updateId])
+  @@index([fileId])
   @@map("build_update_photos")
 }
 

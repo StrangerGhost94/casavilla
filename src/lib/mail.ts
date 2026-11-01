@@ -43,7 +43,7 @@ export async function sendQueuedEmails(limit = 20) {
         const b = await bookingData(m.attachId);
         if (b) attachments.push({ filename: `booking-${b.b.reference}.pdf`, content: Buffer.from(await bookingPdf(b)).toString("base64") });
       }
-      const res = await fetch("https://api.resend.com/emails", {
+      const res = await fetch("https://api.resend.com/emails", { signal: AbortSignal.timeout(20000),
         method: "POST",
         headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
         body: JSON.stringify({ from: process.env.MAIL_FROM, to: [m.toEmail], subject: m.subject, html: m.html, attachments }),
