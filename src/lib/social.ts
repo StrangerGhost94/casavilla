@@ -1,6 +1,6 @@
 // CasaVilla's social media accounts — the footer shows one icon per entry, in this order.
 //
-// PLACEHOLDERS: Facebook, Instagram, TikTok, X and YouTube point at each network's home page until CasaVilla's
+// PLACEHOLDERS: Facebook and YouTube point at each network's home page until CasaVilla's
 // own pages exist. To go live, replace `url` with the profile link and delete `placeholder: true`, e.g.
 //   facebook: { url: "https://www.facebook.com/casavillaug" },
 export type Network = "whatsapp" | "facebook" | "instagram" | "tiktok" | "x" | "youtube";
@@ -8,9 +8,9 @@ export type Network = "whatsapp" | "facebook" | "instagram" | "tiktok" | "x" | "
 export const SOCIAL: Record<Network, { url: string; placeholder?: true }> = {
   whatsapp: { url: "https://wa.me/256776593482" },
   facebook: { url: "https://www.facebook.com/", placeholder: true },
-  instagram: { url: "https://www.instagram.com/", placeholder: true },
-  tiktok: { url: "https://www.tiktok.com/", placeholder: true },
-  x: { url: "https://x.com/", placeholder: true },
+  instagram: { url: "https://www.instagram.com/casavilla.pm.ug" },
+  tiktok: { url: "https://www.tiktok.com/@casavilla.properties" },
+  x: { url: "https://x.com/CasaVillaug" },
   youtube: { url: "https://www.youtube.com/", placeholder: true },
 };
 
