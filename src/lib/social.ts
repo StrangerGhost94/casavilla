@@ -8,7 +8,7 @@ export type Network = "whatsapp" | "facebook" | "instagram" | "tiktok" | "x" | "
 export const SOCIAL: Record<Network, { url: string; placeholder?: true }> = {
   whatsapp: { url: "https://wa.me/256776593482" },
   facebook: { url: "https://www.facebook.com/", placeholder: true },
-  instagram: { url: "https://www.instagram.com/casavilla.pm.ug" },
+  instagram: { url: "https://www.instagram.com/casavillaproperties" },
   tiktok: { url: "https://www.tiktok.com/@casavilla.properties" },
   x: { url: "https://x.com/CasaVillaug" },
   youtube: { url: "https://www.youtube.com/", placeholder: true },
