@@ -14,14 +14,14 @@ export const dynamic = "force-dynamic";
 /** The one place owners and providers start: rent out, sell, or offer a service. */
 export default async function List() {
   const u = await getUser();
-  const owner = u && (u.role === "landlord" || u.role === "manager");
-  // Signed in with another kind of account (tenant, provider, caretaker): listing needs a landlord account,
-  // so CasaVilla sets it up — sign-up would only send them back to their own home.
+  // The CasaVilla office lists and manages every property. Staff go straight to the form; anyone signed in
+  // (landlords included) asks the office, which sets it up; visitors open a landlord account first.
+  const owner = u?.role === "manager";
   const other = !!u && !owner;
   const ask = (what: string) => waLink(`Hello CasaVilla, I'd like to ${what}. My CasaVilla account is ${u?.name} (${u?.phone}).`);
-  const to = (path: string, role = "landlord") => (owner ? `/${u!.role}${path}` : other ? ask(path.startsWith("/sale") ? "sell land or a property" : "rent out a property") : `/register?role=${role}&next=${encodeURIComponent(`/landlord${path}`)}`);
+  const to = (path: string, role = "landlord") => (owner ? `/${u!.role}${path}` : other ? ask(path.startsWith("/sale") ? "sell land or a property" : "rent out a property") : `/register?role=${role}&next=/landlord`);
   const options = [
-    { href: to("/properties/new"), icon: KeyRound, tone: "bg-gold-400 text-brand-950", title: "Rent out a property", body: "List houses, apartments or rooms. Collect rent on Mobile Money, track tenants and repairs." },
+    { href: to("/properties/new"), icon: KeyRound, tone: "bg-gold-400 text-brand-950", title: "Rent out a property", body: "Houses, apartments or rooms. CasaVilla finds tenants, collects rent and handles repairs. You see the money come in." },
     { href: to("/sale/new"), icon: Trees, tone: "bg-brand-800 text-gold-300", title: "Sell land or a property", body: "Plots, farms, houses or buildings. Reviewed by CasaVilla, with title verification for buyers." },
     { href: u?.role === "provider" ? "/provider/services" : other ? ask("offer my services") : "/register?role=provider", icon: Wrench, tone: "bg-brand-50 text-brand-700", title: "Offer a service", body: "Plumbing, cleaning, painting, security… get hired by landlords and tenants." },
   ];

@@ -39,7 +39,7 @@ export async function applyForUnit(fd: FormData) {
     } catch (e) {
       if (!isUniqueViolation(e)) throw e; // a double-tap: the first application already went through
     }
-    await notify(unit.property.landlordId, `${u.name} applied for ${unit.property.name} · ${unit.label}`, "/landlord/applications");
+    await notifyManagers(`${u.name} applied for ${unit.property.name} · ${unit.label}`, "/manager/applications");
   }
   redirect(`/listings/${unitId}?sent=1`);
 }
@@ -124,7 +124,6 @@ export async function createRequest(fd: FormData) {
     },
   });
   const where = `${lease.unit.property.name} · ${lease.unit.label}`;
-  await notify(lease.landlordId, `${priority === "urgent" ? "URGENT: " : ""}New repair request from ${u.name} (${where}): ${job.title}`, `/landlord/maintenance/${job.id}`);
   await notifyManagers(`Repair request (${job.priority}) at ${where}: ${job.title}`, `/manager/jobs/${job.id}`);
   await audit(u.id, "job.created", "job", job.id, `${title} (${priority})`);
   redirect(`/tenant/requests/${job.id}`);

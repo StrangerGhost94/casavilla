@@ -13,13 +13,13 @@ import { kampalaToday, ugx } from "@/lib/format";
 
 const refresh = () => revalidatePath("/", "layout");
 
-/** Landlords and managers record expenses directly; a caretaker's expense waits for the landlord to approve. */
+/** Managers record expenses directly; a caretaker's expense waits for CasaVilla to approve. */
 export async function addExpense(fd: FormData) {
-  const u = await requireUser("landlord", "manager", "caretaker");
+  const u = await requireUser("manager", "caretaker");
   const propertyId = id(fd, "propertyId") || null;
   const p = propertyId ? await workableProperty(u, propertyId) : null;
   if (propertyId && !p) return fail("Property not found");
-  if (!p && u.role !== "landlord") return fail("Choose the property this was for");
+  if (!p) return fail("Choose the property this was for");
   const landlordId = p?.landlordId ?? u.id;
   const category = await oneOf(fd, "category", EXPENSE_CATEGORIES, "category");
   const description = await reqText(fd, "description", "what it was for", { max: 160 });
@@ -37,7 +37,7 @@ export async function addExpense(fd: FormData) {
 }
 
 export async function decideExpense(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const e = await db.expense.findUnique({ where: { id: id(fd) } });
   if (!e || (u.role !== "manager" && e.landlordId !== u.id)) return fail("Expense not found");
   const d = fd.get("decision");
@@ -50,7 +50,7 @@ export async function decideExpense(fd: FormData) {
 }
 
 export async function deleteExpense(fd: FormData) {
-  const u = await requireUser("landlord", "manager", "caretaker");
+  const u = await requireUser("manager", "caretaker");
   const e = await db.expense.findUnique({ where: { id: id(fd) } });
   const mine = e && (u.role === "manager" || e.landlordId === u.id || (u.role === "caretaker" && e.createdById === u.id && e.status === "pending"));
   if (!e || !mine) return fail("Expense not found");

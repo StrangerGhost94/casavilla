@@ -145,8 +145,9 @@ async function jobEscalations() {
       await tell(`esc-assigned:${j.id}:${j.assignedAt.getTime()}`, `${who} hasn't responded to "${j.title}"${at} in 24h. Consider reassigning.`);
       if (await notifyOnce(`nudge:${j.id}:${j.assignedAt.getTime()}`, j.providerId, `Reminder: please accept or decline "${j.title}"${at}.`, `/provider/jobs/${j.id}`)) n++;
     }
+    // CasaVilla approves quotes on the owner's behalf.
     if (j.status === "quoted" && hours(j.updatedAt) >= 48 && j.landlordId) {
-      if (await notifyOnce(`quote-wait:${j.id}:${j.quote}`, j.landlordId, `A quote of ${ugx(j.quote)} for "${j.title}" is waiting for your approval.`, `/landlord/maintenance/${j.id}`)) n++;
+      await tell(`quote-wait:${j.id}:${j.quote}`, `A quote of ${ugx(j.quote)} for "${j.title}" has waited 48h for approval.`);
     }
   }
   return n;

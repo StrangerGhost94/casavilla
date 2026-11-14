@@ -132,10 +132,9 @@ export async function answerInspection(tenantId: number, id: number, agree: bool
   const done = await db.inspection.update({ where: { id }, data: { status: agree ? "agreed" : "disputed", tenantAnsweredAt: new Date(), tenantComment: comment } });
   const where = `${ins.unit.property.name} · ${ins.unit.label}`;
   const t = await db.user.findUnique({ where: { id: tenantId }, select: { name: true } });
-  if (agree) await notify(ins.lease!.landlordId, `${t?.name} agreed with the ${KIND_LABEL[ins.kind].toLowerCase()} inspection for ${where}.`, `/landlord/inspections/${id}`);
+  if (agree) await notifyManagers(`${t?.name} agreed with the ${KIND_LABEL[ins.kind].toLowerCase()} inspection for ${where}.`, `/manager/inspections/${id}`);
   else {
     const msg = `${t?.name} disputes the ${KIND_LABEL[ins.kind].toLowerCase()} inspection for ${where}: “${(comment ?? "").slice(0, 140)}”`;
-    await notify(ins.lease!.landlordId, msg, `/landlord/inspections/${id}`);
     await notifyManagers(msg, `/manager/inspections/${id}`);
   }
   await audit(tenantId, agree ? "inspection.agreed" : "inspection.disputed", "inspection", id, comment ?? undefined);

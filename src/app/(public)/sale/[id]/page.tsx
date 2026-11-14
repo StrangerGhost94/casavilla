@@ -1,3 +1,4 @@
+import { OFFICE } from "@/lib/social";
 import type { Metadata } from "next";
 import { abs, areaHref, areaOf, breadcrumbLd, idFrom, listingLd, saleHref } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
@@ -155,12 +156,13 @@ export default async function SaleListingPage({ params }: { params: Promise<{ id
           <div className="card space-y-4 lg:sticky lg:top-24">
             <div>
               <div className="text-xs text-stone-500">Listed by</div>
-              <div className="font-semibold text-brand-950">{l.owner.role === "manager" ? "CasaVilla Property Management" : l.owner.businessName || l.owner.name}</div>
+              <div className="font-semibold text-brand-950">{OFFICE.name}</div>
               <div className="text-xs text-stone-500">Viewings and offers are handled through CasaVilla.</div>
             </div>
             {l.status === "sold"
               ? <div className="rounded-xl bg-stone-100 p-3 text-sm text-stone-600">This property has been sold. <Link href="/sale" className="link">See what&apos;s still available →</Link></div>
-              : mine ? <Link href={`/${me!.role}/sale/${l.id}`} className="btn-primary w-full">Manage this listing</Link>
+              : mine ? (me!.role === "manager" ? <Link href={`/manager/sale/${l.id}`} className="btn-primary w-full">Manage this listing</Link>
+                : <p className="rounded-xl bg-brand-50 p-3 text-sm text-brand-800">Your listing. CasaVilla handles enquiries, viewings and offers for you.</p>)
               : <SaleEnquiryForm listingId={l.id} title={l.title} me={me ? { name: me.name, phone: me.phone } : null} />}
             {l.status !== "sold" && !mine && <ViewingBox saleListingId={l.id} hostId={l.ownerId} next={`/sale/${l.id}`} />}
             <div className="grid grid-cols-2 gap-2">

@@ -55,7 +55,7 @@ export default async function AreaPage({ params }: { params: Promise<Params> }) 
 
   const faqs: [string, string][] = d.market === "rent" ? [
     [`How much is rent in ${area}?`, n ? `On CasaVilla, homes in ${area} currently rent from ${ugx(d.facts.from)} a month${d.facts.byBeds.map((b) => `; ${b.beds === 0 ? "studios" : `${b.beds}${b.beds === 4 ? "+" : ""}-bedroom homes`} about ${ugx(b.typical)}`).join("")}.` : `Prices depend on size and finish. Turn on an alert to see new ${area} listings with their prices as soon as they're posted.`],
-    ["How do I rent a home through CasaVilla?", "Open a home, book a viewing or apply online. Once the landlord accepts, your lease, rent, receipts and repairs are all in the CasaVilla app."],
+    ["How do I rent a home through CasaVilla?", "Open a home, book a viewing or apply online. Once CasaVilla accepts, your lease, rent, receipts and repairs are all in the CasaVilla app."],
     ["Can I pay rent with Mobile Money?", "Yes. Rent is paid with MTN Mobile Money or Airtel Money in the app, and you get a receipt straight away."],
     ["Are the listings verified?", "Listings marked Verified have been visited by the CasaVilla team, who checked the property and that the landlord owns it."],
   ] : d.market === "stays" ? [

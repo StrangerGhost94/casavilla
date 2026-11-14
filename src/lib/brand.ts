@@ -14,17 +14,16 @@ export const CASAVILLA: Brand = {
   showCasaVilla: true, logoFileId: null, custom: false,
 };
 
-/** The look of documents issued for a landlord: their own profile, else CasaVilla's saved default, else built-in. */
-export async function brandFor(landlordId?: number | null): Promise<Brand> {
-  const [own, house] = await Promise.all([
-    landlordId ? db.brandProfile.findUnique({ where: { ownerId: landlordId } }) : null,
-    db.brandProfile.findFirst({ where: { ownerId: null } }),
-  ]);
-  const b = own ?? house;
+/**
+ * The look of every document tenants receive: CasaVilla's saved profile, else built-in. Owners stay anonymous to
+ * tenants, so a landlord's own branding is never used (`landlordId` is kept so callers don't change).
+ */
+export async function brandFor(_landlordId?: number | null): Promise<Brand> {
+  const b = await db.brandProfile.findFirst({ where: { ownerId: null } });
   if (!b) return CASAVILLA;
   return {
     displayName: b.displayName, address: b.address, phone: b.phone, email: b.email, tin: b.tin, accentColor: b.accentColor,
     footerNote: b.footerNote, signatory: b.signatory, signatoryTitle: b.signatoryTitle, showCasaVilla: b.showCasaVilla,
-    logoFileId: b.logoFileId, custom: !!own,
+    logoFileId: b.logoFileId, custom: false,
   };
 }

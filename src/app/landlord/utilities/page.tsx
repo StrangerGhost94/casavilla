@@ -1,9 +1,6 @@
-import { requireUser } from "@/lib/auth";
-import { UtilitiesPage } from "@/components/Utilities";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Utilities & meters" };
-
-export default async function LandlordUtilities() {
-  const u = await requireUser("landlord");
-  return <UtilitiesPage viewer={u} />;
+// Landlords only view their money and tenants; the CasaVilla office does this work for them.
+export default function Page() {
+  redirect("/landlord");
 }

@@ -13,7 +13,7 @@ const refresh = () => revalidatePath("/", "layout");
 
 /** Where a landlord receives their money. A manager can set it for a landlord. */
 export async function savePayoutAccount(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const landlordId = u.role === "manager" ? id(fd, "landlordId") : u.id;
   if (!(await db.user.findFirst({ where: { id: landlordId, role: "landlord" }, select: { id: true } }))) return fail("Landlord not found");
   const method = await oneOf(fd, "method", ["mtn", "airtel", "bank"] as const, "how to receive money");

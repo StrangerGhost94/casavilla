@@ -1,7 +1,6 @@
-import { requireUser } from "@/lib/auth";
-import { SaleForm } from "@/components/SaleAdmin";
+import { redirect } from "next/navigation";
 
-export default async function LandlordSaleEdit({ params }: { params: Promise<{ id: string }> }) {
-  const u = await requireUser("landlord");
-  return <SaleForm viewer={u} id={Number((await params).id)} />;
+// Landlords only view their money and tenants; the CasaVilla office does this work for them.
+export default function Page() {
+  redirect("/landlord");
 }

@@ -34,12 +34,12 @@ export async function requestLink(tenant: Pick<User, "id" | "name" | "phone">, r
   await audit(tenant.id, "link.requested", "tenant_link", link.id, `${phone}${landlord ? ` → ${landlord.name}` : " (landlord not on CasaVilla yet)"}`);
   const what = note ? ` (${note})` : "";
   if (landlord) {
-    await notify(landlord.id, `${tenant.name} says they rent from you${what}. Confirm and set up their lease so they can pay rent in the app.`, "/landlord/applications");
-    await notify(tenant.id, `Request sent to your landlord ${firstName(landlord.name)}. You'll be notified as soon as they confirm your lease.`, "/tenant");
-    return { ok: true, found: true, landlordName: firstName(landlord.name) };
+    await notifyManagers(`${tenant.name} says they rent from ${landlord.name}${what}. Confirm and set up their lease so they can pay rent in the app.`, "/manager/applications");
+    await notify(tenant.id, "Request sent to CasaVilla. You'll be notified as soon as your lease is confirmed.", "/tenant");
+    return { ok: true, found: true };
   }
   await notifyManagers(`${tenant.name} rents from a landlord who isn't on CasaVilla yet (${phone.replace("+256", "0")})${what}. Invite them to join.`, "/manager/applications");
-  await notify(tenant.id, `Your landlord (${phone.replace("+256", "0")}) isn't on CasaVilla yet. We'll invite them — you'll be connected automatically when they join.`, "/tenant");
+  await notify(tenant.id, `Your landlord (${phone.replace("+256", "0")}) isn't on CasaVilla yet. CasaVilla will contact them and connect you.`, "/tenant");
   return { ok: true, found: false };
 }
 
@@ -49,7 +49,7 @@ export async function attachWaitingTenants(landlord: Pick<User, "id" | "phone" |
   const waiting = await db.tenantLink.findMany({ where: { landlordPhone: landlord.phone, landlordId: null, status: "pending" }, include: { tenant: { select: { name: true } } } });
   if (!waiting.length) return 0;
   await db.tenantLink.updateMany({ where: { id: { in: waiting.map((w) => w.id) } }, data: { landlordId: landlord.id } });
-  await notify(landlord.id, `${waiting.length} tenant${waiting.length > 1 ? "s are" : " is"} already waiting to connect with you (${waiting.map((w) => w.tenant.name).join(", ")}). Confirm their leases to start collecting rent in the app.`, "/landlord/applications");
-  for (const w of waiting) await notify(w.tenantId, "Your landlord just joined CasaVilla. They'll confirm your lease shortly.", "/tenant");
+  await notifyManagers(`${waiting.length} tenant${waiting.length > 1 ? "s are" : " is"} waiting to connect with a new landlord (${waiting.map((w) => w.tenant.name).join(", ")}). Confirm their leases.`, "/manager/applications");
+  for (const w of waiting) await notify(w.tenantId, "Your landlord just joined CasaVilla. CasaVilla will confirm your lease shortly.", "/tenant");
   return waiting.length;
 }

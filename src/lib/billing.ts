@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "crypto";
 import type { Prisma } from "@prisma/client";
 import { db, type Lease } from "@/db";
-import { notify } from "./notify";
+import { notify, notifyManagers } from "./notify";
 import { audit } from "./audit";
 import { dateOnly, kampalaToday, periodLabel, ugx, ymd } from "./format";
 import { LATE_FEE_GRACE_DAYS, PAYMENT_TIMEOUT_MIN } from "./rules";
@@ -190,7 +190,7 @@ export async function completePayment(paymentId: number) {
   await afterPayment(p.id);
   await autoIssueEfris(p.id);
   // Still no EFRIS document (landlord records them by hand, or automatic issuing couldn't reach URA): remind them.
-  if (await needsManualEfris(p.id)) await notify(lease.landlordId, `Issue an EFRIS receipt to ${lease.tenant.name} for ${ugx(p.amount)}, then record its FDN.`, "/landlord/efris");
+  if (await needsManualEfris(p.id)) await notifyManagers(`Issue an EFRIS receipt to ${lease.tenant.name} for ${ugx(p.amount)}, then record its FDN.`, "/manager/efris");
 }
 
 export async function failPayment(paymentId: number) {

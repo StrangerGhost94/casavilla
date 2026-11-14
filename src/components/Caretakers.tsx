@@ -1,10 +1,11 @@
+import { CONTACT, OFFICE } from "@/lib/social";
 import Link from "next/link";
 import { CheckCircle2, ClipboardCheck, MessageCircle, Phone, Receipt, UserCog, Wallet, Wrench, Zap } from "lucide-react";
 import { db, type User } from "@/db";
 import { fmtDate, kampalaToday, ugx } from "@/lib/format";
 import { caretakerPropertyIds } from "@/lib/access";
 import { leaseBalance } from "@/lib/billing";
-import { Avatar, Badge, Empty, Field, PageHeader } from "./ui";
+import { Avatar, Badge, Empty, Field, PageHeader, SectionTitle } from "./ui";
 import { ConfirmSubmit, Submit } from "./client";
 import { CashForm } from "./LeaseTools";
 import { JobList, jobsFor } from "./Jobs";
@@ -18,8 +19,9 @@ export async function CaretakerAdmin({ landlordId }: { landlordId: number }) {
   ]);
   const people = [...new Map(rows.map((r) => [r.caretakerId, r.caretaker])).entries()];
   return (
-    <div className="mx-auto max-w-3xl">
-      <PageHeader title="Caretakers" subtitle="The person on the ground: they can record cash, report repairs, do inspections and read meters — but never see your statements." />
+    <div>
+      <SectionTitle title="Caretakers" />
+      <p className="muted -mt-1 mb-3 text-sm">The people on the ground at this landlord's buildings: they record cash, report repairs, do inspections and read meters. They never see the landlord's statements.</p>
       {people.length ? (
         <div className="space-y-3">
           {people.map(([cid, c]) => (
@@ -31,7 +33,7 @@ export async function CaretakerAdmin({ landlordId }: { landlordId: number }) {
                 </div>
               </div>
               {(
-                <a className="link text-xs" href={`https://wa.me/${c.phone.replace("+", "")}?text=${encodeURIComponent(`Hello ${c.name.split(" ")[0]}, I've added you as caretaker on CasaVilla. Sign in at ${process.env.APP_URL || "https://casavilla-production.up.railway.app"}/login with your phone number and the password I gave you.`)}`}>
+                <a className="link text-xs" href={`https://wa.me/${c.phone.replace("+", "")}?text=${encodeURIComponent(`Hello ${c.name.split(" ")[0]}, CasaVilla has added you as caretaker. Sign in at ${process.env.APP_URL || "https://casavillaproperties.com"}/login with your phone number and the password we gave you.`)}`}>
                   Send them how to sign in (opens WhatsApp) →
                 </a>
               )}
@@ -53,7 +55,7 @@ export async function CaretakerAdmin({ landlordId }: { landlordId: number }) {
             </div>
           ))}
         </div>
-      ) : <Empty title="No caretakers yet">Add the person who looks after your building below.</Empty>}
+      ) : <Empty title="No caretakers yet">Add the person who looks after this landlord's building below.</Empty>}
 
       {props.length > 0 ? (
         <form action={addCaretaker} className="card mt-6 space-y-3">
@@ -93,7 +95,7 @@ async function scope(u: User) {
 /** Caretaker home: what needs doing today across the buildings they look after. */
 export async function CaretakerHome({ viewer }: { viewer: User }) {
   const as = await scope(viewer);
-  if (!as.length) return <Empty title="No properties yet">Your landlord hasn&apos;t assigned you a property yet.</Empty>;
+  if (!as.length) return <Empty title="No properties yet">CasaVilla hasn&apos;t assigned you a property yet.</Empty>;
   const ids = as.map((a) => a.propertyId);
   const balanceIds = as.filter((a) => a.canSeeBalances).map((a) => a.propertyId);
   const monthStart = new Date(`${kampalaToday().slice(0, 7)}-01T00:00:00Z`);
@@ -123,7 +125,6 @@ export async function CaretakerHome({ viewer }: { viewer: User }) {
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "Africa/Kampala" });
   const owedTotal = [...owing.values()].reduce((t, o) => t + o.owed, 0);
   const tel = (p: string) => p.replace(/\D/g, "");
-  const landlords = [...new Map(as.map((a) => [a.property.landlord.phone, a.property.landlord])).values()];
   return (
     <div className="mx-auto max-w-3xl space-y-4">
       {/* Today at a glance */}
@@ -171,14 +172,13 @@ export async function CaretakerHome({ viewer }: { viewer: User }) {
         </div>
       )}
 
-      {landlords.map((l) => (
-        <div key={l.phone} className="card flex items-center gap-3 p-4">
-          <Avatar name={l.name} className="h-10 w-10 text-xs" />
-          <div className="min-w-0 flex-1"><div className="text-[11px] text-stone-500">Landlord</div><div className="truncate text-sm font-semibold text-brand-950">{l.name}</div></div>
-          <a href={`tel:+${tel(l.phone)}`} aria-label={`Call ${l.name}`} className="btn-outline btn-sm px-2.5"><Phone className="h-4 w-4" /></a>
-          <a href={`https://wa.me/${tel(l.phone)}`} aria-label={`WhatsApp ${l.name}`} className="btn-outline btn-sm px-2.5"><MessageCircle className="h-4 w-4" /></a>
-        </div>
-      ))}
+      {/* Caretakers report to the CasaVilla office, not to the owner. */}
+      <div className="card flex items-center gap-3 p-4">
+        <Avatar name={OFFICE.short} className="h-10 w-10 text-xs" />
+        <div className="min-w-0 flex-1"><div className="text-[11px] text-stone-500">Your manager</div><div className="truncate text-sm font-semibold text-brand-950">{OFFICE.name}</div></div>
+        <a href={`tel:+${tel(CONTACT.phones[0])}`} aria-label="Call CasaVilla" className="btn-outline btn-sm px-2.5"><Phone className="h-4 w-4" /></a>
+        <a href={CONTACT.whatsapp} aria-label="WhatsApp CasaVilla" className="btn-outline btn-sm px-2.5"><MessageCircle className="h-4 w-4" /></a>
+      </div>
     </div>
   );
 }
@@ -194,7 +194,7 @@ export async function CaretakerRent({ viewer }: { viewer: User }) {
   const rule = new Map(as.map((a) => [a.propertyId, a]));
   return (
     <div className="mx-auto max-w-3xl space-y-3">
-      <PageHeader title="Rent & cash" subtitle="Record cash you collect — the tenant gets a receipt and the landlord is told straight away." />
+      <PageHeader title="Rent & cash" subtitle="Record cash you collect — the tenant gets a receipt and CasaVilla is told straight away." />
       {!leases.length && <Empty title="No tenants yet" />}
       {await Promise.all(leases.map(async (l) => {
         const a = rule.get(l.unit.propertyId)!;
@@ -207,7 +207,7 @@ export async function CaretakerRent({ viewer }: { viewer: User }) {
             </summary>
             <div className="space-y-2 border-t border-stone-100 p-3">
               <a href={`tel:${l.tenant.phone}`} className="link text-sm">Call {l.tenant.phone}</a>
-              {a.canCollect ? <CashForm l={l} /> : <p className="text-xs text-stone-500">Your landlord hasn&apos;t allowed you to record payments here.</p>}
+              {a.canCollect ? <CashForm l={l} /> : <p className="text-xs text-stone-500">CasaVilla hasn&apos;t allowed you to record payments here.</p>}
             </div>
           </details>
         );
@@ -221,10 +221,10 @@ export async function CaretakerRepairs({ viewer }: { viewer: User }) {
   const props = await db.property.findMany({ where: { id: { in: ids } }, orderBy: { name: "asc" }, select: { id: true, name: true, units: { orderBy: { label: "asc" }, select: { id: true, label: true } } } });
   return (
     <div className="mx-auto max-w-3xl space-y-4">
-      <PageHeader title="Repairs" subtitle="Report problems on site. Your landlord and CasaVilla are told, and a provider is found." />
+      <PageHeader title="Repairs" subtitle="Report problems on site. CasaVilla is told and finds a provider." />
       <a href="#new" className="flex items-center gap-4 rounded-3xl bg-brand-900 p-4 text-white shadow-card transition hover:bg-brand-950">
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gold-400 text-brand-950"><Wrench className="h-5 w-5" /></span>
-        <span className="min-w-0 flex-1"><span className="block font-semibold">Report a repair</span><span className="block text-xs text-white/70">Take a photo on site. It goes straight to the landlord.</span></span>
+        <span className="min-w-0 flex-1"><span className="block font-semibold">Report a repair</span><span className="block text-xs text-white/70">Take a photo on site. It goes straight to CasaVilla.</span></span>
       </a>
       <JobList where={jobsFor.caretaker(ids)} base="/caretaker/repairs" empty="No repairs reported" />
       <form id="new" action={caretakerJob} encType="multipart/form-data" className="card scroll-mt-20 space-y-2.5">

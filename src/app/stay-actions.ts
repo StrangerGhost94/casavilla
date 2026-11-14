@@ -46,7 +46,7 @@ export async function cancelStay(fd: FormData) {
 }
 
 export async function blockStayDates(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const r = await blockDates(u, id(fd, "unitId"), String(fd.get("from") || ""), String(fd.get("to") || ""), await text(fd, "note", "a note", { optional: true, max: 200 }));
   if ("error" in r && r.error) return fail(r.error);
   revalidatePath("/", "layout");

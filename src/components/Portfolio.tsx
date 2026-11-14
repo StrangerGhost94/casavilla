@@ -95,7 +95,7 @@ export async function PropertyList({ where, base }: { where: Prisma.PropertyWher
       </div>
     </details>
   );
-  if (!rows.length) return <><Empty title="No properties yet">Add your first property, then its units.</Empty>{archivedList}</>;
+  if (!rows.length) return <><Empty title="No properties yet">{base.startsWith("/landlord") ? "The CasaVilla office adds your properties here once they're set up." : "Add your first property, then its units."}</Empty>{archivedList}</>;
   const units = rows.flatMap((p) => p.units);
   const occ = units.filter((u) => u.status === "occupied");
   const roll = occ.reduce((t, u) => t + (u.mode === "short" ? 0 : u.rent), 0);
@@ -149,6 +149,7 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
   });
   if (!p || (viewer.role !== "manager" && p.landlordId !== viewer.id)) notFound();
   const tenantsBase = base.replace("/properties", "/tenants");
+  if (viewer.role === "landlord") return <PropertySummary p={p} base={base} tenantsBase={tenantsBase} />;
   const trail = await trailFor(p.locationId);
   const photos = await db.propertyPhoto.findMany({ where: { propertyId: p.id }, orderBy: [{ sort: "asc" }] });
   const markets = new Map(await Promise.all(p.units.filter((u) => u.status === "vacant" && u.mode === "long").map(async (u) => [u.id, await marketRent(p, u.bedrooms, u.id)] as const)));
@@ -265,6 +266,51 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
           <Documents propertyId={p.id} viewerId={viewer.id} />
         </div>
       </div>
+    </div>
+  );
+}
+
+/** What a landlord sees of their property: units, rents and who lives where. CasaVilla makes every change. */
+function PropertySummary({ p, base, tenantsBase }: {
+  p: Property & { units: (Prisma.UnitGetPayload<object> & { leases: { id: number; tenant: { name: string } }[] })[] };
+  base: string; tenantsBase: string;
+}) {
+  const occupied = p.units.filter((u) => u.status === "occupied").length;
+  const roll = p.units.reduce((t, u) => t + (u.leases[0] && u.mode !== "short" ? u.rent : 0), 0);
+  return (
+    <div className="max-w-3xl">
+      <Link href={base} className="link hidden text-sm lg:inline">← Properties</Link>
+      <div className="card mt-3 overflow-hidden p-0">
+        <Photo id={p.photoId} alt={p.name} className="h-40 w-full" />
+        <div className="flex flex-wrap items-start justify-between gap-3 p-4">
+          <div className="min-w-0">
+            <div className="text-xl font-bold text-brand-950">{p.name}</div>
+            <div className="muted">{p.location} · {p.type}</div>
+            <div className="mt-1 text-sm text-stone-600">{occupied} of {p.units.length} unit{p.units.length === 1 ? "" : "s"} let · {ugx(roll)} rent a month</div>
+          </div>
+          {p.verifiedAt && <span className="pill bg-brand-50 text-brand-700"><BadgeCheck className="h-3.5 w-3.5" /> Verified by CasaVilla</span>}
+        </div>
+      </div>
+      <div className="card mt-4 divide-y divide-stone-100 p-0">
+        <div className="px-4 py-3 font-semibold text-brand-950">Units</div>
+        {p.units.map((u) => {
+          const lease = u.leases[0];
+          const row = (
+            <>
+              <div className="min-w-0 flex-1">
+                <div className="truncate font-medium text-stone-900">{u.label}</div>
+                <div className="truncate text-xs text-stone-500">{u.bedrooms ? `${u.bedrooms} bed · ` : ""}{u.mode === "short" ? `${ugx(u.nightlyRate ?? 0)}/night` : `${ugx(u.rent)}/mo`}{lease ? ` · ${lease.tenant.name}` : ""}</div>
+              </div>
+              {u.mode === "short" ? <Badge color="blue">short stay</Badge> : <Badge>{u.status}</Badge>}
+            </>
+          );
+          return lease
+            ? <Link key={u.id} href={`${tenantsBase}/${lease.id}`} className="flex items-center gap-3 px-4 py-3 hover:bg-stone-50">{row}</Link>
+            : <div key={u.id} className="flex items-center gap-3 px-4 py-3">{row}</div>;
+        })}
+        {p.units.length === 0 && <div className="px-4 py-4 text-sm text-stone-500">No units yet.</div>}
+      </div>
+      <p className="mt-4 text-sm text-stone-500">To change rents, add units or update photos, <a href={waLink(`Hello CasaVilla, about ${p.name}:`)} className="link">talk to the CasaVilla office</a>.</p>
     </div>
   );
 }
@@ -589,7 +635,7 @@ export async function TenantsSections({ where, base, show }: { where: Prisma.Lea
       {pastOwing > 0 && (
         <section id="former" className="scroll-mt-24">
           <h2 className="h2 mb-1 mt-8">Former tenants who still owe</h2>
-          <p className="muted mb-3">They have moved out but left a balance. Open one to record a payment or settle it.</p>
+          <p className="muted mb-3">They have moved out but left a balance.{base.startsWith("/landlord") ? " CasaVilla is following up." : " Open one to record a payment or settle it."}</p>
           <TenantsTable where={pastWhere} base={base} only="owing" />
         </section>
       )}
@@ -619,7 +665,8 @@ export async function TenantsTable({ where, base, only }: { where: Prisma.LeaseW
     owed: l.charges.reduce((s, c) => s + c.amount - c.paid, 0),
     overdue: l.charges.filter((c) => ymd(c.dueDate) < today).reduce((s, c) => s + c.amount - c.paid, 0),
   })).filter((r) => (only === "owing" ? r.owed > 0 : only === "overdue" ? r.overdue > 0 : only === "paid" ? r.owed === 0 : true));
-  if (!rows.length) return <Empty title={only === "paid" ? "Nobody is fully paid up yet" : only ? "Nobody owes anything right now" : "No current tenants"}>{only ? undefined : "Approve an application to create a lease."}</Empty>;
+  const ownerView = base.startsWith("/landlord"); // landlords contact tenants through CasaVilla, so no phone numbers
+  if (!rows.length) return <Empty title={only === "paid" ? "Nobody is fully paid up yet" : only ? "Nobody owes anything right now" : "No current tenants"}>{only || ownerView ? undefined : "Approve an application to create a lease."}</Empty>;
   const pill = (owed: number, overdue: number, status: string) =>
     status !== "active" ? <Badge>{status}</Badge>
       : overdue > 0 ? <span className="pill bg-maroon-50 text-maroon-600">Overdue</span>
@@ -648,7 +695,7 @@ export async function TenantsTable({ where, base, only }: { where: Prisma.LeaseW
         <tbody>
           {rows.map(({ l, owed, overdue }) => (
             <tr key={l.id}>
-              <td><Link href={`${base}/${l.id}`} className="flex items-center gap-2.5"><Avatar name={l.tenant.name} className="h-8 w-8 text-[10px]" /><span><span className="link block">{l.tenant.name}</span><span className="block text-xs text-stone-500">{l.tenant.phone}</span></span></Link></td>
+              <td><Link href={`${base}/${l.id}`} className="flex items-center gap-2.5"><Avatar name={l.tenant.name} className="h-8 w-8 text-[10px]" /><span><span className="link block">{l.tenant.name}</span>{!ownerView && <span className="block text-xs text-stone-500">{l.tenant.phone}</span>}</span></Link></td>
               <td>{l.unit.property.name} · {l.unit.label}<div className="text-xs text-stone-500">{l.landlord.name}</div></td>
               <td>{ugx(l.rent)}</td>
               <td className="whitespace-nowrap text-xs">{fmtDate(l.startDate)} – {fmtDate(l.endDate)}</td>
@@ -672,6 +719,25 @@ export async function LeaseDetail({ id, viewer, base }: { id: number; viewer: Us
   if (!l || (viewer.role !== "manager" && l.landlordId !== viewer.id)) notFound();
   if (l.status === "active") await ensureCharges(l);
   const active = l.status === "active";
+  if (viewer.role === "landlord") return (
+    <div>
+      <Link href={base} className="link hidden text-sm lg:inline">← Tenants</Link>
+      <div className="mt-3 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="h1">{l.tenant.name}</h1>
+          <div className="muted break-words">{l.unit.property.name} · {l.unit.label}</div>
+        </div>
+        <Badge>{l.status}</Badge>
+      </div>
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div className="min-w-0 lg:col-span-2"><Ledger leaseId={id} /></div>
+        <div className="space-y-5">
+          <LeaseFacts l={l} manage={false} />
+          <p className="text-sm text-stone-500">CasaVilla collects this rent and follows up on anything owed. <a href={waLink(`Hello CasaVilla, about ${l.tenant.name} at ${l.unit.property.name} · ${l.unit.label}:`)} className="link">Ask the office</a></p>
+        </div>
+      </div>
+    </div>
+  );
   return (
     <div>
       <Link href={base} className="link hidden text-sm lg:inline">← Tenants</Link>

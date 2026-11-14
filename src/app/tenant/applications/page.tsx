@@ -19,7 +19,7 @@ export default async function TenantApplications() {
   const u = await requireUser("tenant");
   const rows = await db.application.findMany({
     where: { tenantId: u.id }, orderBy: { createdAt: "desc" },
-    include: { unit: { include: { property: { include: { landlord: { select: { name: true } } } } } } },
+    include: { unit: { include: { property: true } } },
   });
   const open = rows.filter((a) => a.status === "pending").length;
   return (
@@ -52,7 +52,7 @@ export default async function TenantApplications() {
                 <div className="border-t border-stone-100 px-4 py-3">
                   <div className="flex items-center justify-between gap-2">
                     <span className={`pill shrink-0 whitespace-nowrap ${s.tone}`}>{a.status === "approved" ? <Check className="h-3.5 w-3.5" /> : a.status === "rejected" ? <X className="h-3.5 w-3.5" /> : null}{s.label}</span>
-                    <span className="text-[11px] text-stone-400">Applied {fmtDate(a.createdAt)} · {p.landlord.name}</span>
+                    <span className="text-[11px] text-stone-400">Applied {fmtDate(a.createdAt)} · CasaVilla</span>
                   </div>
                   {a.status !== "withdrawn" && (
                     <ol className="mt-3 flex items-center gap-1.5">

@@ -20,7 +20,7 @@ async function meterFor(fd: FormData, roles: ("landlord" | "manager" | "caretake
 }
 
 export async function addMeter(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const p = await workableProperty(u, id(fd, "propertyId"));
   if (!p) return fail("Property not found");
   const kind = await oneOf(fd, "kind", ["electricity", "water"] as const, "meter type");
@@ -39,14 +39,14 @@ export async function addMeter(fd: FormData) {
 }
 
 export async function retireMeter(fd: FormData) {
-  const { u, m } = await meterFor(fd, ["landlord", "manager"]);
+  const { u, m } = await meterFor(fd, ["manager"]);
   await db.meter.update({ where: { id: m.id }, data: { active: false } });
   await audit(u.id, "meter.retired", "meter", m.id);
   refresh();
 }
 
 export async function addReading(fd: FormData) {
-  const { u, m } = await meterFor(fd, ["landlord", "manager", "caretaker"]);
+  const { u, m } = await meterFor(fd, ["manager", "caretaker"]);
   const raw = String(fd.get("reading") ?? "").replace(/,/g, "").trim();
   const reading = Number(raw);
   if (!raw || !Number.isFinite(reading) || reading < 0) return fail("Enter the number shown on the meter");
@@ -59,7 +59,7 @@ export async function addReading(fd: FormData) {
 }
 
 export async function removeReading(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const r = await db.meterReading.findUnique({ where: { id: id(fd) }, include: { meter: true } });
   if (!r || !(await workableProperty(u, r.meter.propertyId))) return fail("Reading not found");
   const done = await deleteReading(u, r.id);
@@ -68,7 +68,7 @@ export async function removeReading(fd: FormData) {
 }
 
 export async function addBill(fd: FormData) {
-  const { u, m } = await meterFor(fd, ["landlord", "manager"]);
+  const { u, m } = await meterFor(fd, ["manager"]);
   const period = String(fd.get("period") || "");
   if (!/^\d{4}-\d{2}$/.test(period)) return fail("Choose the month the bill is for");
   const amount = await int(fd, "amount", "the bill amount", { min: 500, max: 100_000_000 });

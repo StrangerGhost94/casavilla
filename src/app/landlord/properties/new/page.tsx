@@ -1,9 +1,6 @@
-import { requireUser } from "@/lib/auth";
-import { PageHeader } from "@/components/ui";
-import { NewPropertyForm } from "@/components/Portfolio";
-import { AddChoice } from "@/components/AddChoice";
+import { redirect } from "next/navigation";
 
-export default async function NewProperty() {
-  await requireUser("landlord");
-  return <div className="max-w-2xl"><PageHeader title="Add a property" subtitle="Three quick steps — then photos." /><AddChoice role="landlord" active="rent" /><NewPropertyForm /></div>;
+// Landlords only view their money and tenants; the CasaVilla office does this work for them.
+export default function Page() {
+  redirect("/landlord/properties");
 }

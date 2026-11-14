@@ -67,7 +67,7 @@ export async function receiptPdf(r: ReceiptData) {
   w.facts([
     ["Date paid", fmtDate(r.p.paidAt)], ["Payment method", `${r.method}${r.p.phone ? ` · ${r.p.phone}` : ""}`],
     ["Received from", `${r.tenant.name} · ${r.tenant.phone}`], ["Property", `${r.property} · ${r.unit}`],
-    ["Landlord", r.landlord.name], ["Reference", r.p.reference],
+    [r.efris ? "Seller (landlord)" : "Received by", r.efris ? r.landlord.name : "CasaVilla Property Management, managing agent"], ["Reference", r.p.reference],
   ]);
   w.gap(6);
   w.table(["Description", "Period covered", "Amount"], r.lines.map((l) => [l.description, l.period, ugx(l.amount)]), {

@@ -1,3 +1,4 @@
+import { OFFICE } from "@/lib/social";
 import type { Metadata } from "next";
 import { abs, areaHref, areaOf, breadcrumbLd, idFrom, listingLd, stayHref } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
@@ -58,7 +59,7 @@ export default async function StayPage({ params, searchParams }: { params: Promi
   const bookHref = user ? "#book" : `/register?role=tenant&next=/stays/${u.id}`;
   // The host or CasaVilla staff manage the place; they don't book it.
   const manages = !!user && (user.id === p.landlordId || user.role === "manager");
-  const manageHref = user ? `/${user.role === "manager" ? "manager" : "landlord"}/stays` : "";
+  const manageHref = user ? (user.role === "manager" ? "/manager/stays" : "/landlord") : "";
   return (
     <main className="mx-auto max-w-6xl md:px-4 md:pt-6">
       <JsonLd data={[
@@ -97,7 +98,7 @@ export default async function StayPage({ params, searchParams }: { params: Promi
             </div>
             {manages ? (
               <div className="space-y-2">
-                <Link href={manageHref} className="btn-primary btn-lg w-full">Manage bookings & dates</Link>
+                <Link href={manageHref} className="btn-primary btn-lg w-full">{user?.role === "manager" ? "Manage bookings & dates" : "See it in your dashboard"}</Link>
                 <p className="text-center text-xs text-stone-500">This is how guests see your place.</p>
               </div>
             ) : user ? (
@@ -109,7 +110,7 @@ export default async function StayPage({ params, searchParams }: { params: Promi
                 <p className="text-center text-xs text-stone-500">Free account · takes a minute</p>
               </div>
             )}
-            <p className="mt-3 border-t border-stone-100 pt-3 text-[11px] text-stone-500">Hosted by {p.landlord.name} · managed with CasaVilla</p>
+            <p className="mt-3 border-t border-stone-100 pt-3 text-[11px] text-stone-500">Managed by {OFFICE.name}</p>
           </div>
         </aside>
       </div>

@@ -152,7 +152,7 @@ export async function TenantInspectionPage({ id, viewer }: { id: number; viewer:
               <form action={answerInspectionAction} className="mt-2 space-y-2">
                 <input type="hidden" name="id" value={ins.id} /><input type="hidden" name="answer" value="dispute" />
                 <textarea name="comment" required rows={3} maxLength={1000} className="input" placeholder="e.g. The crack in Bedroom 1 was there when I moved in" defaultValue={ins.tenantComment ?? ""} />
-                <Submit className="btn-outline btn-sm border-maroon-200 text-maroon-600">{ins.status === "disputed" ? "Update my concern" : "Send to landlord & CasaVilla"}</Submit>
+                <Submit className="btn-outline btn-sm border-maroon-200 text-maroon-600">{ins.status === "disputed" ? "Update my concern" : "Send to CasaVilla"}</Submit>
               </form>
             </details>
             {ins.status === "disputed" && (

@@ -1,8 +1,6 @@
-import { requireUser } from "@/lib/auth";
-import { JobDetail } from "@/components/Jobs";
+import { redirect } from "next/navigation";
 
-export default async function LandlordJob({ params }: { params: Promise<{ id: string }> }) {
-  const u = await requireUser("landlord");
-  const { id } = await params;
-  return <JobDetail id={Number(id)} viewer={u} back="/landlord/maintenance" />;
+// Landlords only view their money and tenants; the CasaVilla office does this work for them.
+export default function Page() {
+  redirect("/landlord");
 }

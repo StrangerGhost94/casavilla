@@ -13,21 +13,22 @@ import { id, int, optInt, reqText, text } from "@/lib/validate";
 
 async function loadJob(fd: FormData) {
   const u = await requireUser();
+  if (u.role === "landlord") return fail("The CasaVilla office handles repairs — contact them"); // owners only see costs on statements
   const job = await db.job.findUnique({ where: { id: id(fd, "jobId") } });
   if (!job) return fail("Job not found");
   return { u, job };
 }
 
 const isParty = (u: User, j: Job) =>
-  u.role === "manager" || j.requesterId === u.id || j.landlordId === u.id || j.providerId === u.id;
-/** Can approve quotes, assign, cancel: the payer, the landlord, or CasaVilla. */
-const isOwner = (u: User, j: Job) => u.role === "manager" || j.landlordId === u.id || payerOf(j) === u.id;
+  u.role === "manager" || j.requesterId === u.id || j.providerId === u.id;
+/** Can approve quotes, assign, cancel: CasaVilla, or a tenant paying for it themselves (never the owner — the office acts for them). */
+const isOwner = (u: User, j: Job) => u.role === "manager" || (payerOf(j) === u.id && j.landlordId !== u.id);
 
 const linkFor = (role: string, jid: number) =>
   ({ tenant: `/tenant/requests/${jid}`, landlord: `/landlord/maintenance/${jid}`, provider: `/provider/jobs/${jid}`, manager: `/manager/jobs/${jid}`, caretaker: `/caretaker/repairs/${jid}` })[role]!;
 
 async function tellParties(j: Pick<Job, "id" | "requesterId" | "landlordId" | "providerId">, actor: User, msg: string) {
-  const ids = [...new Set([j.requesterId, j.landlordId, j.providerId].filter((x): x is number => !!x && x !== actor.id))];
+  const ids = [...new Set([j.requesterId, j.providerId].filter((x): x is number => !!x && x !== actor.id))];
   const people = await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, role: true } });
   for (const p of people) await notify(p.id, msg, linkFor(p.role, j.id));
 }
@@ -59,7 +60,7 @@ export async function addNote(fd: FormData) {
 
 export async function assignProvider(fd: FormData) {
   const { u, job } = await loadJob(fd);
-  if (!(u.role === "manager" || (u.role === "landlord" && job.landlordId === u.id))) return fail("Not allowed");
+  if (u.role !== "manager") return fail("Not allowed");
   const providerId = id(fd, "providerIdOther") || id(fd, "providerId");
   const p = await db.user.findFirst({ where: { id: providerId, role: "provider", status: "active" } });
   if (!p) return fail("Choose an approved provider");
@@ -128,9 +129,9 @@ export async function decideQuote(fd: FormData) {
 
 export async function cancelJob(fd: FormData) {
   const { u, job } = await loadJob(fd);
-  const can = u.role === "manager" || job.requesterId === u.id || job.landlordId === u.id;
+  const can = u.role === "manager" || job.requesterId === u.id;
   if (!can) return fail("Not allowed");
-  if (job.status === "in_progress" && u.role !== "manager" && job.landlordId !== u.id) return fail("Work has already started — ask your landlord or CasaVilla to cancel");
+  if (job.status === "in_progress" && u.role !== "manager") return fail("Work has already started — ask CasaVilla to cancel");
   const reason = await text(fd, "reason", "a reason", { optional: true, max: 300 });
   await move(job, "cancelled", u, `${who(u)} cancelled the request${reason ? `: ${reason}` : ""}`);
   await tellParties(job, u, `"${job.title}" was cancelled`);
@@ -139,7 +140,7 @@ export async function cancelJob(fd: FormData) {
 
 export async function reopenJob(fd: FormData) {
   const { u, job } = await loadJob(fd);
-  const can = u.role === "manager" || job.requesterId === u.id || job.landlordId === u.id;
+  const can = u.role === "manager" || job.requesterId === u.id;
   if (!can) return fail("Not allowed");
   const provider = job.providerId ? await db.user.findFirst({ where: { id: job.providerId, status: "active" } }) : null;
   const to = provider ? "assigned" : "open";
@@ -152,7 +153,7 @@ export async function reopenJob(fd: FormData) {
 export async function rateJob(fd: FormData) {
   const { u, job } = await loadJob(fd);
   if (job.status !== "done" || !job.providerId) return fail("You can rate a job once it's done");
-  if (!(job.requesterId === u.id || job.landlordId === u.id)) return fail("Only the requester or landlord can rate this job");
+  if (job.requesterId !== u.id && u.role !== "manager") return fail("Only the person who asked for it can rate this job");
   if (job.rating) return fail("This job has already been rated");
   const rating = await int(fd, "rating", "a rating", { min: 1, max: 5 });
   const review = await text(fd, "review", "your review", { optional: true, max: 500 });

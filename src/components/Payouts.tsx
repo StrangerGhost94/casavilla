@@ -1,3 +1,4 @@
+import { waLink } from "@/lib/social";
 import Link from "next/link";
 import { AlertTriangle, ArrowDownLeft, Banknote, ChevronDown, Info, Landmark, Smartphone } from "lucide-react";
 import { db, type User } from "@/db";
@@ -109,14 +110,12 @@ export async function LandlordPayouts({ viewer }: { viewer: User }) {
         <p className="text-sm text-stone-600">{waiting > 0 && <>{ugx(waiting)} {payoutMode() === "off" ? "is waiting to be paid to you by CasaVilla" : "is on its way to you"}. </>}{owed > 0 && <>{ugx(owed)} of commission and tax on cash you collected will come off your next payouts.</>}</p>
       )}
 
-      <details className="card group" open={!account}>
-        <summary className="flex cursor-pointer list-none items-center gap-3">
-          <Banknote className="h-5 w-5 text-brand-700" />
-          <span className="min-w-0 flex-1"><span className="block font-semibold text-brand-950">Where your money goes</span><span className="block text-xs text-stone-500">{account ? `${METHOD[account.method]} · ${account.method === "bank" ? `${account.bankName} ••${account.accountNumber?.slice(-4)}` : account.phone} · ${account.accountName}` : "Not set — add it to receive payouts"}</span></span>
-          <ChevronDown className="h-4 w-4 text-stone-400 transition group-open:rotate-180" />
-        </summary>
-        <div className="mt-4 border-t border-stone-100 pt-4"><PayoutAccountForm landlordId={viewer.id} /></div>
-      </details>
+      {/* Only the CasaVilla office changes where money goes, so a stolen password can't redirect a landlord's rent. */}
+      <div className="card flex items-center gap-3">
+        <Banknote className="h-5 w-5 shrink-0 text-brand-700" />
+        <span className="min-w-0 flex-1"><span className="block font-semibold text-brand-950">Where your money goes</span><span className="block text-xs text-stone-500">{account ? `${METHOD[account.method]} · ${account.method === "bank" ? `${account.bankName} ••${account.accountNumber?.slice(-4)}` : account.phone} · ${account.accountName}` : "Not set yet — the CasaVilla office will add it"}</span></span>
+        <a href={waLink("Hello CasaVilla, I'd like to change where my rent is paid out.")} className="link shrink-0 text-xs">Change</a>
+      </div>
 
       {tax.length > 0 && (
         <section className="card">

@@ -49,7 +49,7 @@ export function LivingHere() {
   const items = [
     ["Pay rent on Mobile Money", "MTN or Airtel, with receipts kept in the app"],
     ["Move-in inspection", "Room-by-room report with photos, agreed by both sides"],
-    ["Repairs in a tap", "Report it; the landlord sends a vetted provider"],
+    ["Repairs in a tap", "Report it; CasaVilla sends a vetted provider"],
   ];
   return (
     <section className="mt-6">

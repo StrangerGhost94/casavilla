@@ -1,7 +1,6 @@
-import { requireUser } from "@/lib/auth";
-import { InspectionPage } from "@/components/Inspections";
+import { redirect } from "next/navigation";
 
-export default async function LandlordInspection({ params }: { params: Promise<{ id: string }> }) {
-  const u = await requireUser("landlord");
-  return <InspectionPage id={Number((await params).id)} viewer={u} />;
+// Landlords only view their money and tenants; the CasaVilla office does this work for them.
+export default function Page() {
+  redirect("/landlord");
 }

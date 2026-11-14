@@ -19,7 +19,7 @@ export default async function TenantRequests() {
         <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gold-400 text-brand-950"><Wrench className="h-6 w-6" /></span>
         <span className="min-w-0 flex-1">
           <span className="block font-semibold">Something broken?</span>
-          <span className="block text-sm text-white/70">Report it with a photo. Your landlord sends a vetted provider.</span>
+          <span className="block text-sm text-white/70">Report it with a photo. CasaVilla sends a vetted provider.</span>
         </span>
         <ChevronRight className="h-5 w-5 shrink-0 text-white/60" />
       </Link>

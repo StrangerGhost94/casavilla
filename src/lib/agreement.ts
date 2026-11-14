@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/db";
-import { brandFor } from "./brand";
+import { brandFor, CASAVILLA } from "./brand";
 import { fmtDate, kampalaToday, ugx, ymd } from "./format";
 import { crumbText, trailFor } from "./geo";
 import { CHARGE_KIND_LABEL, LATE_FEE_GRACE_DAYS } from "./rules";
@@ -54,7 +54,8 @@ export async function agreementPdf(leaseId: number) {
 
   clause("The parties", [
     `This agreement is made on ____________________ between:`,
-    `THE LANDLORD: ${l.landlord.name}, telephone ${l.landlord.phone}${l.landlord.email ? `, email ${l.landlord.email}` : ""}${brand.custom ? `, trading as ${brand.displayName}` : ""}. National ID / registration no.: ____________________`,
+    // Owners stay anonymous to tenants: CasaVilla signs as their managing agent (wording for the client's lawyer to confirm).
+    `THE LANDLORD: the registered owner of the premises, acting through its managing agent ${CASAVILLA.displayName}, ${CASAVILLA.address}, telephone ${CASAVILLA.phone} (together "the landlord"). The agent holds the owner's written authority to let the premises and to act for the owner under this agreement.`,
     `THE TENANT: ${l.tenant.name}, telephone ${l.tenant.phone}${l.tenant.email ? `, email ${l.tenant.email}` : ""}. National ID (NIN) / passport no.: ____________________`,
     `As section 3(5) of the Act requires, the landlord has been shown the tenant's identification document before this tenancy is entered into.`,
   ]);
@@ -115,7 +116,7 @@ export async function agreementPdf(leaseId: number) {
   clause("Whole agreement", [`This document, together with the Landlord and Tenant Act, 2022, is the whole agreement between the parties. Where a term conflicts with the Act, the Act prevails.`]);
 
   w.gap(6);
-  w.signature([{ label: "Landlord", name: l.landlord.name }, { label: "Tenant", name: l.tenant.name }]);
+  w.signature([{ label: "For the landlord (managing agent)", name: CASAVILLA.displayName }, { label: "Tenant", name: l.tenant.name }]);
   w.signature([{ label: "Witness for the landlord" }, { label: "Witness for the tenant" }]);
   w.gap(10);
   w.text("This draft was prepared automatically by CasaVilla from the lease details and the Landlord and Tenant Act, 2022. It is not legal advice — the parties should read it carefully and may have it reviewed by a lawyer before signing.", { size: 7.5, italic: true });

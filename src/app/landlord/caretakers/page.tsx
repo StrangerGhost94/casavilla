@@ -1,9 +1,6 @@
-import { requireUser } from "@/lib/auth";
-import { CaretakerAdmin } from "@/components/Caretakers";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Caretakers" };
-
-export default async function LandlordCaretakers() {
-  const u = await requireUser("landlord");
-  return <CaretakerAdmin landlordId={u.id} />;
+// Landlords only view their money and tenants; the CasaVilla office does this work for them.
+export default function Page() {
+  redirect("/landlord");
 }

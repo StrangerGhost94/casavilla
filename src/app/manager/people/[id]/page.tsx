@@ -10,6 +10,7 @@ import { Submit } from "@/components/client";
 import { CollectedCard, MiniStat } from "@/components/Dashboard";
 import { PropertyList, TenantsTable, portfolioStats } from "@/components/Portfolio";
 import { PayoutAccountForm } from "@/components/Payouts";
+import { CaretakerAdmin } from "@/components/Caretakers";
 import { setUserStatus } from "../../actions";
 
 export const metadata = { title: "Person" };
@@ -55,6 +56,7 @@ export default async function Person({ params }: { params: Promise<{ id: string 
           <section id="properties" className="scroll-mt-24"><SectionTitle title="Properties" /><PropertyList where={{ landlordId: u.id }} base="/manager/properties" /></section>
           <section><SectionTitle title="Tenants" /><TenantsTable where={{ landlordId: u.id, status: "active" }} base="/manager/tenants" /></section>
           <details className="card"><summary className="cursor-pointer font-semibold text-brand-950">Where their rent is paid out</summary><div className="mt-3"><PayoutAccountForm landlordId={u.id} manager /></div></details>
+          <section id="caretakers" className="scroll-mt-24"><CaretakerAdmin landlordId={u.id} /></section>
         </>
       )}
 

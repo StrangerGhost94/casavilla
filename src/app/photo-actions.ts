@@ -18,7 +18,7 @@ async function ownedProperty(u: User, pid: number) {
 
 /** One photo from the guided shot list. The first front photo becomes the listing cover automatically. */
 export async function uploadListingPhoto(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const p = await ownedProperty(u, id(fd, "propertyId"));
   const unitId = id(fd, "unitId") || null;
   if (unitId && !(await db.unit.findFirst({ where: { id: unitId, propertyId: p.id } }))) return fail("Choose a unit in this property");
@@ -51,7 +51,7 @@ export async function uploadListingPhoto(fd: FormData) {
 }
 
 export async function setCoverPhoto(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const ph = await db.propertyPhoto.findUnique({ where: { id: id(fd) } });
   if (!ph) return fail("Photo not found");
   await ownedProperty(u, ph.propertyId);
@@ -64,7 +64,7 @@ export async function setCoverPhoto(fd: FormData) {
 }
 
 export async function deletePhoto(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const ph = await db.propertyPhoto.findUnique({ where: { id: id(fd) } });
   if (!ph) return fail("Photo not found");
   await ownedProperty(u, ph.propertyId);
@@ -81,7 +81,7 @@ export async function deletePhoto(fd: FormData) {
 
 /** Moves a photo to another room/slot (fixing a wrong tag). */
 export async function retagPhoto(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const ph = await db.propertyPhoto.findUnique({ where: { id: id(fd) } });
   if (!ph) return fail("Photo not found");
   await ownedProperty(u, ph.propertyId);

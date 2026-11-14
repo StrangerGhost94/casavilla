@@ -44,7 +44,7 @@ export default async function TenantLease() {
           <div className="card flex items-center gap-3 p-4">
             <Avatar name={lease.landlord} className="h-11 w-11 text-sm" />
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] text-stone-500">Your landlord</div>
+              <div className="text-[11px] text-stone-500">Your property manager</div>
               <div className="truncate font-semibold text-brand-950">{lease.landlord}</div>
               {lease.landlordPhone && <div className="text-xs text-stone-500">{lease.landlordPhone}</div>}
             </div>

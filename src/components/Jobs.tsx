@@ -204,7 +204,7 @@ export async function JobDetail({ id, viewer, back }: { id: number; viewer: User
                   <form action={providerRespond} className="space-y-2">
                     {hidden}<input type="hidden" name="action" value="accept" />
                     <input name="quote" type="number" min={0} className="input" placeholder="Your quote in UGX (optional)" inputMode="numeric" />
-                    <p className="text-[11px] text-stone-500">With a quote, the {j.serviceId ? "customer" : "landlord"} approves it before you start.</p>
+                    <p className="text-[11px] text-stone-500">With a quote, the {j.serviceId ? "customer" : "CasaVilla office"} approves it before you start.</p>
                     <Submit className="btn-primary w-full">Accept / send quote</Submit>
                   </form>
                   <form action={providerRespond} className="space-y-2">{hidden}<input type="hidden" name="action" value="decline" /><input name="reason" className="input" placeholder="Reason for declining (optional)" /><Submit className="btn-outline w-full">Decline</Submit></form>

@@ -58,7 +58,7 @@ export function LoginForm({ next }: { next?: string }) {
 
 const roles = [
   { id: "tenant", title: "Tenant", body: "Find a home, pay rent, request services", icon: UserRound, tone: "bg-brand-800 text-gold-300" },
-  { id: "landlord", title: "Landlord", body: "List properties, track income, manage tenants", icon: Home, tone: "bg-gold-400 text-brand-950" },
+  { id: "landlord", title: "Landlord", body: "CasaVilla manages it; you see the rent come in", icon: Home, tone: "bg-gold-400 text-brand-950" },
   { id: "provider", title: "Service provider", body: "Offer your services, get hired", icon: Wrench, tone: "bg-brand-800 text-gold-300" },
 ] as const;
 
@@ -201,7 +201,7 @@ export function ExistingTenant({ landlordPhone }: { landlordPhone?: string }) {
         <div className="mt-3 space-y-2.5">
           <IconInput icon={KeyRound}><input name="landlordPhone" required inputMode="tel" defaultValue={landlordPhone} className="input pl-11" placeholder="Landlord's phone, e.g. 0772 123456" /></IconInput>
           <input name="unitNote" className="input" maxLength={120} placeholder="Your house / unit (optional), e.g. Rubaga Court Apt A2" />
-          <p className="text-[11px] text-stone-500">Your landlord confirms before anything is linked. If they&apos;re not on CasaVilla yet, we&apos;ll invite them and connect you when they join.</p>
+          <p className="text-[11px] text-stone-500">CasaVilla confirms before anything is linked. If your landlord isn&apos;t on CasaVilla yet, we&apos;ll contact them and connect you when they join.</p>
         </div>
       )}
     </div>

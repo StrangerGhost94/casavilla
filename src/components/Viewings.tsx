@@ -7,11 +7,12 @@ import { fmtDateTime, kampalaToday } from "@/lib/format";
 import { cancelViewing, confirmViewing, declineViewing, proposeViewing, requestViewing } from "@/app/viewing-actions";
 import { Avatar } from "./ui";
 import { ConfirmSubmit, Submit } from "./client";
+import { CONTACT, OFFICE } from "@/lib/social";
 
 const TIMES = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00", "18:00"];
 const OPEN = ["requested", "proposed", "confirmed"];
 const STATUS: Record<string, [string, string]> = {
-  requested: ["Waiting for the landlord", "bg-gold-50 text-gold-700"], proposed: ["New time suggested", "bg-sky-50 text-sky-700"],
+  requested: ["Waiting for CasaVilla", "bg-gold-50 text-gold-700"], proposed: ["New time suggested", "bg-sky-50 text-sky-700"],
   confirmed: ["Confirmed", "bg-brand-50 text-brand-700"], declined: ["Declined", "bg-maroon-50 text-maroon-600"], cancelled: ["Cancelled", "bg-stone-100 text-stone-500"],
 };
 
@@ -71,7 +72,8 @@ export function ViewingRow({ v, as }: { v: Row; as: "host" | "requester" }) {
   const what = v.unit ? `${v.unit.property.name} · ${v.unit.label}` : v.saleListing?.title ?? "Home";
   const where = v.unit?.property.location ?? v.saleListing?.location ?? "";
   const href = v.unit ? `/listings/${v.unit.id}` : v.saleListing ? `/sale/${v.saleListing.id}` : "#";
-  const other = as === "host" ? v.requester : v.host;
+  // Owners stay anonymous: whoever asked to view deals with the CasaVilla office.
+  const other = as === "host" ? v.requester : { name: OFFICE.name, phone: CONTACT.phones[0] };
   const tel = other.phone.replace(/\D/g, "");
   const live = OPEN.includes(v.status) && v.at > new Date();
   return (
@@ -89,14 +91,14 @@ export function ViewingRow({ v, as }: { v: Row; as: "host" | "requester" }) {
       </div>
       <div className="mt-3 flex items-center gap-2 text-sm">
         <Avatar name={other.name} className="h-8 w-8 text-[10px]" />
-        <span className="min-w-0 flex-1 truncate text-stone-700">{as === "host" ? "Requested by" : "Host"}: <b>{other.name}</b></span>
+        <span className="min-w-0 flex-1 truncate text-stone-700">{as === "host" ? "Requested by" : "With"}: <b>{other.name}</b></span>
         {v.status === "confirmed" && tel && <>
           <a href={`tel:+${tel}`} aria-label={`Call ${other.name}`} className="btn-outline btn-sm px-2.5"><Phone className="h-4 w-4" /></a>
           <a href={`https://wa.me/${tel}`} aria-label={`WhatsApp ${other.name}`} className="btn-outline btn-sm px-2.5"><MessageCircle className="h-4 w-4" /></a>
         </>}
       </div>
       {v.note && <p className="mt-2 rounded-lg bg-stone-50 p-2 text-xs text-stone-600">“{v.note}”</p>}
-      {v.hostNote && <p className="mt-2 rounded-lg bg-sky-50 p-2 text-xs text-sky-800">{v.host.name}: “{v.hostNote}”</p>}
+      {v.hostNote && <p className="mt-2 rounded-lg bg-sky-50 p-2 text-xs text-sky-800">{as === "host" ? v.host.name : "CasaVilla"}: “{v.hostNote}”</p>}
       {live && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {((as === "host" && v.status === "requested") || (as === "requester" && v.status === "proposed")) && (

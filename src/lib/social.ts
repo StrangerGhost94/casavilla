@@ -22,6 +22,9 @@ export const CONTACT = {
   maps: "https://www.google.com/maps/search/?api=1&query=Rubaga+Road,+Kampala,+Uganda",
 };
 
+/** How CasaVilla appears to tenants, buyers and guests: owners are never named to them. */
+export const OFFICE = { name: "CasaVilla Property Management", short: "CasaVilla" };
+
 /** WhatsApp chat with CasaVilla, optionally with a message typed in for them. */
 export const waLink = (text?: string) => `${CONTACT.whatsapp}${text ? `?text=${encodeURIComponent(text)}` : ""}`;
 

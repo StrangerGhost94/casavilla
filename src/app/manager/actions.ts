@@ -33,7 +33,6 @@ export async function setUserStatus(fd: FormData) {
     for (const j of jobs) {
       await db.job.update({ where: { id: j.id }, data: { providerId: null, status: "open", quote: null, assignedAt: null } });
       await db.jobNote.create({ data: { jobId: j.id, authorId: me.id, body: `${u.businessName || u.name} was removed (account suspended). Waiting for a new provider.`, system: true } });
-      if (j.landlordId) await notify(j.landlordId, `"${j.title}" needs a new provider — the previous one is no longer with CasaVilla.`, `/landlord/maintenance/${j.id}`);
     }
     if (jobs.length) await notifyManagers(`${jobs.length} job(s) from ${u.businessName || u.name} need reassigning.`, "/manager/jobs");
     await db.product.updateMany({ where: { providerId: u.id }, data: { active: false } });

@@ -1,9 +1,6 @@
-import { requireUser } from "@/lib/auth";
-import { SaleForm } from "@/components/SaleAdmin";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "New listing for sale" };
-
-export default async function LandlordSaleNew() {
-  const u = await requireUser("landlord");
-  return <SaleForm viewer={u} />;
+// Landlords only view their money and tenants; the CasaVilla office does this work for them.
+export default function Page() {
+  redirect("/landlord");
 }

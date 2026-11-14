@@ -89,7 +89,7 @@ export async function StatementPage({ viewer, landlordId, month, propertyId, bas
         )}
       </div>
 
-      {pending.length > 0 && viewer.role !== "caretaker" && (
+      {pending.length > 0 && viewer.role === "manager" && (
         <div className="card mt-6 border-gold-200 bg-gold-50/40">
           <div className="mb-2 font-semibold text-brand-950">Waiting for your approval</div>
           {pending.map((e) => (
@@ -107,7 +107,7 @@ export async function StatementPage({ viewer, landlordId, month, propertyId, bas
         </div>
       )}
 
-      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-[1fr_20rem]">
+      <div className={`mt-6 grid grid-cols-1 gap-4 ${viewer.role === "manager" ? "lg:grid-cols-[1fr_20rem]" : ""}`}>
         <div className="card p-0">
           <div className="px-4 pb-2 pt-4 font-semibold text-brand-950">Expenses · {monthName(month)}</div>
           {s.expenses.length ? (
@@ -120,7 +120,7 @@ export async function StatementPage({ viewer, landlordId, month, propertyId, bas
                   </div>
                   {e.receiptFileId && <FileButton href={`/api/files/${e.receiptFileId}`} name="receipt" className="rounded-lg p-1.5 text-stone-500 hover:bg-stone-100"><Paperclip className="h-4 w-4" /></FileButton>}
                   <span className="font-semibold">{ugx(e.amount)}</span>
-                  {!e.jobId && (
+                  {!e.jobId && viewer.role === "manager" && (
                     <form action={deleteExpense}><input type="hidden" name="id" value={e.id} /><ConfirmSubmit message="Delete this expense?" className="rounded-lg p-1.5 text-stone-400 hover:bg-stone-100"><Trash2 className="h-4 w-4" /></ConfirmSubmit></form>
                   )}
                 </div>
@@ -128,7 +128,7 @@ export async function StatementPage({ viewer, landlordId, month, propertyId, bas
             </div>
           ) : <div className="px-4 pb-4"><Empty title="No expenses this month">Repairs done through CasaVilla are added automatically.</Empty></div>}
         </div>
-        <ExpenseForm landlordId={landlordId} />
+        {viewer.role === "manager" && <ExpenseForm landlordId={landlordId} />}
       </div>
       <p className="mt-4 text-center text-xs text-stone-400"><Link href={q({ month: lastMonths(2)[1] })} className="hover:underline">Last month</Link></p>
     </div>
@@ -153,7 +153,7 @@ export async function ExpenseForm({ landlordId, propertyIds }: { landlordId?: nu
         <Field label="Date"><input name="spentOn" type="date" defaultValue={kampalaToday()} max={kampalaToday()} className="input" /></Field>
       </div>
       <Field label="Receipt (optional)"><input name="receipt" type="file" accept="image/*,application/pdf" className="input py-2 text-sm" /></Field>
-      {propertyIds && <p className="text-[11px] text-stone-500">The landlord approves it before it goes on their statement.</p>}
+      {propertyIds && <p className="text-[11px] text-stone-500">CasaVilla approves it before it goes on the statement.</p>}
       <Submit className="btn-primary btn-sm">Add expense</Submit>
     </form>
   );

@@ -25,7 +25,7 @@ async function ownedListing(u: User, listingId: number) {
 
 /** Create or edit a listing. A landlord's new listing waits for CasaVilla's review; a manager's goes live. */
 export async function saveSaleListing(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const existing = id(fd) ? await ownedListing(u, id(fd)) : null;
   const kind = await oneOf(fd, "kind", SALE_KINDS, "what you're selling");
   const title = await reqText(fd, "title", "a headline", { max: 100 });
@@ -72,7 +72,7 @@ export async function saveSaleListing(fd: FormData) {
 
 /** Owner: mark under offer / sold / withdrawn, or put back on the market. */
 export async function setSaleStatus(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const l = await ownedListing(u, id(fd));
   const to = await oneOf(fd, "status", ["active", "under_offer", "sold", "withdrawn"] as const, "status");
   const allowed: Record<string, string[]> = {
@@ -97,11 +97,11 @@ export async function reviewSale(fd: FormData) {
   if (d === "approve") {
     if (!l.photos.length) return fail("Add at least one photo before publishing");
     await db.saleListing.update({ where: { id: l.id }, data: { status: "active", reviewNote: null, publishedAt: l.publishedAt ?? new Date() } });
-    await notify(l.ownerId, `Your listing "${l.title}" is now live on CasaVilla.`, `/landlord/sale/${l.id}`);
+    await notify(l.ownerId, `Your listing "${l.title}" is now live on CasaVilla.`, `/sale/${l.id}`);
   } else {
     const note = await reqText(fd, "note", "what needs changing", { max: 500 });
     await db.saleListing.update({ where: { id: l.id }, data: { status: "rejected", reviewNote: note } });
-    await notify(l.ownerId, `Your listing "${l.title}" needs changes: ${note}`, `/landlord/sale/${l.id}`);
+    await notify(l.ownerId, `Your listing "${l.title}" needs changes: ${note}`, `/sale/${l.id}`);
   }
   await audit(u.id, `sale.review.${d}`, "sale", l.id, l.title);
   refresh();
@@ -119,7 +119,7 @@ export async function verifySaleTitle(fd: FormData) {
 }
 
 export async function uploadSalePhoto(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const l = await ownedListing(u, id(fd, "listingId"));
   const count = await db.salePhoto.count({ where: { listingId: l.id } });
   if (count >= 20) return { error: "Up to 20 photos per listing" };
@@ -135,7 +135,7 @@ export async function uploadSalePhoto(fd: FormData) {
 }
 
 export async function setSaleCover(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const ph = await db.salePhoto.findUnique({ where: { id: id(fd) } });
   if (!ph) return fail("Photo not found");
   await ownedListing(u, ph.listingId);
@@ -148,7 +148,7 @@ export async function setSaleCover(fd: FormData) {
 }
 
 export async function deleteSalePhoto(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const ph = await db.salePhoto.findUnique({ where: { id: id(fd) } });
   if (!ph) return fail("Photo not found");
   await ownedListing(u, ph.listingId);
@@ -163,7 +163,7 @@ export async function deleteSalePhoto(fd: FormData) {
 
 /** Deletes a listing nobody has enquired about; otherwise it can only be withdrawn. */
 export async function deleteSaleListing(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const l = await ownedListing(u, id(fd));
   if (await db.saleEnquiry.count({ where: { listingId: l.id } })) return fail("Buyers have enquired about this listing — withdraw it instead, so their messages are kept");
   await db.saleListing.delete({ where: { id: l.id } });
@@ -197,15 +197,13 @@ export async function sendSaleEnquiry(_: EnquiryState, fd: FormData): Promise<En
   if (today >= 10) return { error: "You've sent a lot of enquiries today. Please call CasaVilla instead." };
   const e = await db.saleEnquiry.create({ data: { listingId: l.id, userId: me?.id ?? null, name, phone, message, wantsViewing, viewingDate } });
   const what = wantsViewing ? `viewing request${viewingDate ? ` for ${vd}` : ""}` : "question";
-  const owner = await db.user.findUnique({ where: { id: l.ownerId }, select: { role: true } });
-  if (owner?.role !== "manager") await notify(l.ownerId, `New ${what} from ${name} about "${l.title}".`, `/landlord/sale/${l.id}`);
   await notifyManagers(`Buyer ${what} from ${name} (${phone}) — ${l.title}`, `/manager/sale/${l.id}`);
   await audit(me?.id ?? null, "sale.enquiry", "sale", l.id, `${name} ${phone}`);
   return { ok: e.id > 0 };
 }
 
 export async function markEnquiry(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const e = await db.saleEnquiry.findUnique({ where: { id: id(fd) }, include: { listing: true } });
   if (!e || (u.role !== "manager" && e.listing.ownerId !== u.id)) return fail("Enquiry not found");
   const status = await oneOf(fd, "status", ["new", "contacted", "closed"] as const, "status");

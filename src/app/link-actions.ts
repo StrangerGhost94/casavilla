@@ -28,7 +28,7 @@ export async function cancelLink(fd: FormData) {
 }
 
 async function loadLink(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const l = await db.tenantLink.findUnique({ where: { id: id(fd) }, include: { tenant: true } });
   if (!l || (u.role !== "manager" && l.landlordId !== u.id)) return fail("Request not found");
   if (l.status !== "pending") return fail(`This request was already ${l.status}`);

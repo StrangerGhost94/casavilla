@@ -1,5 +1,6 @@
-import { requireUser } from "@/lib/auth";
-import { HostStays } from "@/components/HostStays";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Short stays" };
-export default async function LandlordStays() { const u = await requireUser("landlord"); return <HostStays landlordId={u.id} />; }
+// Landlords only view their money and tenants; the CasaVilla office does this work for them.
+export default function Page() {
+  redirect("/landlord");
+}

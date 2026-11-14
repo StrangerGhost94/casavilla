@@ -10,9 +10,9 @@ export const metadata = { title: "Viewings" };
 export default async function ViewingsPage() {
   const u = await requireUser();
   const now = new Date(), weekAgo = new Date(Date.now() - 7 * 86_400_000);
-  const canHost = ["landlord", "manager"].includes(u.role);
+  const canHost = u.role === "manager"; // owners don't handle viewings; the CasaVilla office does
   const [hosting, mine] = await Promise.all([
-    canHost ? viewingsFor({ ...(u.role === "manager" ? {} : { hostId: u.id }), at: { gte: weekAgo } }) : [],
+    canHost ? viewingsFor({ at: { gte: weekAgo } }) : [],
     viewingsFor({ requesterId: u.id, at: { gte: weekAgo } }),
   ]);
   const upcoming = (rows: typeof mine) => rows.filter((v) => v.at >= now && ["requested", "proposed", "confirmed"].includes(v.status));

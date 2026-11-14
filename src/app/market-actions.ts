@@ -9,9 +9,9 @@ import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
 import { id, int, text } from "@/lib/validate";
 
-/** Any signed-in tenant, landlord or manager can book a provider's service directly. */
+/** Any signed-in tenant or manager can book a provider's service directly. */
 export async function bookService(fd: FormData) {
-  const u = await requireUser("tenant", "landlord", "manager");
+  const u = await requireUser("tenant", "manager");
   const svc = await db.service.findUnique({ where: { id: id(fd, "serviceId") }, include: { provider: { select: { status: true } } } });
   if (!svc || !svc.active || svc.provider.status !== "active") return fail("This service isn't available right now");
   if (svc.providerId === u.id) return fail("You can't book your own service");
@@ -22,16 +22,9 @@ export async function bookService(fd: FormData) {
   if (u.role === "tenant") {
     const l = await db.lease.findFirst({ where: { tenantId: u.id, status: "active" }, include: { unit: { include: { property: { select: { locationId: true } } } } } });
     if (l) { unitId = l.unitId; landlordId = l.landlordId; propertyId = l.unit.propertyId; locationId = l.unit.property.locationId ?? locationId; }
-  } else if (u.role === "landlord") {
-    const pid = id(fd, "propertyId");
-    if (pid) {
-      const p = await db.property.findFirst({ where: { id: pid, landlordId: u.id } });
-      if (!p) return fail("Choose one of your properties");
-      propertyId = p.id; landlordId = u.id; locationId = p.locationId ?? locationId;
-    }
   }
   const recent = await db.job.findFirst({ where: { requesterId: u.id, serviceId: svc.id, status: { in: ["assigned", "quoted", "accepted", "in_progress"] }, createdAt: { gt: new Date(Date.now() - 86400000) } } });
-  const base = `/${u.role}/${u.role === "landlord" ? "maintenance" : u.role === "manager" ? "jobs" : "requests"}`;
+  const base = `/${u.role}/${u.role === "manager" ? "jobs" : "requests"}`;
   if (recent) redirect(`${base}/${recent.id}`);
   const job = await db.job.create({
     data: {
@@ -41,7 +34,6 @@ export async function bookService(fd: FormData) {
     },
   });
   await notify(svc.providerId, `New booking from ${u.name}: ${svc.title}. Accept it and send your quote.`, `/provider/jobs/${job.id}`);
-  if (landlordId && landlordId !== u.id) await notify(landlordId, `${u.name} booked ${svc.title} for their unit (they pay the provider).`, `/landlord/maintenance/${job.id}`);
   await audit(u.id, "job.booked", "job", job.id, svc.title);
   redirect(`${base}/${job.id}`);
 }

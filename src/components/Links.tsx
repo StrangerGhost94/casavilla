@@ -32,11 +32,11 @@ export async function ConnectLandlordCard({ tenantId }: { tenantId: number }) {
         <div className="flex items-start gap-3">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gold-100 text-gold-700"><Clock className="h-5 w-5" /></span>
           <div className="min-w-0 flex-1">
-            <div className="font-semibold text-brand-950">Waiting for your landlord</div>
+            <div className="font-semibold text-brand-950">Waiting for CasaVilla</div>
             <p className="mt-0.5 text-sm text-stone-600">
               {pending.landlord
-                ? <>We asked {pending.landlord.name.split(" ")[0]} ({local(pending.landlordPhone)}) to confirm your lease{pending.unitNote ? ` for ${pending.unitNote}` : ""}.</>
-                : <>Your landlord ({local(pending.landlordPhone)}) isn&apos;t on CasaVilla yet. We&apos;re inviting them — you&apos;ll be connected automatically when they join.</>}
+                ? <>CasaVilla is confirming your lease{pending.unitNote ? ` for ${pending.unitNote}` : ""}.</>
+                : <>Your landlord ({local(pending.landlordPhone)}) isn&apos;t on CasaVilla yet. CasaVilla will contact them and connect you.</>}
             </p>
             <div className="mt-1 text-[11px] text-stone-400">Sent {fmtDate(pending.createdAt)}</div>
           </div>

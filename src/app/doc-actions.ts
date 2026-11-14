@@ -62,7 +62,7 @@ export async function emailMyReceipt(fd: FormData) {
 
 /** Landlord (own documents) or manager (CasaVilla default, or a landlord's): customise receipts & agreements. */
 export async function saveBrand(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const ownerId = u.role === "manager" ? (id(fd, "ownerId") || null) : u.id;
   const color = String(fd.get("accentColor") || "#124331");
   if (!/^#[0-9a-fA-F]{6}$/.test(color)) return fail("Pick a valid colour");

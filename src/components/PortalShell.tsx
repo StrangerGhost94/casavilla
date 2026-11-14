@@ -26,15 +26,6 @@ async function navCounts(user: User): Promise<Record<string, number>> {
     const viewings = await db.viewing.count({ where: { status: "requested", at: { gt: new Date() } } });
     return { "/manager/people": people, "/manager/applications": apps + links, "/manager/jobs": jobs, "/manager/efris": efris + stuck, "/viewings": viewings };
   }
-  if (user.role === "landlord") {
-    // Automatic landlords have nothing to record by hand, so no badge for them.
-    const [apps, efris] = await Promise.all([
-      db.application.count({ where: { status: "pending", unit: { property: { landlordId: user.id } } } }),
-      autoActive(user.id).then((auto) => (auto ? 0 : missingCount(user.id))),
-    ]);
-    const viewings = await db.viewing.count({ where: { hostId: user.id, status: "requested", at: { gt: new Date() } } });
-    return { "/landlord/applications": apps, "/landlord/efris": efris, "/viewings": viewings };
-  }
   return {};
 }
 

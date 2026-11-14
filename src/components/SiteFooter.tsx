@@ -46,7 +46,7 @@ function columns(me: User | null): { title: string; links: [string, string][] }[
   const owners: [string, string][] = !me
     ? [["/list", "List a property"], ["/sale?kind=land", "Sell land"], ["/build/start?kind=apartments", "Build or extend"], ["/register?role=landlord", "Landlord account"], ["/register?role=provider", "Become a provider"]]
     : me.role === "landlord"
-      ? [["/landlord/properties/new", "Add a property"], ["/landlord/sale/new", "Sell land or a house"], ["/build/start?kind=apartments", "Build or extend"], ["/landlord", "My dashboard"]]
+      ? [["/landlord", "My dashboard"], ["/landlord/statements", "Statements"], ["/landlord/payouts", "Payouts"], ["/build/start?kind=apartments", "Build or extend"]]
       : [["/list", "List a property"], ["/sale?kind=land", "Sell land"], ["/build/start?kind=apartments", "Build or extend"], [homeFor(me.role), me.role === "tenant" ? "My home" : "My dashboard"]];
   return [
     { title: "Explore", links: [["/listings", "Homes for rent"], ["/stays", "Short stays"], ["/sale", "Land & property for sale"], ["/build", "Build with CasaVilla"], ["/services", "Home services"], ["/shop", "Shop"]] },
@@ -72,10 +72,10 @@ export async function PublicFooter() {
           <div className="mt-10 flex items-center justify-between gap-6 rounded-3xl bg-white/[0.04] px-7 py-6 ring-1 ring-white/10">
             <div>
               <div className={heading}>{banner === "landlord" ? "Growing your portfolio?" : "Own property in Uganda?"}</div>
-              <div className="mt-1 text-xl font-semibold text-white">{banner === "landlord" ? "Add your next property, or let CasaVilla build it for you." : "Let CasaVilla find tenants, collect your rent — or build your next one."}</div>
+              <div className="mt-1 text-xl font-semibold text-white">{banner === "landlord" ? "Hand CasaVilla your next property, or let us build it for you." : "Let CasaVilla find tenants, collect your rent — or build your next one."}</div>
             </div>
             <div className="flex shrink-0 gap-2">
-              <Link href={banner === "landlord" ? "/landlord/properties/new" : "/list"} className="btn-gold">{banner === "landlord" ? "Add a property" : "List a property"}</Link>
+              <Link href="/list" className="btn-gold">List a property</Link>
               <a href={CONTACT.whatsapp} className="btn border border-white/20 text-white hover:bg-white/10"><MessageCircle className="h-4 w-4" /> Talk to us</a>
             </div>
           </div>

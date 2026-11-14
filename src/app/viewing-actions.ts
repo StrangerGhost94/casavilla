@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { fail } from "@/lib/flash";
-import { notify } from "@/lib/notify";
+import { notify, notifyManagers } from "@/lib/notify";
 import { fmtDateTime } from "@/lib/format";
 
 const refresh = () => revalidatePath("/", "layout");
@@ -48,7 +48,7 @@ export async function requestViewing(fd: FormData) {
   if (open) return fail("You already have a viewing booked for this home — see Viewings");
   const note = String(fd.get("note") ?? "").trim().slice(0, 500) || null;
   await db.viewing.create({ data: { unitId, saleListingId, requesterId: u.id, hostId, at: at!, note } });
-  await notify(hostId, `${u.name} would like to view ${what} on ${fmtDateTime(at)}. Confirm or suggest another time.`, "/viewings");
+  await notifyManagers(`${u.name} would like to view ${what} on ${fmtDateTime(at)}. Confirm or suggest another time.`, "/viewings");
   refresh();
 }
 
@@ -59,7 +59,7 @@ async function load(fd: FormData) {
     include: { unit: { select: { label: true, property: { select: { name: true } } } }, saleListing: { select: { title: true } }, requester: { select: { name: true } }, host: { select: { name: true } } },
   });
   if (!v) return fail("Viewing not found");
-  const role = u.role === "manager" ? "host" : v.hostId === u.id ? "host" : v.requesterId === u.id ? "requester" : null;
+  const role = u.role === "manager" ? "host" : v.requesterId === u.id ? "requester" : null;
   if (!role) return fail("Viewing not found");
   const what = v.unit ? `${v.unit.property.name} · ${v.unit.label}` : v.saleListing?.title ?? "the home";
   return { u, v, role, what };
@@ -70,7 +70,8 @@ export async function confirmViewing(fd: FormData) {
   const { v, role, what } = await load(fd);
   if (!(role === "host" && v.status === "requested") && !(role === "requester" && v.status === "proposed")) return fail("This viewing can't be confirmed now");
   await db.viewing.update({ where: { id: v.id }, data: { status: "confirmed" } });
-  await notify(role === "host" ? v.requesterId : v.hostId, `Viewing confirmed: ${what}, ${fmtDateTime(v.at)}.`, "/viewings");
+  const msg = `Viewing confirmed: ${what}, ${fmtDateTime(v.at)}.`;
+  await (role === "host" ? notify(v.requesterId, msg, "/viewings") : notifyManagers(msg, "/viewings"));
   refresh();
 }
 
@@ -83,7 +84,7 @@ export async function proposeViewing(fd: FormData) {
   if (bad) return fail(bad);
   const hostNote = String(fd.get("hostNote") ?? "").trim().slice(0, 300) || null;
   await db.viewing.update({ where: { id: v.id }, data: { status: "proposed", at: at!, hostNote } });
-  await notify(v.requesterId, `${v.host.name} suggested another time to view ${what}: ${fmtDateTime(at)}. Accept it or choose again.`, "/viewings");
+  await notify(v.requesterId, `CasaVilla suggested another time to view ${what}: ${fmtDateTime(at)}. Accept it or choose again.`, "/viewings");
   refresh();
 }
 
@@ -93,7 +94,7 @@ export async function declineViewing(fd: FormData) {
   if (role !== "host" || !["requested", "proposed", "confirmed"].includes(v.status)) return fail("This viewing can't be declined now");
   const hostNote = String(fd.get("hostNote") ?? "").trim().slice(0, 300) || null;
   await db.viewing.update({ where: { id: v.id }, data: { status: "declined", hostNote } });
-  await notify(v.requesterId, `${v.host.name} can't do the viewing of ${what}${hostNote ? `: ${hostNote}` : ""}.`, "/viewings");
+  await notify(v.requesterId, `CasaVilla can't do the viewing of ${what}${hostNote ? `: ${hostNote}` : ""}.`, "/viewings");
   refresh();
 }
 
@@ -102,6 +103,7 @@ export async function cancelViewing(fd: FormData) {
   const { u, v, role, what } = await load(fd);
   if (!["requested", "proposed", "confirmed"].includes(v.status)) return fail("This viewing is already closed");
   await db.viewing.update({ where: { id: v.id }, data: { status: "cancelled" } });
-  await notify(role === "host" ? v.requesterId : v.hostId, `${u.name} cancelled the viewing of ${what} (${fmtDateTime(v.at)}).`, "/viewings");
+  const off = `${u.name} cancelled the viewing of ${what} (${fmtDateTime(v.at)}).`;
+  await (role === "host" ? notify(v.requesterId, off, "/viewings") : notifyManagers(off, "/viewings"));
   refresh();
 }

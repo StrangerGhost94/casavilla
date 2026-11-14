@@ -1,9 +1,6 @@
-import { requireUser } from "@/lib/auth";
-import { InspectionList } from "@/components/Inspections";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Inspections" };
-
-export default async function LandlordInspections() {
-  const u = await requireUser("landlord");
-  return <InspectionList viewer={u} />;
+// Landlords only view their money and tenants; the CasaVilla office does this work for them.
+export default function Page() {
+  redirect("/landlord");
 }

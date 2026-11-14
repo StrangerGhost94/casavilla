@@ -20,10 +20,10 @@ const refresh = () => revalidatePath("/", "layout");
 /**
  * Adds a caretaker to one or more of the landlord's properties, by phone number. If the number already has a
  * caretaker account it's reused; otherwise one is made and the caretaker sets their own password with a code
- * ("Forgot password" on the sign-in page) — the landlord never handles their password.
+ * ("Forgot password" on the sign-in page) — CasaVilla never handles their password.
  */
 export async function addCaretaker(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const name = await reqText(fd, "name", "the caretaker's name", { max: 80 });
   const phone = normalizePhone(String(fd.get("phone") || ""));
   if (!/^\+256\d{9}$/.test(phone)) return fail("Enter the caretaker's phone number, e.g. 0772 123 456");
@@ -37,11 +37,10 @@ export async function addCaretaker(fd: FormData) {
   }
   const landlordId = props[0].landlordId;
   if (props.some((p) => p.landlordId !== landlordId)) return fail("Add caretakers for one landlord at a time");
-  if (u.role === "landlord" && phone === normalizePhone(u.phone)) return fail("That's your own number — enter the caretaker's");
 
   const temp = String(fd.get("tempPassword") || "");
   if (temp && temp.length < 8) return fail("The first password must be at least 8 characters");
-  // Without WhatsApp/SMS the caretaker can't set a password with a code, so the landlord gives them one.
+  // Without WhatsApp/SMS the caretaker can't set a password with a code, so CasaVilla gives them one.
   if (!temp && !messagingConfigured()) return fail("Give the caretaker a first password (at least 8 characters)");
   let c = await db.user.findFirst({ where: { phone, role: "caretaker" } });
   const isNew = !c;
@@ -55,7 +54,7 @@ export async function addCaretaker(fd: FormData) {
       },
     });
   } else if (temp && isNew === false && !c.phoneVerifiedAt) {
-    // Not signed in yet: the landlord may (re)set the first password.
+    // Not signed in yet: CasaVilla may (re)set the first password.
     c = await db.user.update({ where: { id: c.id }, data: { passwordHash: await bcrypt.hash(temp, 10) } });
   }
   const canCollect = fd.get("canCollect") === "on", canSeeBalances = fd.get("canSeeBalances") === "on";
@@ -67,10 +66,9 @@ export async function addCaretaker(fd: FormData) {
     });
   }
   const names = props.map((p) => p.name).join(", ");
-  const owner = await db.user.findUniqueOrThrow({ where: { id: landlordId }, select: { name: true } });
   const first = c.name.split(" ")[0];
-  const how = temp ? ` Sign in at ${appUrl("/login")} with your phone number and the password ${owner.name.split(" ")[0]} gave you.` : isNew ? ` Set your password here: ${appUrl("/forgot")} (use this phone number), then sign in.` : ` Sign in at ${appUrl("/login")}.`;
-  const text = `${owner.name} added you as caretaker for ${names} on CasaVilla.${how}`;
+  const how = temp ? ` Sign in at ${appUrl("/login")} with your phone number and the password CasaVilla gave you.` : isNew ? ` Set your password here: ${appUrl("/forgot")} (use this phone number), then sign in.` : ` Sign in at ${appUrl("/login")}.`;
+  const text = `CasaVilla added you as caretaker for ${names} on CasaVilla.${how}`;
   await queueMessage({ userId: c.id, kind: "notice", dedupeKey: `caretaker:${c.id}:${props.map((p) => p.id).join("-")}`, params: [first, text], text: `Hello ${first}, ${text}` });
   await sendQueuedMessages(5).catch(() => 0);
   await notify(c.id, `You're now caretaker for ${names}.`, "/caretaker");
@@ -79,7 +77,7 @@ export async function addCaretaker(fd: FormData) {
 }
 
 export async function updateCaretaker(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const a = await db.caretakerAssignment.findUnique({ where: { id: id(fd) } });
   if (!a || (u.role !== "manager" && a.landlordId !== u.id)) return fail("Not found");
   if (fd.get("remove") === "1") {
@@ -91,7 +89,7 @@ export async function updateCaretaker(fd: FormData) {
   refresh();
 }
 
-/** A caretaker reports a repair on a property they look after (the landlord is told; CasaVilla finds a provider). */
+/** A caretaker reports a repair on a property they look after (CasaVilla is told and finds a provider). */
 export async function caretakerJob(fd: FormData) {
   const u = await requireUser("caretaker");
   const p = await workableProperty(u, id(fd, "propertyId"));
@@ -108,7 +106,6 @@ export async function caretakerJob(fd: FormData) {
     data: { requesterId: u.id, landlordId: p.landlordId, propertyId: p.id, unitId, photoId, title, description, priority, locationId: p.locationId, category: String(fd.get("category") || t.category || "Other") },
   });
   await audit(u.id, "job.created", "job", job.id, title);
-  await notify(p.landlordId, `${u.name} (caretaker) reported a repair at ${p.name}: ${title}`, `/landlord/maintenance/${job.id}`);
   await notifyManagers(`${priority === "urgent" ? "URGENT repair" : "Repair"} at ${p.name}: ${title} (reported by caretaker)`, `/manager/jobs/${job.id}`);
   redirect(`/caretaker/repairs/${job.id}`);
 }

@@ -2,7 +2,7 @@ import "server-only";
 import { randomBytes } from "crypto";
 import type { Prisma } from "@prisma/client";
 import { db, type User } from "@/db";
-import { notify, notifyOnce } from "./notify";
+import { notify, notifyManagers, notifyOnce } from "./notify";
 import { audit } from "./audit";
 import { brandFor } from "./brand";
 import { emailHtml, queueEmail, sendQueuedEmails } from "./mail";
@@ -110,7 +110,7 @@ export async function confirmBooking(bookingId: number) {
     // Paid after the hold ran out and someone else has those nights: record it and get CasaVilla to refund.
     if (!String(e).includes("bookings_no_overlap")) throw e;
     await db.booking.update({ where: { id: bookingId }, data: { paidAt: new Date(), note: `Paid after the hold expired and the nights were taken — refund ${ugx(b0.total)} due` } });
-    const { notifyManagers } = await import("./notify");
+
     await notifyManagers(`Late payment on booking ${b0.reference}: nights no longer free — refund ${ugx(b0.total)} to the guest.`, "/manager/stays");
     await notify(b0.guestId, `Your payment for booking ${b0.reference} arrived after the hold ended and the nights were taken. CasaVilla will refund ${ugx(b0.total)}.`, `/stays/bookings/${b0.id}`);
     return;
@@ -119,7 +119,7 @@ export async function confirmBooking(bookingId: number) {
   const b = await db.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { guest: true, unit: { include: { property: true } } } });
   const where = `${b.unit.property.name} · ${b.unit.label}`;
   await notify(b.guestId, `Booking confirmed! ${where}, ${fmtDate(b.checkIn)} → ${fmtDate(b.checkOut)} (${b.nights} night${b.nights > 1 ? "s" : ""}). Receipt ${receiptNo}.`, `/stays/bookings/${b.id}`);
-  await notify(b.unit.property.landlordId, `New booking: ${b.guest.name} at ${where}, ${fmtDate(b.checkIn)} → ${fmtDate(b.checkOut)} — ${ugx(b.total)} paid.`, `/landlord/stays`);
+  await notify(b.unit.property.landlordId, `New booking at ${where}, ${fmtDate(b.checkIn)} → ${fmtDate(b.checkOut)} — ${ugx(b.total)} paid.`, `/landlord`);
   await audit(b.guestId, "booking.confirmed", "booking", b.id, `${where} ${ymd(b.checkIn)}→${ymd(b.checkOut)} ${ugx(b.total)}`);
   if (b.guest.emailReceipts) {
     const brand = await brandFor(b.unit.property.landlordId);
@@ -143,12 +143,11 @@ export async function failBooking(bookingId: number) {
 export async function cancelBooking(bookingId: number, actor: User, reason: string | null) {
   const b = await db.booking.findUnique({ where: { id: bookingId }, include: { unit: { include: { property: true } }, guest: true } });
   if (!b) return { error: "Booking not found" };
-  const host = b.unit.property.landlordId;
-  const isGuest = b.guestId === actor.id, isHost = host === actor.id || actor.role === "manager";
+  const isGuest = b.guestId === actor.id, isHost = actor.role === "manager"; // CasaVilla runs stays for owners
   if (!isGuest && !isHost) return { error: "Not allowed" };
   if (!["pending", "confirmed", "blocked"].includes(b.status)) return { error: `This booking is already ${b.status}` };
   const today = kampalaToday();
-  if (b.status === "confirmed" && ymd(b.checkIn) <= today && !isHost) return { error: "The stay has started — contact the host" };
+  if (b.status === "confirmed" && ymd(b.checkIn) <= today && !isHost) return { error: "The stay has started — contact CasaVilla" };
   let refund = 0;
   if (b.status === "confirmed") refund = isHost || nightsBetween(today, ymd(b.checkIn)) >= 2 ? b.total : Math.max(0, b.total - b.nightly);
   const note = [reason, refund ? `Refund due to guest: ${ugx(refund)}` : null].filter(Boolean).join(" · ") || null;
@@ -156,7 +155,8 @@ export async function cancelBooking(bookingId: number, actor: User, reason: stri
   if (!done.count) return { error: "This booking just changed — refresh" };
   const where = `${b.unit.property.name} · ${b.unit.label}`;
   if (b.status !== "blocked") {
-    await notify(isGuest ? host : b.guestId, `Booking for ${where} (${fmtDate(b.checkIn)} → ${fmtDate(b.checkOut)}) was cancelled by ${isGuest ? "the guest" : "the host"}.${refund ? ` ${ugx(refund)} is to be refunded to ${b.guest.name}.` : ""}`, isGuest ? "/landlord/stays" : `/stays/bookings/${b.id}`);
+    const msg = `Booking for ${where} (${fmtDate(b.checkIn)} → ${fmtDate(b.checkOut)}) was cancelled by ${isGuest ? "the guest" : "CasaVilla"}.${refund ? ` ${ugx(refund)} is to be refunded to ${b.guest.name}.` : ""}`;
+    await (isGuest ? notifyManagers(msg, "/manager/stays") : notify(b.guestId, msg, `/stays/bookings/${b.id}`));
   }
   await audit(actor.id, "booking.cancelled", "booking", b.id, note ?? "");
   return { ok: true, refund };
@@ -196,7 +196,7 @@ export async function expireStaleBookings() {
   const tomorrow = await db.booking.findMany({ where: { status: "confirmed", checkIn: dateOnly(addDays(today, 1)) }, include: { unit: { include: { property: true } } } });
   for (const b of tomorrow) {
     await notifyOnce(`stay-tomorrow:${b.id}`, b.guestId, `Your stay at ${b.unit.property.name} starts tomorrow — check-in from ${b.unit.checkInFrom}. ${b.unit.property.landmark ? `Landmark: ${b.unit.property.landmark}.` : ""}`, `/stays/bookings/${b.id}`);
-    await notifyOnce(`stay-tomorrow:${b.id}`, b.unit.property.landlordId, `Guest arriving tomorrow at ${b.unit.property.name} · ${b.unit.label}. Prepare the unit.`, "/landlord/stays");
+    await notifyManagers(`Guest arriving tomorrow at ${b.unit.property.name} · ${b.unit.label}. Prepare the unit.`, "/manager/stays", `stay-tomorrow-office:${b.id}`);
   }
   return stale.length;
 }

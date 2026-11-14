@@ -1,3 +1,4 @@
+import { OFFICE } from "@/lib/social";
 import type { Metadata } from "next";
 import { abs, areaHref, areaOf, breadcrumbLd, idFrom, listingLd, rentHref } from "@/lib/seo";
 import { JsonLd } from "@/components/JsonLd";
@@ -44,7 +45,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
   const { sent } = await searchParams;
   const row = await db.unit.findUnique({
     where: { id: idFrom(id) },
-    include: { property: { include: { landlord: { select: { id: true, name: true, phone: true, status: true } } } } },
+    include: { property: { include: { landlord: { select: { id: true, status: true } } } } },
   });
   if (!row || row.property.landlord.status !== "active") notFound();
   if (row.mode === "short") redirect(`/stays/${row.id}`);
@@ -114,7 +115,7 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
             {property.verifiedAt && (
               <div className="mt-4 flex items-start gap-3 rounded-2xl border border-brand-100 bg-brand-50/60 p-3 text-sm">
                 <BadgeCheck className="mt-0.5 h-5 w-5 shrink-0 text-brand-700" />
-                <div><span className="font-semibold text-brand-900">Verified by CasaVilla.</span> <span className="text-stone-600">Our team visited this property and checked the landlord owns it.</span></div>
+                <div><span className="font-semibold text-brand-900">Verified by CasaVilla.</span> <span className="text-stone-600">Our team visited this property and checked who owns it.</span></div>
               </div>
             )}
 
@@ -157,32 +158,33 @@ export default async function ListingPage({ params, searchParams }: { params: Pr
               <div className="text-2xl font-bold text-brand-950">{ugx(unit.rent)} <span className="text-sm font-normal text-stone-500">/ month</span></div>
               <div className="mt-0.5 text-xs text-stone-500">{title} · Unit {unit.label}</div>
             </div>
+            {/* Owners stay private: tenants deal with the CasaVilla office from viewing to move-in. */}
             <div className="flex items-center gap-3">
-              <Avatar name={landlord.name} />
+              <Avatar name={OFFICE.short} />
               <div>
-                <div className="text-xs text-stone-500">Landlord</div>
-                <div className="font-semibold text-brand-950">{landlord.name}</div>
+                <div className="text-xs text-stone-500">Managed by</div>
+                <div className="font-semibold text-brand-950">{OFFICE.name}</div>
               </div>
             </div>
             <div className="my-4 border-t border-stone-100" />
             {unit.status === "vacant" && !manages && <div className="mb-4"><ViewingBox unitId={unit.id} hostId={landlord.id} next={`/listings/${unit.id}`} /></div>}
             {manages ? (
               <div className="space-y-2">
-                <Link href={manageHref} className="btn-primary btn-lg w-full">Manage this property</Link>
+                <Link href={manageHref} className="btn-primary btn-lg w-full">{user?.role === "manager" ? "Manage this property" : "See it in your dashboard"}</Link>
                 <p className="text-center text-xs text-stone-500">This is how tenants see your listing{unit.status === "vacant" ? "" : " (it's let, so it isn't shown in search)"}.</p>
               </div>
             ) : unit.status !== "vacant" ? (
               <Badge>occupied</Badge>
             ) : sent || existing ? (
               <div className="rounded-xl bg-brand-50 p-3 text-sm text-brand-800">
-                Application {existing ? <Badge>{existing.status}</Badge> : "sent"}. The landlord will respond in your dashboard.
+                Application {existing ? <Badge>{existing.status}</Badge> : "sent"}. CasaVilla will respond in your dashboard.
                 <Link href="/tenant/applications" className="link mt-2 block">View my applications →</Link>
               </div>
             ) : user?.role === "tenant" ? (
               <form action={applyForUnit} className="space-y-3">
                 <input type="hidden" name="unitId" value={unit.id} />
                 <Field label="Preferred move-in"><input type="date" name="moveIn" className="input" /></Field>
-                <Field label="Message to landlord"><textarea name="message" rows={3} className="input" placeholder="Introduce yourself, household size, work…" /></Field>
+                <Field label="Message to CasaVilla"><textarea name="message" rows={3} className="input" placeholder="Introduce yourself, household size, work…" /></Field>
                 <Submit className="btn-primary btn-lg w-full">Apply for this home</Submit>
               </form>
             ) : user ? (

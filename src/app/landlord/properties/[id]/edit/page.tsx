@@ -1,8 +1,6 @@
-import { requireUser } from "@/lib/auth";
-import { PropertyEdit } from "@/components/Portfolio";
+import { redirect } from "next/navigation";
 
-export default async function LandlordPropertyEdit({ params }: { params: Promise<{ id: string }> }) {
-  const u = await requireUser("landlord");
-  const { id } = await params;
-  return <PropertyEdit id={Number(id)} viewer={u} base="/landlord/properties" />;
+// Landlords only view their money and tenants; the CasaVilla office does this work for them.
+export default function Page() {
+  redirect("/landlord/properties");
 }

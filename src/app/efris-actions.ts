@@ -18,7 +18,7 @@ const refresh = () => revalidatePath("/", "layout");
 
 /** A landlord sets up their own EFRIS details; a manager can do it for any landlord. */
 export async function saveEfrisProfile(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const landlordId = u.role === "manager" ? id(fd, "landlordId") : u.id;
   const landlord = await db.user.findFirst({ where: { id: landlordId, role: "landlord" }, select: { id: true, name: true } });
   if (!landlord) return fail("Landlord not found");
@@ -43,7 +43,7 @@ export async function saveEfrisProfile(fd: FormData) {
 
 /** Who may record or remove the EFRIS document for a payment: CasaVilla, or that payment's landlord. */
 async function paymentFor(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const p = await db.payment.findUnique({
     where: { id: id(fd, "paymentId") },
     include: { efris: true, charge: { select: { kind: true, period: true } }, lease: { select: { landlordId: true } } },
@@ -177,7 +177,7 @@ export async function retryEfrisPayment(fd: FormData) {
 
 /** Who may handle credit notes on an EFRIS document: CasaVilla, or the landlord it was issued for. */
 async function creditAccess(receiptId: number) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const r = await db.efrisReceipt.findUnique({ where: { id: receiptId }, select: { id: true, paymentId: true, payment: { select: { lease: { select: { landlordId: true } } } } } });
   if (!r || (u.role !== "manager" && r.payment.lease.landlordId !== u.id)) return fail("EFRIS document not found");
   return { u, r };

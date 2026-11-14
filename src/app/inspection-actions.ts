@@ -10,7 +10,7 @@ import { CONDITIONS, answerInspection, reopenInspection, startInspection, submit
 import { id, oneOf, text } from "@/lib/validate";
 import { kampalaToday } from "@/lib/format";
 
-const staff = () => requireUser("landlord", "manager", "caretaker");
+const staff = () => requireUser("manager", "caretaker");
 
 async function editable(u: User, inspectionId: number) {
   const ins = await db.inspection.findUnique({ where: { id: inspectionId } });
@@ -121,7 +121,7 @@ export async function submitInspectionAction(fd: FormData) {
 }
 
 export async function reopenInspectionAction(fd: FormData) {
-  const u = await requireUser("landlord", "manager");
+  const u = await requireUser("manager");
   const ins = await editable(u, id(fd));
   if (!ins) return fail("Not found");
   const r = await reopenInspection(u, ins.id);
@@ -135,7 +135,7 @@ export async function answerInspectionAction(fd: FormData) {
   if (answer !== "agree" && answer !== "dispute") return fail("Choose agree or raise a concern");
   const agree = answer === "agree";
   const comment = await text(fd, "comment", "your comment", { optional: true, max: 1000 });
-  if (!agree && !comment) return fail("Tell your landlord what you disagree with");
+  if (!agree && !comment) return fail("Tell CasaVilla what you disagree with");
   const r = await answerInspection(u.id, id(fd), agree, comment || null);
   if (!r) return fail("This report can't be answered now");
   revalidatePath("/", "layout");

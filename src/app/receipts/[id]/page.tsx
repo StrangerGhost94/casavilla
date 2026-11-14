@@ -55,7 +55,9 @@ export default async function Receipt({ params }: { params: Promise<{ id: string
         <dl className="mt-6 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
           <div><dt className="text-stone-500">Received from</dt><dd className="font-semibold">{r.tenant.name}</dd><dd className="text-stone-500">{r.tenant.phone}</dd></div>
           <div><dt className="text-stone-500">Property</dt><dd className="font-semibold">{r.property} · {r.unit}</dd><dd className="text-stone-500">{r.address}</dd></div>
-          <div><dt className="text-stone-500">{r.efris ? "Seller (landlord)" : "Landlord"}</dt><dd className="font-semibold">{r.landlord.name}</dd>{r.efris?.tin && <dd className="text-stone-500">TIN {r.efris.tin} · issued by CasaVilla on the landlord&apos;s behalf</dd>}</div>
+          {/* Owners stay anonymous: tenants see CasaVilla as managing agent. (EFRIS, on hold, must name the registered seller.) */}
+          {r.efris ? <div><dt className="text-stone-500">Seller (landlord)</dt><dd className="font-semibold">{r.landlord.name}</dd>{r.efris.tin && <dd className="text-stone-500">TIN {r.efris.tin} · issued by CasaVilla on the landlord&apos;s behalf</dd>}</div>
+            : <div><dt className="text-stone-500">Received by</dt><dd className="font-semibold">CasaVilla Property Management</dd><dd className="text-stone-500">Managing agent for the owner</dd></div>}
           <div><dt className="text-stone-500">Payment method</dt><dd className="font-semibold">{r.method}</dd><dd className="break-all text-stone-500">Ref: {r.p.reference}</dd></div>
         </dl>
         <div className="mt-6 overflow-hidden rounded-xl border border-stone-200">

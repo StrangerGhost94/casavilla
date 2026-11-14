@@ -155,7 +155,7 @@ export async function autoIssueEfris(paymentId: number) {
       console.error("efris issue", paymentId, status, r.error);
       if (status === "stopped") {
         await notifyManagers(`EFRIS receipt for ${p.lease.landlord.name}'s payment couldn't be issued automatically: ${r.error}`, "/manager/efris");
-        await notify(p.lease.landlordId, "An EFRIS receipt couldn't be issued automatically. Issue it in URA's EFRIS app, then record its FDN.", "/landlord/efris");
+        await notifyManagers("An EFRIS receipt couldn't be issued automatically. Issue it in URA's EFRIS app, then record its FDN.", "/manager/efris");
       } else if (status === "uncertain" && before?.status !== "uncertain") {
         await notifyManagers(`URA didn't confirm an EFRIS receipt for ${p.lease.landlord.name}. CasaVilla will check with URA before sending it again — don't issue it by hand.`, "/manager/efris");
       }

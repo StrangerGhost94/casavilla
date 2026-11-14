@@ -1,9 +1,6 @@
-import { requireUser } from "@/lib/auth";
-import { SaleList } from "@/components/SaleAdmin";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "For sale" };
-
-export default async function LandlordSale({ searchParams }: { searchParams: Promise<{ tab?: string }> }) {
-  const u = await requireUser("landlord");
-  return <SaleList viewer={u} tab={(await searchParams).tab} />;
+// Landlords only view their money and tenants; the CasaVilla office does this work for them.
+export default function Page() {
+  redirect("/landlord");
 }

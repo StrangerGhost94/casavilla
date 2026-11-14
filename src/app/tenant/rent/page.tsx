@@ -51,7 +51,7 @@ export default async function TenantRent() {
           <div className="rounded-2xl bg-maroon-50 p-4 text-sm text-maroon-700">Your lease has ended with <span className="font-bold">{ugx(-lease.l.settlement)}</span> still owed. You can clear it below with Mobile Money.</div>
         )}
         {ended && lease.l.settlement != null && lease.l.settlement > 0 && (
-          <div className="rounded-2xl bg-brand-50 p-4 text-sm text-brand-800">Your landlord owes you a refund of <span className="font-bold">{ugx(lease.l.settlement)}</span> from your deposit. You&apos;ll be notified when it&apos;s paid.</div>
+          <div className="rounded-2xl bg-brand-50 p-4 text-sm text-brand-800">You are owed a refund of <span className="font-bold">{ugx(lease.l.settlement)}</span> from your deposit. You&apos;ll be notified when it&apos;s paid.</div>
         )}
       </div>
       <div className="mt-4">

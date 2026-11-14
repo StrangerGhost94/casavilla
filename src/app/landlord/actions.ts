@@ -21,8 +21,8 @@ import { propertyRemoval, unitRemoval } from "@/lib/removal";
 
 const refresh = () => revalidatePath("/", "layout");
 
-/** Landlords can act on their own records; CasaVilla managers can act on any landlord's. */
-async function actor() { return requireUser("landlord", "manager"); }
+/** Only the CasaVilla office changes records; landlords just see their own (see lib/nav.ts). */
+async function actor() { return requireUser("manager"); }
 const owns = (u: User, landlordId: number) => u.role === "manager" || u.id === landlordId;
 const MAX_RENT = 500_000_000;
 
@@ -244,14 +244,14 @@ export async function decideApplication(fd: FormData) {
 }
 
 export async function recordCashPayment(fd: FormData) {
-  const u = await requireUser("landlord", "manager", "caretaker");
+  const u = await requireUser("manager", "caretaker");
   let l;
   if (u.role === "caretaker") {
-    // Caretakers may record cash only on properties they look after, and only if the landlord allowed it.
+    // Caretakers may record cash only on properties they look after, and only if CasaVilla allowed it.
     const found = await db.lease.findUnique({ where: { id: id(fd, "leaseId") }, include: { unit: { select: { propertyId: true } } } });
     const a = found ? await db.caretakerAssignment.findUnique({ where: { caretakerId_propertyId: { caretakerId: u.id, propertyId: found.unit.propertyId } } }) : null;
     if (!found || !a?.canCollect) return fail("You can't record payments for this tenant");
-    if (found.status !== "active") return fail("This lease has ended — ask the landlord");
+    if (found.status !== "active") return fail("This lease has ended — ask the CasaVilla office");
     l = found;
   } else l = await ownedLease(u, id(fd, "leaseId"));
   const owed = await leaseBalance(l.id);
@@ -369,7 +369,7 @@ export async function endLease(fd: FormData) {
 }
 
 export async function landlordJob(fd: FormData) {
-  const u = await requireUser("landlord");
+  const u = await requireUser("manager");
   const p = await ownedProperty(u, id(fd, "propertyId"));
   const unitId = id(fd, "unitId") || null;
   if (unitId && !(await db.unit.findFirst({ where: { id: unitId, propertyId: p.id } }))) return fail("Choose a unit in this property");
