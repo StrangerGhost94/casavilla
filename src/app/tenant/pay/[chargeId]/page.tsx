@@ -1,3 +1,6 @@
+import { MOMO_MAX } from "@/lib/build-sites";
+import { MAX_ADVANCE_MONTHS } from "@/lib/rules";
+import { leaseBalance } from "@/lib/billing";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
@@ -16,6 +19,7 @@ export default async function PayPage({ params }: { params: Promise<{ chargeId: 
   });
   if (!c) notFound();
   const balance = c.amount - c.paid;
+  const owed = await leaseBalance(c.leaseId);
   const property = c.lease.unit.property;
   const history = await db.charge.findMany({ where: { leaseId: c.leaseId, status: "paid" }, orderBy: { dueDate: "desc" }, take: 4 });
 
@@ -40,11 +44,12 @@ export default async function PayPage({ params }: { params: Promise<{ chargeId: 
         </div>
       </div>
 
-      {balance <= 0 ? (
+      {balance <= 0 && c.lease.status !== "active" ? (
         <div className="card mt-4 text-sm">This charge is fully paid. <Link href="/tenant/rent" className="link">See receipts</Link></div>
       ) : (
         <div className="mt-4">
-          <PayForm chargeId={c.id} balance={balance} phone={u.phone} />
+          {balance <= 0 && <p className="mb-3 rounded-xl bg-brand-50 p-3 text-sm text-brand-800">This bill is paid. Pay ahead below and it covers your next months&apos; rent automatically.</p>}
+          <PayForm chargeId={c.id} balance={Math.max(0, balance)} rent={c.lease.rent} max={owed + (c.lease.status === "active" ? c.lease.rent * MAX_ADVANCE_MONTHS : 0)} momoMax={MOMO_MAX} phone={u.phone} />
           {provider === "sandbox" && <p className="mt-4 rounded-xl border border-gold-200 bg-gold-50 p-3 text-xs text-gold-700">Test mode: no money will be taken. CasaVilla switches on live MTN/Airtel collection once the payment account is connected.</p>}
         </div>
       )}

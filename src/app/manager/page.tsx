@@ -18,7 +18,7 @@ export default async function ManagerHome() {
   await requireUser("manager");
   await ensureChargesFor("all");
   const s = await portfolioStats();
-  const [pending, pendingApps, unassigned, recentRaw, efrisMissing, newBuild, saleReview, payoutsDue, viewingAsks, toVerify] = await Promise.all([
+  const [pending, pendingApps, unassigned, recentRaw, efrisMissing, newBuild, saleReview, viewingAsks, toVerify] = await Promise.all([
     db.user.count({ where: { status: "pending" } }),
     db.application.count({ where: { status: "pending" } }).then(async (n) => n + await db.tenantLink.count({ where: { status: "pending" } })),
     db.job.count({ where: { providerId: null, status: { notIn: ["done", "cancelled"] } } }),
@@ -26,7 +26,6 @@ export default async function ManagerHome() {
     missingCount(),
     db.buildRequest.count({ where: { status: "new" } }),
     db.saleListing.count({ where: { status: "pending" } }),
-    db.payout.count({ where: { status: { in: ["queued", "failed"] }, amount: { gt: 0 } } }),
     db.viewing.count({ where: { status: "requested", host: { role: "manager" } } }),
     // Listed homes nobody from CasaVilla has visited yet (the "Verified" badge sells them).
     db.property.count({ where: { archivedAt: null, verifiedAt: null, units: { some: { listed: true, status: "vacant" } } } }),
@@ -56,7 +55,6 @@ export default async function ManagerHome() {
           { href: "/manager/build", count: newBuild, label: "New build requests to call back", tone: "blue" },
           { href: "/manager/sale?tab=review", count: saleReview, label: "Listings for sale to review", tone: "blue" },
           { href: "/viewings", count: viewingAsks, label: "Viewing requests to confirm", tone: "blue" },
-          { href: "/manager/payouts", count: payoutsDue, label: "Payouts to landlords to send", tone: "gold" },
           { href: "/manager/properties?show=verify", count: toVerify, label: "Listed properties to visit & verify", tone: "gold" },
           { href: "/manager/jobs", count: unassigned, label: "Repairs with no provider", tone: "gold" },
           { href: "/manager/efris", count: efrisMissing, label: "Payments waiting for an EFRIS receipt", tone: "gold" },

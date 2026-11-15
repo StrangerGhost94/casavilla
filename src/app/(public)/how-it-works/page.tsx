@@ -27,7 +27,7 @@ const JOURNEYS: { id: string; title: string; who: string; steps: [string, string
       ["Tenants", "CasaVilla finds and vets tenants, signs the lease as your managing agent, and brings your current tenants into the app."],
       ["Rent", "Tenants pay CasaVilla by Mobile Money. In the app you see who has paid and who hasn't, with statements every month."],
       ["Payouts", "Your share is paid out to your Mobile Money or bank account, with every deduction shown."],
-      ["Upkeep", "Repairs, inspections, utilities and caretakers are handled by CasaVilla. Tenants deal with us, not with you."],
+      ["Upkeep", "Repairs, inspections and utilities are handled by CasaVilla. Tenants deal with us, not with you."],
     ],
     cta: ["/list", "List a property"],
   },
@@ -60,7 +60,7 @@ const FAQS: [string, string][] = [
   ["Does it cost anything to use CasaVilla?", "Searching, booking viewings and creating an account are free. Landlords who have CasaVilla collect rent or manage their property agree the service terms with CasaVilla."],
   ["How do I pay rent?", "In the app, by MTN or Airtel Mobile Money. You approve the payment on your phone and get a receipt straight away."],
   ["What does the Verified badge mean?", "Someone from CasaVilla visited the property and checked that the landlord owns it."],
-  ["I already rent — can I use the app?", "Yes. Sign up as a tenant, tick “I already rent a home” and enter your landlord's phone number. CasaVilla confirms, and you're connected."],
+  ["I already rent — can I use the app?", "Yes. Sign up as a tenant, tick “I already rent a home” and enter your landlord's CasaVilla code (the office gives it to you). CasaVilla confirms, and you're connected."],
   ["Is there an app?", "Yes — open the CasaVilla website on your phone and tap Install (on iPhone: Share, then Add to Home Screen). It opens full-screen like any other app."],
 ];
 

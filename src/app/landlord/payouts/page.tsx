@@ -1,9 +1,6 @@
-import { requireUser } from "@/lib/auth";
-import { LandlordPayouts } from "@/components/Payouts";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Payouts" };
-
-export default async function Page() {
-  const u = await requireUser("landlord");
-  return <LandlordPayouts viewer={u} />;
+// CasaVilla's finance department pays landlords outside the app.
+export default function Page() {
+  redirect("/landlord/statements");
 }

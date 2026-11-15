@@ -10,7 +10,7 @@ import { setUserStatus, createStaff } from "../actions";
 export default async function People({ searchParams }: { searchParams: Promise<{ role?: string; status?: string; q?: string }> }) {
   const me = await requireUser("manager");
   const sp = await searchParams;
-  const roles = ["tenant", "landlord", "provider", "caretaker", "manager"] as const;
+  const roles = ["tenant", "landlord", "provider", "manager"] as const;
   const statuses = ["pending", "active", "suspended"] as const;
   const role = roles.find((r) => r === sp.role);
   const status = statuses.find((s) => s === sp.status);
@@ -47,7 +47,7 @@ export default async function People({ searchParams }: { searchParams: Promise<{
                 <td data-label="Status"><Badge>{u.status}</Badge></td>
                 <td data-label="">{u.id !== me.id && (
                   <div className="flex gap-1">
-                    {u.status !== "active" && <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" /><Submit className="btn-primary btn-sm">{u.status === "pending" ? "Approve" : "Reactivate"}</Submit></form>}
+                    {u.status === "pending" && u.role === "landlord" ? <Link href={`/manager/people/${u.id}`} className="btn-primary btn-sm">Set commission &amp; approve</Link> : u.status !== "active" && <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" /><Submit className="btn-primary btn-sm">{u.status === "pending" ? "Approve" : "Reactivate"}</Submit></form>}
                     {u.status !== "suspended" && <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="suspended" /><Submit className="btn-ghost btn-sm text-maroon-600">Suspend</Submit></form>}
                   </div>
                 )}</td>

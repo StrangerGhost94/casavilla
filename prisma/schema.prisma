@@ -76,6 +76,8 @@ model User {
   remindTenants    Boolean               @default(true) @map("remind_tenants")
   /// Landlords: management commission (% of rent collected) shown on monthly statements. 0 = self-managed.
   commissionPct    Float                 @default(0) @map("commission_pct")
+  /// Landlords: the code existing tenants enter to join (instead of the landlord's phone, which stays private).
+  landlordCode     String?               @unique @map("landlord_code")
   messages         MessageOutbox[]
   caretakerOf      CaretakerAssignment[] @relation("Caretaker")
   caretakers       CaretakerAssignment[] @relation("CaretakerLandlord")

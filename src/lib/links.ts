@@ -1,46 +1,37 @@
 import "server-only";
 import { db, type User } from "@/db";
-import { normalizePhone } from "./format";
+import { normalizeLandlordCode } from "./landlord-code";
 import { notify, notifyManagers } from "./notify";
 import { audit } from "./audit";
 
 export type LinkResult = { ok: true; found: boolean; landlordName?: string } | { ok: false; error: string };
 
-const firstName = (n: string) => n.split(" ")[0];
-
 /**
- * An existing tenant names their landlord by phone number. If that landlord is on CasaVilla they're asked to
- * confirm and set up the lease; if not, the request waits (CasaVilla is told so it can invite them) and attaches
- * itself automatically when the landlord signs up with that number.
+ * An existing tenant joins with their landlord's CasaVilla code (the landlord's phone stays private). CasaVilla
+ * confirms the tenancy and sets up the lease.
  */
-export async function requestLink(tenant: Pick<User, "id" | "name" | "phone">, rawPhone: string, unitNote: string | null): Promise<LinkResult> {
-  const phone = normalizePhone(rawPhone);
-  if (!/^\+256\d{9}$/.test(phone)) return { ok: false, error: "Enter your landlord's Ugandan phone number, e.g. 0772 123 456" };
-  if (phone === tenant.phone) return { ok: false, error: "That's your own number — enter your landlord's phone number" };
+export async function requestLink(tenant: Pick<User, "id" | "name" | "phone">, rawCode: string, unitNote: string | null): Promise<LinkResult> {
+  const code = normalizeLandlordCode(rawCode);
+  if (code.length < 6) return { ok: false, error: "Enter your landlord's CasaVilla code, e.g. CV-7K2M9P. The CasaVilla office can give it to you." };
   if (await db.lease.findFirst({ where: { tenantId: tenant.id, status: "active" }, select: { id: true } })) {
     return { ok: false, error: "You already have an active lease on CasaVilla" };
   }
   const today = await db.tenantLink.count({ where: { tenantId: tenant.id, createdAt: { gt: new Date(Date.now() - 86400000) } } });
   if (today >= 5) return { ok: false, error: "Too many requests today — try again tomorrow or contact CasaVilla" };
 
-  const landlord = await db.user.findFirst({ where: { phone, role: "landlord", status: { not: "suspended" } }, orderBy: { id: "asc" } });
+  const landlord = await db.user.findFirst({ where: { landlordCode: code, role: "landlord", status: { not: "suspended" } } });
+  if (!landlord) return { ok: false, error: "We couldn't find that code. Check it with the CasaVilla office." };
   const note = unitNote?.trim().slice(0, 120) || null;
 
   const link = await db.$transaction(async (tx) => {
     // Only one open request at a time: a new one replaces the old.
     await tx.tenantLink.updateMany({ where: { tenantId: tenant.id, status: "pending" }, data: { status: "cancelled", decidedAt: new Date() } });
-    return tx.tenantLink.create({ data: { tenantId: tenant.id, landlordId: landlord?.id ?? null, landlordPhone: phone, unitNote: note } });
+    return tx.tenantLink.create({ data: { tenantId: tenant.id, landlordId: landlord.id, landlordPhone: landlord.phone, unitNote: note } });
   });
-  await audit(tenant.id, "link.requested", "tenant_link", link.id, `${phone}${landlord ? ` → ${landlord.name}` : " (landlord not on CasaVilla yet)"}`);
-  const what = note ? ` (${note})` : "";
-  if (landlord) {
-    await notifyManagers(`${tenant.name} says they rent from ${landlord.name}${what}. Confirm and set up their lease so they can pay rent in the app.`, "/manager/applications");
-    await notify(tenant.id, "Request sent to CasaVilla. You'll be notified as soon as your lease is confirmed.", "/tenant");
-    return { ok: true, found: true };
-  }
-  await notifyManagers(`${tenant.name} rents from a landlord who isn't on CasaVilla yet (${phone.replace("+256", "0")})${what}. Invite them to join.`, "/manager/applications");
-  await notify(tenant.id, `Your landlord (${phone.replace("+256", "0")}) isn't on CasaVilla yet. CasaVilla will contact them and connect you.`, "/tenant");
-  return { ok: true, found: false };
+  await audit(tenant.id, "link.requested", "tenant_link", link.id, `${code} → ${landlord.name}`);
+  await notifyManagers(`${tenant.name} says they rent from ${landlord.name}${note ? ` (${note})` : ""}. Confirm and set up their lease so they can pay rent in the app.`, "/manager/applications");
+  await notify(tenant.id, "Request sent to CasaVilla. You'll be notified as soon as your lease is confirmed.", "/tenant");
+  return { ok: true, found: true };
 }
 
 /** A new landlord picks up every tenant who was waiting for them by phone number. */

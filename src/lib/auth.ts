@@ -9,7 +9,8 @@ export async function getUser(): Promise<User | null> {
   const s = await verifySession(store.get(SESSION_COOKIE)?.value);
   if (!s) return null;
   const u = await db.user.findUnique({ where: { id: s.uid } });
-  if (!u || u.status === "suspended") return null;
+  // Caretaker accounts were retired: the CasaVilla office does the on-site work, so they can no longer sign in.
+  if (!u || u.status === "suspended" || u.role === "caretaker") return null;
   return u;
 }
 

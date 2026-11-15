@@ -6,12 +6,12 @@ import { requireUser } from "@/lib/auth";
 import { fmtDate, ugx } from "@/lib/format";
 import { roleName } from "@/lib/nav";
 import { Badge, PageHeader, SectionTitle } from "@/components/ui";
-import { Submit } from "@/components/client";
+import { ConfirmSubmit, Submit } from "@/components/client";
 import { CollectedCard, MiniStat } from "@/components/Dashboard";
 import { PropertyList, TenantsTable, portfolioStats } from "@/components/Portfolio";
-import { PayoutAccountForm } from "@/components/Payouts";
-import { CaretakerAdmin } from "@/components/Caretakers";
-import { setUserStatus } from "../../actions";
+import { landlordCodeFor } from "@/lib/landlord-code";
+import { SITE } from "@/lib/seo";
+import { newLandlordCode, setUserStatus } from "../../actions";
 
 export const metadata = { title: "Person" };
 
@@ -28,6 +28,7 @@ export default async function Person({ params }: { params: Promise<{ id: string 
     db.buildRequest.count({ where: { userId: u.id } }),
   ]);
   const s = u.role === "landlord" ? await portfolioStats(u.id) : null;
+  const code = u.role === "landlord" && u.status !== "pending" ? await landlordCodeFor(u.id) : null;
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <Link href="/manager/people" className="link text-sm">← People</Link>
@@ -37,7 +38,15 @@ export default async function Person({ params }: { params: Promise<{ id: string 
         <Badge color={u.status === "active" ? "green" : u.status === "pending" ? "gold" : "red"}>{u.status}</Badge>
         <a href={`tel:${u.phone}`} className="btn-outline btn-sm"><Phone className="h-3.5 w-3.5" /> Call</a>
         <a href={`https://wa.me/${local}`} className="btn-outline btn-sm"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a>
-        {u.id !== me.id && u.status !== "active" && <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" /><Submit className="btn-primary btn-sm">{u.status === "pending" ? "Approve" : "Reactivate"}</Submit></form>}
+        {u.id !== me.id && u.status !== "active" && <form action={setUserStatus} className="flex items-center gap-2">
+          <input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" />
+          {/* A landlord's commission is agreed when they sign up with CasaVilla, so it's set before approval. */}
+          {u.role === "landlord" && u.status === "pending" && (
+            <label className="flex items-center gap-1.5 text-sm"><span className="text-stone-600">Commission</span>
+              <input name="commission" type="number" min={0} max={50} step={0.5} required defaultValue={u.commissionPct || ""} className="input w-20 py-1.5" aria-label="Commission %" />%</label>
+          )}
+          <Submit className="btn-primary btn-sm">{u.status === "pending" ? "Approve" : "Reactivate"}</Submit>
+        </form>}
         {u.id !== me.id && u.status !== "suspended" && <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="suspended" /><Submit className="btn-ghost btn-sm text-maroon-600">Suspend</Submit></form>}
       </div>
 
@@ -51,12 +60,19 @@ export default async function Person({ params }: { params: Promise<{ id: string 
           <div className="flex flex-wrap gap-2">
             <Link href={`/manager/statements?landlord=${u.id}`} className="btn-outline btn-sm">Statements</Link>
             <Link href={`/manager/properties/new?landlord=${u.id}`} className="btn-outline btn-sm">Add a property for them</Link>
-            <Link href="/manager/payouts" className="btn-outline btn-sm">Payouts</Link>
           </div>
           <section id="properties" className="scroll-mt-24"><SectionTitle title="Properties" /><PropertyList where={{ landlordId: u.id }} base="/manager/properties" /></section>
           <section><SectionTitle title="Tenants" /><TenantsTable where={{ landlordId: u.id, status: "active" }} base="/manager/tenants" /></section>
-          <details className="card"><summary className="cursor-pointer font-semibold text-brand-950">Where their rent is paid out</summary><div className="mt-3"><PayoutAccountForm landlordId={u.id} manager /></div></details>
-          <section id="caretakers" className="scroll-mt-24"><CaretakerAdmin landlordId={u.id} /></section>
+          {code && (
+            <div className="card flex flex-wrap items-center gap-3 text-sm">
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-brand-950">Landlord code: <span className="font-mono tracking-wider">{code}</span> · commission {u.commissionPct}%</div>
+                <div className="text-xs text-stone-500">Give this code to their existing tenants. They enter it when they sign up, instead of the landlord&apos;s phone number.</div>
+              </div>
+              <form action={newLandlordCode}><input type="hidden" name="id" value={u.id} /><ConfirmSubmit message="Replace this code? The old one stops working, so tenants who haven't joined yet will need the new one." className="btn-ghost btn-sm">New code</ConfirmSubmit></form>
+              <a href={`https://wa.me/?text=${encodeURIComponent(`Hello, CasaVilla Property Management now manages your home. Join the CasaVilla app to pay rent by Mobile Money, get receipts and report repairs: ${SITE}/register?code=${code}`)}`} className="btn-outline btn-sm"><MessageCircle className="h-3.5 w-3.5" /> Send sign-up link</a>
+            </div>
+          )}
         </>
       )}
 

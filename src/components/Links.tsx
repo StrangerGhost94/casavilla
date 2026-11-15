@@ -54,12 +54,12 @@ export async function ConnectLandlordCard({ tenantId }: { tenantId: number }) {
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><Link2 className="h-5 w-5" /></span>
         <div>
           <div className="font-semibold text-brand-950">Already renting? Connect to your landlord</div>
-          <p className="mt-0.5 text-sm text-stone-500">Enter their phone number. Once they confirm, you can pay rent and report repairs here.</p>
+          <p className="mt-0.5 text-sm text-stone-500">Enter your landlord&apos;s CasaVilla code (ask the office if you don&apos;t have it). Once CasaVilla confirms, you can pay rent and report repairs here.</p>
         </div>
       </div>
       <div className="relative">
         <KeyRound className="pointer-events-none absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-stone-400" />
-        <input name="landlordPhone" required inputMode="tel" className="input pl-11" placeholder="Landlord's phone, e.g. 0772 123456" />
+        <input name="landlordCode" required autoCapitalize="characters" autoComplete="off" className="input pl-11 uppercase" placeholder="CasaVilla code, e.g. CV-7K2M9P" />
       </div>
       <input name="unitNote" className="input" maxLength={120} placeholder="Your house / unit (optional)" />
       <Submit className="btn-primary w-full" doneText="Sent">Send request</Submit>
@@ -127,7 +127,7 @@ export async function LinkRequests({ where, manager }: { where: Prisma.TenantLin
                 <div className="col-span-2 sm:col-span-1"><Field label="Lease ends"><input type="date" name="endDate" defaultValue={nextYear} className="input" required /></Field></div>
                 <Field label="Rent / month"><input type="number" name="rent" inputMode="numeric" placeholder="Unit rent" className="input" /></Field>
                 <Field label="Due day"><input type="number" name="dueDay" min={1} max={28} defaultValue={5} className="input" /></Field>
-                <Field label="Deposit you hold"><input type="number" name="depositHeld" min={0} inputMode="numeric" defaultValue={0} className="input" /></Field>
+                <Field label="Deposit held (if any)"><input type="number" name="depositHeld" min={0} inputMode="numeric" placeholder="None" className="input" /></Field>
                 <Field label="Late fee %"><input type="number" name="lateFeePct" min={0} max={50} defaultValue={0} className="input" /></Field>
                 <p className="col-span-2 text-[11px] text-stone-500 sm:col-span-4">Rent is billed from the month you choose; earlier months stay off the app. Old arrears can be added later as a charge on their lease.</p>
                 <div className="col-span-2 flex gap-2 sm:col-span-4">

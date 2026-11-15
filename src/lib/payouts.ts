@@ -26,9 +26,9 @@ import { sendTransfer, transferStatus } from "./momo";
 const AUTO_WINDOW_MS = 48 * 3600 * 1000;
 export type PayoutMode = "off" | "sandbox" | "live";
 export function payoutMode(): PayoutMode {
-  const m = (process.env.PAYOUT_MODE || "off").toLowerCase();
-  if (m === "live") return process.env.PAYMENT_PROVIDER === "flutterwave" && process.env.FLW_SECRET_KEY ? "live" : "off";
-  return m === "sandbox" ? "sandbox" : "off";
+  // CasaVilla's finance department pays landlords outside the app, so the app never sends money. The split is
+  // still recorded for statements and tax for URA. (PAYOUT_MODE is ignored.)
+  return "off";
 }
 
 const COMMERCIAL = ["Commercial / shops", "Office"];

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertTriangle, Banknote, Building2, CalendarRange, ChevronRight, CircleDollarSign, HardHat, MessageCircle, PieChart, Receipt, Wallet } from "lucide-react";
+import { AlertTriangle, Building2, CalendarRange, ChevronRight, CircleDollarSign, HardHat, MessageCircle, PieChart, Receipt, Wallet } from "lucide-react";
 import { CollectedCard, DashHeader, MiniStat } from "@/components/Dashboard";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
@@ -12,6 +12,7 @@ import { PushToggle } from "@/components/PushToggle";
 import { pushPublicKey } from "@/lib/push";
 import { MyBuildCard } from "@/components/MyBuildCard";
 import { waLink } from "@/lib/social";
+import { landlordCodeFor } from "@/lib/landlord-code";
 
 /**
  * A landlord's view: money coming in, and who has and hasn't paid. CasaVilla's office does all the work
@@ -29,12 +30,13 @@ export default async function LandlordHome() {
       include: { tenant: { select: { name: true } }, charge: { select: { kind: true, period: true } } },
     }),
   ]);
+  const code = await landlordCodeFor(u.id);
   const occ = s.units ? Math.round((s.occupied / s.units) * 100) : 0;
   return (
     <div className="mx-auto max-w-5xl">
       <DashHeader title="My portfolio">
         <Link href="/landlord/statements" className="btn-primary btn-sm"><Receipt className="h-4 w-4" /> Statements</Link>
-        <Link href="/landlord/payouts" className="btn-outline btn-sm"><Banknote className="h-4 w-4" /> Payouts</Link>
+        <Link href="/landlord/reports" className="btn-outline btn-sm"><PieChart className="h-4 w-4" /> Reports</Link>
         <a href={waLink(`Hello CasaVilla, this is ${u.name}.`)} className="btn-outline btn-sm"><MessageCircle className="h-4 w-4" /> Talk to CasaVilla</a>
       </DashHeader>
 
@@ -45,7 +47,7 @@ export default async function LandlordHome() {
         <MiniStat href="/landlord/properties" icon={<Building2 className="h-[18px] w-[18px]" />} value={`${occ}% let`} label={`${s.occupied} of ${s.units} units · ${vacant} vacant`} hint={`Rent roll ${ugx(rentRoll._sum.rent ?? 0)} / month`} />
       </div>
 
-      <div className="mt-3 empty:hidden"><PushToggle publicKey={pushPublicKey()} variant="card" text="Know the moment rent comes in and when your payout is sent, straight on this phone." /></div>
+      <div className="mt-3 empty:hidden"><PushToggle publicKey={pushPublicKey()} variant="card" text="Know the moment rent comes in, straight on this phone." /></div>
 
       <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         <div>
@@ -70,6 +72,7 @@ export default async function LandlordHome() {
             <KeyRow icon={<PieChart className="h-4 w-4" />} label="Occupancy" value={`${occ}%`} strong />
           </div>
           <p className="mt-3 text-xs text-stone-500">CasaVilla collects the rent, follows up late payers, handles repairs and finds new tenants. Questions? Talk to the CasaVilla office.</p>
+          <p className="mt-2 text-xs text-stone-500">Your CasaVilla code: <span className="font-mono font-semibold tracking-wider text-brand-900">{code}</span>. Tenants already renting from you enter it to join the app, so your phone number stays private.</p>
         </div>
       </div>
 

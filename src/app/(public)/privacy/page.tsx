@@ -39,7 +39,7 @@ export default function Privacy() {
         </Section>
         <Section title="Who can see it">
           <ul>
-            <li><b>The people involved:</b> a tenant and their landlord (and the landlord's caretaker) see the tenancy, payments and repairs; a provider sees the jobs they take; a client sees their building project.</li>
+            <li><b>The people involved:</b> a tenant sees their own tenancy, payments and repairs, and their landlord sees the rent and payments for their property (never the tenant's phone or email); a provider sees the jobs they take; a client sees their building project.</li>
             <li><b>The public:</b> only what you publish in a listing — its details, photos, area and, if you add one, its map pin. Your phone number and email are not shown on listings.</li>
             <li><b>CasaVilla staff</b> who need it to help you.</li>
             <li><b>Companies that help us run CasaVilla:</b> hosting, the Mobile Money payment provider, SMS/WhatsApp and email senders, and map services — only for that purpose.</li>

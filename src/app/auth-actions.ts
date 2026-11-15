@@ -1,4 +1,5 @@
 "use server";
+import { normalizeLandlordCode } from "@/lib/landlord-code";
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
 import { z } from "zod";
@@ -34,6 +35,7 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
   }
   if (!u) return { error: "Wrong email/phone or password." };
   if (u.status === "suspended") return { error: "This account is suspended. Contact CasaVilla." };
+  if (u.role === "caretaker") return { error: "Caretaker accounts are no longer used. Contact the CasaVilla office." };
   await startSession(u, fd.get("remember") === "on");
   // Tenants land on the marketplace (their rent and lease are one tap away at the top).
   redirect(safeNext(fd.get("next")) || (u.role === "tenant" ? "/" : homeFor(u.role)));
@@ -47,7 +49,7 @@ const schema = z.object({
   role: z.enum(["tenant", "landlord", "provider"]),
   businessName: z.string().trim().optional(),
   area: z.string().trim().optional(),
-  landlordPhone: z.string().trim().optional(),
+  landlordCode: z.string().trim().max(20).optional(),
   unitNote: z.string().trim().max(120, "Keep the house / unit description short").optional(),
 });
 
@@ -61,9 +63,9 @@ export async function register(prev: CodeState, fd: FormData): Promise<CodeState
   if (d.role === "provider" && !d.businessName) return { error: "Enter your business name" };
   const linking = d.role === "tenant" && fd.get("existing") === "on";
   if (linking) {
-    const lp = normalizePhone(d.landlordPhone || "");
-    if (!/^\+256\d{9}$/.test(lp)) return { error: "Enter your landlord's phone number, e.g. 0772 123 456" };
-    if (lp === phone) return { error: "Enter your landlord's number, not your own" };
+    const code = normalizeLandlordCode(d.landlordCode || "");
+    if (code.length < 6) return { error: "Enter your landlord's CasaVilla code, e.g. CV-7K2M9P" };
+    if (!(await db.user.findFirst({ where: { landlordCode: code, role: "landlord" }, select: { id: true } }))) return { error: "We couldn't find that landlord code. Check it with the CasaVilla office." };
   }
   const exists = await db.user.findUnique({ where: { email: d.email }, select: { id: true } });
   if (exists) return { error: "An account with this email already exists. Sign in instead." };
@@ -95,7 +97,7 @@ export async function register(prev: CodeState, fd: FormData): Promise<CodeState
     for (const m of managers) await notify(m.id, `New ${d.role} sign-up awaiting approval: ${d.businessName || d.name}`, "/manager/people");
   }
   // Existing tenants are connected to their landlord; new landlords pick up tenants already waiting for them.
-  if (linking) await requestLink(u, d.landlordPhone!, d.unitNote || null);
+  if (linking) await requestLink(u, d.landlordCode!, d.unitNote || null);
   if (d.role === "landlord") await attachWaitingTenants(u);
   await startSession(u);
   redirect(safeNext(fd.get("next")) || (u.role === "tenant" ? "/" : homeFor(u.role)));
@@ -114,7 +116,7 @@ export async function resetPassword(prev: CodeState, fd: FormData): Promise<Code
   const intent = String(fd.get("intent") || "");
 
   if (!prev?.step || intent === "resend") {
-    const users = await db.user.findMany({ where: { phone, status: { not: "suspended" } }, select: { id: true } });
+    const users = await db.user.findMany({ where: { phone, status: { not: "suspended" }, role: { not: "caretaker" } }, select: { id: true } });
     // Same answer either way, so the form can't be used to find out who has an account.
     if (!users.length) return { step: "verify", sentTo: maskPhone(phone), channel: null, sentAt: Date.now() };
     const r = await issueCode(phone, "reset", users[0].id);
@@ -129,7 +131,7 @@ export async function resetPassword(prev: CodeState, fd: FormData): Promise<Code
     ticket = phoneTicket(phone);
   }
   if (readTicket(ticket) !== phone) return { error: "That took too long — start again." };
-  const users = await db.user.findMany({ where: { phone, status: { not: "suspended" } }, orderBy: { id: "asc" }, select: { id: true, role: true, email: true, name: true } });
+  const users = await db.user.findMany({ where: { phone, status: { not: "suspended" }, role: { not: "caretaker" } }, orderBy: { id: "asc" }, select: { id: true, role: true, email: true, name: true } });
   if (!users.length) return { error: "No account uses this number." };
   const password = String(fd.get("password") || "");
   const chosen = users.length === 1 ? users[0] : users.find((u) => u.id === Number(fd.get("account")));

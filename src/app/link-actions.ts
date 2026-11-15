@@ -16,7 +16,7 @@ const refresh = () => revalidatePath("/", "layout");
 /** Tenant (already signed in, no lease yet) asks to be connected to their landlord. */
 export async function connectLandlord(fd: FormData) {
   const u = await requireUser("tenant");
-  const r = await requestLink(u, String(fd.get("landlordPhone") || ""), await text(fd, "unitNote", "your house or unit", { optional: true, max: 120 }));
+  const r = await requestLink(u, String(fd.get("landlordCode") || ""), await text(fd, "unitNote", "your house or unit", { optional: true, max: 120 }));
   if (!r.ok) return fail(r.error);
   refresh();
 }
@@ -39,7 +39,7 @@ export async function declineLink(fd: FormData) {
   const { u, l } = await loadLink(fd);
   const done = await db.tenantLink.updateMany({ where: { id: l.id, status: "pending" }, data: { status: "declined", decidedAt: new Date() } });
   if (done.count) {
-    await notify(l.tenantId, "Your landlord couldn't confirm that you rent from them. Check the phone number, or contact CasaVilla for help.", "/tenant");
+    await notify(l.tenantId, "CasaVilla couldn't confirm your tenancy. Check the landlord code, or contact the CasaVilla office.", "/tenant");
     await audit(u.id, "link.declined", "tenant_link", l.id, l.tenant.name);
   }
   refresh();

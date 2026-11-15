@@ -13,9 +13,9 @@ import { kampalaToday, ugx } from "@/lib/format";
 
 const refresh = () => revalidatePath("/", "layout");
 
-/** Managers record expenses directly; a caretaker's expense waits for CasaVilla to approve. */
+/** The CasaVilla office records expenses on landlords' statements. */
 export async function addExpense(fd: FormData) {
-  const u = await requireUser("manager", "caretaker");
+  const u = await requireUser("manager");
   const propertyId = id(fd, "propertyId") || null;
   const p = propertyId ? await workableProperty(u, propertyId) : null;
   if (propertyId && !p) return fail("Property not found");
@@ -27,7 +27,7 @@ export async function addExpense(fd: FormData) {
   const spentOn = (await date(fd, "spentOn", "the date", true)) || kampalaToday();
   if (spentOn > kampalaToday()) return fail("The date can't be in the future");
   const receiptFileId = await saveUpload(fd.get("receipt"), u.id, false);
-  const pending = u.role === "caretaker";
+  const pending = false; // expenses are entered by the CasaVilla office
   const e = await db.expense.create({
     data: { landlordId, propertyId: p?.id ?? null, category, description, amount, spentOn: new Date(`${spentOn}T00:00:00Z`), receiptFileId, createdById: u.id, status: pending ? "pending" : "approved" },
   });
@@ -50,9 +50,9 @@ export async function decideExpense(fd: FormData) {
 }
 
 export async function deleteExpense(fd: FormData) {
-  const u = await requireUser("manager", "caretaker");
+  const u = await requireUser("manager");
   const e = await db.expense.findUnique({ where: { id: id(fd) } });
-  const mine = e && (u.role === "manager" || e.landlordId === u.id || (u.role === "caretaker" && e.createdById === u.id && e.status === "pending"));
+  const mine = !!e;
   if (!e || !mine) return fail("Expense not found");
   await db.expense.delete({ where: { id: e.id } });
   await audit(u.id, "expense.deleted", "expense", e.id, `${e.description}: ${ugx(e.amount)}`);

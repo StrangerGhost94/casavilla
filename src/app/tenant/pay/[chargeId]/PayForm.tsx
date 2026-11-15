@@ -16,8 +16,16 @@ const networks = [
   { id: "airtel", label: "Airtel Money", logo: <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-600 text-[10px] font-extrabold text-white">airtel</span> },
 ];
 
-export function PayForm({ chargeId, balance, phone }: { chargeId: number; balance: number; phone: string }) {
+/**
+ * Pays this charge, and optionally months ahead: anything extra is held and covers the next months' rent
+ * automatically. `max` is what the server accepts (everything owed plus the advance limit).
+ */
+export function PayForm({ chargeId, balance, rent, max, momoMax, phone }: { chargeId: number; balance: number; rent: number; max: number; momoMax: number; phone: string }) {
   const [state, action, pending] = useActionState(startPayment, undefined);
+  const [amount, setAmount] = useState(balance > 0 ? balance : rent);
+  const ahead = [0, 1, 2, 3].map((n) => ({ n, value: balance + n * rent }))
+    // Months ahead are only offered while the total fits in one Mobile Money payment.
+    .filter((o) => o.value > 0 && o.value <= max && (o.value <= momoMax || o.value === (balance > 0 ? balance : rent)));
   const [num, setNum] = useState(phone.replace("+256", "0"));
   const [net, setNet] = useState(guess(phone) || "mtn");
   return (
@@ -43,11 +51,20 @@ export function PayForm({ chargeId, balance, phone }: { chargeId: number; balanc
         <input name="phone" value={num} onChange={(e) => { setNum(e.target.value); const g = guess(e.target.value); if (g) setNet(g); }} className="input" required inputMode="tel" />
       </label>
       <label className="block"><span className="label">Amount (UGX)</span>
-        <input name="amount" type="number" min={500} max={balance} defaultValue={balance} className="input" required inputMode="numeric" />
-        <span className="mt-1 block text-xs text-stone-500">You can pay part now and the rest later.</span>
+        <input name="amount" type="number" min={500} max={max} value={amount || ""} onChange={(e) => setAmount(Number(e.target.value))} className="input" required inputMode="numeric" />
+        <span className="mt-1 block text-xs text-stone-500">You can pay part now, or pay ahead: anything extra covers your next months automatically.</span>
       </label>
+      {rent > 0 && ahead.length > 1 && (
+        <div className="flex flex-wrap gap-2">
+          {ahead.map((o) => (
+            <button key={o.n} type="button" onClick={() => setAmount(o.value)} className={amount === o.value ? "chip-active" : "chip"}>
+              {o.n === 0 ? "This bill" : `${balance > 0 ? "+" : ""}${o.n} month${o.n > 1 ? "s" : ""}${balance > 0 ? " ahead" : ""}`}
+            </button>
+          ))}
+        </div>
+      )}
       {state?.error && <div className="rounded-xl bg-maroon-50 p-3 text-sm text-maroon-600">{state.error}</div>}
-      <button className="btn-primary btn-lg w-full" disabled={pending}>{pending ? "Sending request to your phone…" : "Pay rent"}</button>
+      <button className="btn-primary btn-lg w-full" disabled={pending}>{pending ? "Sending request to your phone…" : amount > balance && balance > 0 ? "Pay rent and months ahead" : balance > 0 ? "Pay rent" : "Pay rent in advance"}</button>
       <p className="text-center text-xs text-stone-500">You&apos;ll get a prompt on your phone to enter your Mobile Money PIN.</p>
     </form>
   );

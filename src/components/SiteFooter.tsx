@@ -46,7 +46,7 @@ function columns(me: User | null): { title: string; links: [string, string][] }[
   const owners: [string, string][] = !me
     ? [["/list", "List a property"], ["/sale?kind=land", "Sell land"], ["/build/start?kind=apartments", "Build or extend"], ["/register?role=landlord", "Landlord account"], ["/register?role=provider", "Become a provider"]]
     : me.role === "landlord"
-      ? [["/landlord", "My dashboard"], ["/landlord/statements", "Statements"], ["/landlord/payouts", "Payouts"], ["/build/start?kind=apartments", "Build or extend"]]
+      ? [["/landlord", "My dashboard"], ["/landlord/statements", "Statements"], ["/landlord/reports", "Reports"], ["/build/start?kind=apartments", "Build or extend"]]
       : [["/list", "List a property"], ["/sale?kind=land", "Sell land"], ["/build/start?kind=apartments", "Build or extend"], [homeFor(me.role), me.role === "tenant" ? "My home" : "My dashboard"]];
   return [
     { title: "Explore", links: [["/listings", "Homes for rent"], ["/stays", "Short stays"], ["/sale", "Land & property for sale"], ["/build", "Build with CasaVilla"], ["/services", "Home services"], ["/shop", "Shop"]] },

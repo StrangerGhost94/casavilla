@@ -1,3 +1,4 @@
+import { paidAhead } from "@/lib/billing";
 import Link from "next/link";
 import { CalendarClock, CheckCircle2, Wallet } from "lucide-react";
 import { db } from "@/db";
@@ -13,6 +14,8 @@ export default async function TenantRent() {
   const lease = await activeLease(u.id, true);
   if (!lease) return <><PageHeader title="Rent & receipts" /><Empty title="No active lease">Rent appears here once a landlord approves your application.</Empty></>;
   const ended = lease.l.status === "ended";
+  const ahead = await paidAhead(lease.l);
+  const lastRent = ahead ? await db.charge.findFirst({ where: { leaseId: lease.l.id, kind: "rent" }, orderBy: { dueDate: "desc" }, select: { id: true } }) : null;
   const year = kampalaToday().slice(0, 4);
   const [{ owed, next }, paidYear, count] = await Promise.all([
     chargesSummary(lease.l.id),
@@ -44,8 +47,8 @@ export default async function TenantRent() {
       </div>
 
       <div className="mt-4 space-y-3">
-        {lease.l.credit > 0 && !ended && (
-          <div className="rounded-2xl bg-brand-50 p-4 text-sm text-brand-800">You have <span className="font-bold">{ugx(lease.l.credit)}</span> credit from paying ahead. It&apos;s used automatically on your next charges.</div>
+        {ahead && !ended && (
+          <div className="rounded-2xl bg-brand-50 p-4 text-sm text-brand-800">Your rent is paid up to <span className="font-bold">{ahead.label}</span>.{lastRent && <> <Link href={`/tenant/pay/${lastRent.id}`} className="link font-semibold">Pay more ahead</Link>.</>}{ahead.credit > 0 && <> You have <span className="font-bold">{ugx(ahead.credit)}</span> paid ahead, applied automatically to each new month&apos;s rent.</>}</div>
         )}
         {ended && lease.l.settlement != null && lease.l.settlement < 0 && (
           <div className="rounded-2xl bg-maroon-50 p-4 text-sm text-maroon-700">Your lease has ended with <span className="font-bold">{ugx(-lease.l.settlement)}</span> still owed. You can clear it below with Mobile Money.</div>

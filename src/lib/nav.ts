@@ -24,13 +24,12 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/services", label: "Book a service", icon: "sparkles" },
     { href: "/build", label: "Build a home", icon: "hardHat" },
   ],
-  // Landlords only look: money in, who has paid, statements and payouts. The CasaVilla office does the work.
+  // Landlords only look: money in, who has paid, statements and reports. The CasaVilla office does the work.
   landlord: [
     { href: "/landlord", label: "Dashboard", icon: "home" },
     { href: "/landlord/tenants", label: "Tenants & rent", icon: "users", group: "Money" },
     { href: "/landlord/statements", label: "Statements", icon: "receipt" },
     { href: "/landlord/reports", label: "Financial reports", icon: "chart" },
-    { href: "/landlord/payouts", label: "Payouts", icon: "banknote" },
     { href: "/landlord/properties", label: "My properties", icon: "building", group: "Properties" },
     { href: "/build", label: "Build or extend", icon: "hardHat" },
   ],
@@ -58,7 +57,6 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/manager/tenants", label: "Leases & rent", icon: "file", group: "Money" },
     { href: "/manager/payments", label: "Payments", icon: "wallet" },
     { href: "/manager/statements", label: "Landlord statements", icon: "receipt" },
-    { href: "/manager/payouts", label: "Payouts to landlords", icon: "banknote" },
     { href: "/manager/tax", label: "Tax for URA", icon: "landmark" },
     { href: "/manager/efris", label: "EFRIS receipts", icon: "receiptText" },
     { href: "/manager/reports", label: "Financial reports", icon: "chart" },
@@ -105,7 +103,7 @@ export const tabs: Record<Role | "guest", Tabs> = {
   landlord: {
     left: [{ href: "/landlord", label: "Home", icon: "home" }, { href: "/landlord/tenants", label: "Tenants", icon: "users" }],
     action: { href: "/landlord/statements", label: "Statement", icon: "receipt" },
-    right: [{ href: "/landlord/payouts", label: "Payouts", icon: "banknote" }, { href: "/profile", label: "Profile", icon: "user" }],
+    right: [{ href: "/landlord/reports", label: "Reports", icon: "chart" }, { href: "/profile", label: "Profile", icon: "user" }],
   },
   provider: {
     left: [{ href: "/provider", label: "Home", icon: "home" }, { href: "/provider/jobs", label: "Jobs", icon: "briefcase" }],

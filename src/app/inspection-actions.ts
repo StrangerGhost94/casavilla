@@ -10,7 +10,7 @@ import { CONDITIONS, answerInspection, reopenInspection, startInspection, submit
 import { id, oneOf, text } from "@/lib/validate";
 import { kampalaToday } from "@/lib/format";
 
-const staff = () => requireUser("manager", "caretaker");
+const staff = () => requireUser("manager");
 
 async function editable(u: User, inspectionId: number) {
   const ins = await db.inspection.findUnique({ where: { id: inspectionId } });

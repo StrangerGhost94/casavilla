@@ -46,7 +46,7 @@ export async function retireMeter(fd: FormData) {
 }
 
 export async function addReading(fd: FormData) {
-  const { u, m } = await meterFor(fd, ["manager", "caretaker"]);
+  const { u, m } = await meterFor(fd, ["manager"]);
   const raw = String(fd.get("reading") ?? "").replace(/,/g, "").trim();
   const reading = Number(raw);
   if (!raw || !Number.isFinite(reading) || reading < 0) return fail("Enter the number shown on the meter");

@@ -136,6 +136,23 @@ export async function ensureChargesFor(where: "tenant" | "landlord" | "all", use
   for (const l of list) await ensureCharges(l);
 }
 
+/**
+ * How far a tenant has paid. Rent paid ahead is held as credit and settles each new month's rent the moment
+ * it's raised (a week before it's due), so this is the last month already covered: rent charges paid so far, plus
+ * whole months the credit still covers. Null while any rent is still owed.
+ */
+export async function paidAhead(lease: Pick<Lease, "id" | "rent" | "credit" | "status">) {
+  if (lease.status !== "active" || lease.rent <= 0) return null;
+  const rents = await db.charge.findMany({ where: { leaseId: lease.id, kind: "rent" }, select: { period: true, status: true }, orderBy: { period: "asc" } });
+  if (!rents.length || rents.some((c) => c.status !== "paid")) return null;
+  const last = rents.at(-1)!.period;
+  const [y, m] = last.split("-").map(Number);
+  const extra = Math.floor(lease.credit / lease.rent);
+  const d = new Date(Date.UTC(y, m - 1 + extra, 1));
+  const through = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+  return { through, label: periodLabel(through), credit: lease.credit };
+}
+
 /** Outstanding balance on a lease (all open charges). */
 export async function leaseBalance(leaseId: number, client: Tx | typeof db = db) {
   const open = await client.charge.findMany({ where: { leaseId, status: { not: "paid" } }, select: { amount: true, paid: true } });
@@ -168,7 +185,7 @@ export async function completePayment(paymentId: number) {
   const lease = await db.lease.findUniqueOrThrow({
     where: { id: p.leaseId }, include: { tenant: true, unit: { include: { property: true } } },
   });
-  const extra = left > 0 ? ` ${ugx(left)} kept as credit for your next rent.` : balance > 0 ? ` Remaining balance ${ugx(balance)}.` : " You're fully paid up.";
+  const extra = left > 0 ? ` ${ugx(left)} paid ahead, applied automatically to your next months' rent.` : balance > 0 ? ` Remaining balance ${ugx(balance)}.` : " You're fully paid up.";
   await notify(p.tenantId, `Payment of ${ugx(p.amount)} received. Receipt ${receiptNo}.${extra}`, `/receipts/${p.id}`);
   await notify(lease.landlordId, `${lease.tenant.name} paid ${ugx(p.amount)} for ${lease.unit.property.name} · ${lease.unit.label}.`, `/receipts/${p.id}`);
   // Email the receipt (queued; delivered once an email provider is set up).

@@ -1,3 +1,4 @@
+import { paidAhead } from "@/lib/billing";
 import Link from "next/link";
 import { Banknote, Building, ChevronRight, Smartphone } from "lucide-react";
 import { db } from "@/db";
@@ -21,8 +22,9 @@ export async function Ledger({ leaseId, payHref, recordCash, manage }: { leaseId
   const [cs, ps, lease] = await Promise.all([
     db.charge.findMany({ where: { leaseId }, orderBy: { dueDate: "desc" } }),
     db.payment.findMany({ where: { leaseId }, orderBy: { createdAt: "desc" }, include: { efris: { select: { id: true } }, charge: { select: { kind: true } } } }),
-    db.lease.findUnique({ where: { id: leaseId }, select: { landlord: { select: { efrisProfile: true } } } }),
+    db.lease.findUnique({ where: { id: leaseId }, select: { id: true, rent: true, credit: true, status: true, landlord: { select: { efrisProfile: true } } } }),
   ]);
+  const ahead = lease ? await paidAhead(lease) : null;
   const efrisFrom = lease?.landlord.efrisProfile?.status === "registered" ? lease.landlord.efrisProfile.since : null;
   const efrisState = (p: (typeof ps)[number]) => (p.status !== "success" ? null : p.efris ? "done" : efrisFrom && p.charge.kind !== "deposit" && p.paidAt && p.paidAt >= efrisFrom ? "missing" : null);
   const today = kampalaToday();
@@ -32,7 +34,8 @@ export async function Ledger({ leaseId, payHref, recordCash, manage }: { leaseId
       <div className="card p-0">
         <div className="flex items-center justify-between px-4 pb-2 pt-4">
           <div className="h2">Charges</div>
-          <div className="text-xs text-stone-500">Balance <span className={`ml-1 text-sm font-bold ${owed > 0 ? "text-maroon-600" : "text-brand-700"}`}>{ugx(owed)}</span></div>
+          <div className="text-right text-xs text-stone-500">Balance <span className={`ml-1 text-sm font-bold ${owed > 0 ? "text-maroon-600" : "text-brand-700"}`}>{ugx(owed)}</span>
+            {ahead && <div className="mt-0.5 font-semibold text-brand-700">Paid up to {ahead.label}{ahead.credit > 0 ? ` · ${ugx(ahead.credit)} ahead` : ""}</div>}</div>
         </div>
         <div className="divide-y divide-stone-100">
           {cs.map((c) => {

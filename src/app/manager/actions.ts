@@ -1,4 +1,5 @@
 "use server";
+import { landlordCodeFor, replaceLandlordCode } from "@/lib/landlord-code";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
@@ -20,8 +21,16 @@ export async function setUserStatus(fd: FormData) {
   const before = await db.user.findUnique({ where: { id: uid } });
   if (!before) return fail("Person not found");
   if (before.status === status) return;
-  const u = await db.user.update({ where: { id: uid }, data: { status } });
-  await audit(me.id, `user.${status}`, "user", u.id, `${u.name} (${u.role}): ${before.status} → ${status}`);
+  // Approving a new landlord: their commission is agreed at sign-up, and they get their private landlord code.
+  let commissionPct: number | undefined;
+  if (status === "active" && before.role === "landlord" && before.status === "pending") {
+    const pct = Number(String(fd.get("commission") ?? "").replace("%", ""));
+    if (fd.get("commission") === null || String(fd.get("commission")).trim() === "" || !Number.isFinite(pct) || pct < 0 || pct > 50) return fail("Set the landlord's commission (0–50%) on their page before approving them");
+    commissionPct = Math.round(pct * 100) / 100;
+  }
+  const u = await db.user.update({ where: { id: uid }, data: { status, ...(commissionPct !== undefined ? { commissionPct } : {}) } });
+  if (u.role === "landlord" && status === "active") await landlordCodeFor(u.id);
+  await audit(me.id, `user.${status}`, "user", u.id, `${u.name} (${u.role}): ${before.status} → ${status}${commissionPct !== undefined ? `, commission ${commissionPct}%` : ""}`);
 
   if (status === "active") {
     const link = `/${u.role}`;
@@ -43,6 +52,16 @@ export async function setUserStatus(fd: FormData) {
     await db.application.updateMany({ where: { id: { in: apps.map((a) => a.id) } }, data: { status: "rejected" } });
     for (const a of apps) await notify(a.tenantId, "A home you applied for is no longer available.", "/tenant/applications");
   }
+  revalidatePath("/", "layout");
+}
+
+/** Replaces a landlord's code (e.g. it was shared with the wrong people). The old code stops working at once. */
+export async function newLandlordCode(fd: FormData) {
+  const me = await requireUser("manager");
+  const u = await db.user.findFirst({ where: { id: id(fd), role: "landlord" }, select: { id: true, name: true, landlordCode: true } });
+  if (!u) return fail("Landlord not found");
+  const code = await replaceLandlordCode(u.id);
+  await audit(me.id, "landlord.code_replaced", "user", u.id, `${u.name}: ${u.landlordCode ?? "none"} → ${code}`);
   revalidatePath("/", "layout");
 }
 

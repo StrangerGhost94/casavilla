@@ -1,10 +1,6 @@
-import { requireUser } from "@/lib/auth";
-import { ManagerPayouts, PAYOUT_STATUS } from "@/components/Payouts";
+import { redirect } from "next/navigation";
 
-export const metadata = { title: "Payouts" };
-
-export default async function Page({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
-  await requireUser("manager");
-  const { status } = await searchParams;
-  return <ManagerPayouts status={status && status in PAYOUT_STATUS ? status : undefined} />;
+// CasaVilla's finance department pays landlords outside the app.
+export default function Page() {
+  redirect("/manager/statements");
 }
