@@ -8,14 +8,12 @@ import { provider } from "@/lib/momo";
 import { mailConfigured } from "@/lib/mail";
 import { PageHeader, SectionTitle } from "@/components/ui";
 import { ConfirmSubmit, Submit } from "@/components/client";
-import { handoverReset, repairCheck, runMaintenance } from "../actions";
-import { handoverPreview } from "@/lib/handover";
+import { repairCheck, runMaintenance } from "../actions";
 
 export const metadata = { title: "System health" };
 
 export default async function SystemHealth() {
-  const me = await requireSuperAdmin();
-  const wipe = await handoverPreview(me.id);
+  await requireSuperAdmin();
   const [checks, lastSweep, log] = await Promise.all([
     runChecks(),
     db.marker.findFirst({ where: { key: { startsWith: "sweep:" } }, orderBy: { createdAt: "desc" } }),
@@ -66,15 +64,6 @@ export default async function SystemHealth() {
             <div><div className="font-medium text-stone-800">{c.title}</div><div className="text-xs text-stone-500">{c.ok ? c.good : c.bad}</div></div>
           </div>
         ))}
-      </div>
-
-      <SectionTitle title="Clear test data before handover" />
-      <div className="card border-maroon-200 text-sm">
-        <p className="text-stone-700">Deletes <b>every account except yours</b> ({wipe.people.length ? wipe.people.map((p) => `${p.n} ${p.role}${p.n === 1 ? "" : "s"}`).join(", ") : "no other accounts"}) and all their records: {wipe.properties} propert{wipe.properties === 1 ? "y" : "ies"}, {wipe.leases} lease{wipe.leases === 1 ? "" : "s"}, {wipe.payments} payment{wipe.payments === 1 ? "" : "s"}, {wipe.jobs} repair{wipe.jobs === 1 ? "" : "s"}, plus bookings, documents, messages and the activity history. Places, house plans and finished projects stay. <b>This cannot be undone</b>, so take a database backup first.</p>
-        <form action={handoverReset} className="mt-3 flex flex-wrap items-center gap-2">
-          <input name="confirm" className="input w-56 py-2" placeholder="Type DELETE EVERYTHING" aria-label="Type DELETE EVERYTHING to confirm" autoComplete="off" required />
-          <ConfirmSubmit message="Delete every account except yours and all test records? This cannot be undone." className="btn-outline btn-sm text-maroon-600">Clear test data</ConfirmSubmit>
-        </form>
       </div>
 
       <SectionTitle title="Real-user speed" />

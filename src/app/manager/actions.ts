@@ -2,7 +2,6 @@
 import { landlordCodeFor, replaceLandlordCode } from "@/lib/landlord-code";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { requireSuperAdmin, requireUser } from "@/lib/auth";
 import { notify, notifyManagers } from "@/lib/notify";
@@ -97,21 +96,6 @@ export async function setSuperAdmin(fd: FormData) {
   revalidatePath("/", "layout");
 }
 
-/** One-time, before handover: removes every account but the super admin pressing the button, and all test records. */
-export async function handoverReset(fd: FormData) {
-  const me = await requireSuperAdmin();
-  if (String(fd.get("confirm") || "").trim().toUpperCase() !== "DELETE EVERYTHING") return fail("Type DELETE EVERYTHING to confirm");
-  const { clearTestData } = await import("@/lib/handover");
-  try {
-    await clearTestData(me.id);
-  } catch (e) {
-    console.error("handover reset", e);
-    return fail("Nothing was deleted: the clean-up stopped and everything was put back.");
-  }
-  revalidatePath("/", "layout");
-  redirect("/manager/health?ok=Test data cleared. Only your account remains.");
-}
-
 export async function generateCharges() {
   await requireUser("manager");
   await runHousekeeping(true);
@@ -139,14 +123,4 @@ export async function managerOrder(fd: FormData) {
   const status = await oneOf(fd, "status", ["confirmed", "delivered", "cancelled"] as const, "status");
   await advanceOrder(id(fd), status, me.id);
   revalidatePath("/manager/orders");
-}
-
-/** Sends a test message to the manager's own phone, straight away. */
-export async function sendTestMessage() {
-  const me = await requireUser("manager");
-  const { queueMessage, sendQueuedMessages } = await import("@/lib/messaging");
-  const first = me.name.split(" ")[0];
-  await queueMessage({ userId: me.id, kind: "notice", dedupeKey: `test:${me.id}:${Date.now()}`, params: [first, "This is a test message from CasaVilla. WhatsApp/SMS is working."], text: `Hello ${first}, this is a test message from CasaVilla. WhatsApp/SMS is working.` });
-  await sendQueuedMessages(5);
-  revalidatePath("/manager/messages");
 }
