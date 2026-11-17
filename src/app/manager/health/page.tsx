@@ -1,9 +1,11 @@
 import { CheckCircle2, ShieldAlert } from "lucide-react";
 import { db } from "@/db";
-import { requireUser } from "@/lib/auth";
+import { requireSuperAdmin } from "@/lib/auth";
 import { fmtDateTime } from "@/lib/format";
 import { runChecks } from "@/lib/integrity";
 import { METRICS, vitalsSummary } from "@/lib/vitals";
+import { provider } from "@/lib/momo";
+import { otpMode } from "@/lib/messaging";
 import { PageHeader, SectionTitle } from "@/components/ui";
 import { ConfirmSubmit, Submit } from "@/components/client";
 import { repairCheck, runMaintenance } from "../actions";
@@ -11,7 +13,7 @@ import { repairCheck, runMaintenance } from "../actions";
 export const metadata = { title: "System health" };
 
 export default async function SystemHealth() {
-  await requireUser("manager");
+  await requireSuperAdmin();
   const [checks, lastSweep, log] = await Promise.all([
     runChecks(),
     db.marker.findFirst({ where: { key: { startsWith: "sweep:" } }, orderBy: { createdAt: "desc" } }),
@@ -45,6 +47,21 @@ export default async function SystemHealth() {
               <form action={repairCheck}><input type="hidden" name="check" value={c.id} /><ConfirmSubmit message="Repair these records from their source of truth?" className="btn-primary btn-sm">Fix</ConfirmSubmit></form>
             )}
             {c.count > 0 && !c.fixable && <span className="text-[11px] text-stone-400">Review by hand</span>}
+          </div>
+        ))}
+      </div>
+
+      <SectionTitle title="Go-live settings" />
+      <div className="card divide-y divide-stone-100 p-0 text-sm">
+        {[
+          { ok: provider === "flutterwave", title: "Mobile Money", good: "Live: real money through Flutterwave.", bad: "TEST MODE: no money moves and anyone signed in can approve their own payment. Set PAYMENT_PROVIDER=flutterwave before real tenants use it." },
+          { ok: otpMode() === "live", title: "Phone codes (WhatsApp / SMS)", good: "Live: codes are sent to the phone.", bad: otpMode() === "test" ? "TEST MODE: codes are shown on the screen, so anyone can reset any account's password. Remove OTP_TEST_MODE." : "Off: phone numbers aren't checked at sign-up and “Forgot password” can't send a code. Set up WhatsApp or SMS." },
+          { ok: !!process.env.AUTH_SECRET && process.env.AUTH_SECRET.length >= 32, title: "Sign-in secret", good: "Set.", bad: "AUTH_SECRET is missing or short. Set a long random value." },
+          { ok: !!process.env.FLW_WEBHOOK_HASH || provider !== "flutterwave", title: "Payment confirmations", good: "Protected by the webhook secret.", bad: "FLW_WEBHOOK_HASH is missing, so Flutterwave can't confirm payments." },
+        ].map((c) => (
+          <div key={c.title} className="flex items-start gap-3 px-4 py-3">
+            <span className={`mt-0.5 flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-[11px] font-bold ${c.ok ? "bg-brand-50 text-brand-700" : "bg-gold-400 text-brand-950"}`}>{c.ok ? "✓" : "!"}</span>
+            <div><div className="font-medium text-stone-800">{c.title}</div><div className="text-xs text-stone-500">{c.ok ? c.good : c.bad}</div></div>
           </div>
         ))}
       </div>

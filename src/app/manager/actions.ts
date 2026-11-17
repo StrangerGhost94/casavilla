@@ -3,7 +3,7 @@ import { landlordCodeFor, replaceLandlordCode } from "@/lib/landlord-code";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { requireUser } from "@/lib/auth";
+import { requireSuperAdmin, requireUser } from "@/lib/auth";
 import { notify, notifyManagers } from "@/lib/notify";
 import { normalizePhone } from "@/lib/format";
 import { fail } from "@/lib/flash";
@@ -21,6 +21,9 @@ export async function setUserStatus(fd: FormData) {
   const before = await db.user.findUnique({ where: { id: uid } });
   if (!before) return fail("Person not found");
   if (before.status === status) return;
+  // Office accounts, and approving a new landlord (which sets their commission), are for super admins only.
+  if (!me.superAdmin && before.role === "manager") return fail("Only a super admin can suspend or reactivate office accounts");
+  if (!me.superAdmin && before.role === "landlord" && before.status === "pending" && status === "active") return fail("Only a super admin can approve a landlord and set their commission");
   // Approving a new landlord: their commission is agreed at sign-up, and they get their private landlord code.
   let commissionPct: number | undefined;
   if (status === "active" && before.role === "landlord" && before.status === "pending") {
@@ -66,7 +69,7 @@ export async function newLandlordCode(fd: FormData) {
 }
 
 export async function createStaff(fd: FormData) {
-  const me = await requireUser("manager");
+  const me = await requireSuperAdmin();
   const email = String(fd.get("email") || "").trim().toLowerCase();
   if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Enter a valid email");
   const password = String(fd.get("password") || "");
@@ -75,10 +78,22 @@ export async function createStaff(fd: FormData) {
   if (!/^\+256\d{9}$/.test(phone)) return fail("Enter a valid Ugandan phone number");
   if (await db.user.findUnique({ where: { email } })) return fail("Someone already uses that email");
   const u = await db.user.create({
-    data: { name: await reqText(fd, "name", "a name", { max: 100 }), email, phone, passwordHash: await bcrypt.hash(password, 10), role: "manager", status: "active" },
+    data: { name: await reqText(fd, "name", "a name", { max: 100 }), email, phone, passwordHash: await bcrypt.hash(password, 10), role: "manager", status: "active", superAdmin: fd.get("superAdmin") === "on" },
   });
-  await audit(me.id, "user.staff_created", "user", u.id, email);
+  await audit(me.id, u.superAdmin ? "user.super_admin_created" : "user.staff_created", "user", u.id, email);
   revalidatePath("/manager/people");
+}
+
+/** Makes a staff account a super admin, or back to ordinary staff. A super admin can't change their own level, so one always remains. */
+export async function setSuperAdmin(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const u = await db.user.findFirst({ where: { id: id(fd), role: "manager" } });
+  if (!u) return fail("Staff account not found");
+  if (u.id === me.id) return fail("You can't change your own level");
+  const on = fd.get("on") === "1";
+  await db.user.update({ where: { id: u.id }, data: { superAdmin: on } });
+  await audit(me.id, on ? "user.super_admin_on" : "user.super_admin_off", "user", u.id, u.email);
+  revalidatePath("/", "layout");
 }
 
 export async function generateCharges() {
@@ -88,14 +103,14 @@ export async function generateCharges() {
 }
 
 export async function runMaintenance() {
-  const me = await requireUser("manager");
+  const me = await requireSuperAdmin();
   const r = await runHousekeeping(true);
   await audit(me.id, "system.housekeeping", "system", null, JSON.stringify(r));
   revalidatePath("/", "layout");
 }
 
 export async function repairCheck(fd: FormData) {
-  const me = await requireUser("manager");
+  const me = await requireSuperAdmin();
   const check = String(fd.get("check"));
   if (!checkIds.includes(check)) return fail("Unknown check");
   const n = await fixCheck(check);

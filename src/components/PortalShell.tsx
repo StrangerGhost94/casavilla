@@ -4,7 +4,7 @@ import { runHousekeeping } from "@/lib/housekeeping";
 import { LogOut } from "lucide-react";
 import { db, type User } from "@/db";
 import { logout } from "@/app/actions";
-import { menus, roleName, tabs } from "@/lib/nav";
+import { menuFor, roleLabel, tabs } from "@/lib/nav";
 import { homeFor } from "@/lib/auth";
 import { Avatar, Logo } from "./ui";
 import { BottomNav, MobileTitle, NavLinks } from "./NavLinks";
@@ -35,7 +35,7 @@ export function greetingNow() {
 }
 
 export async function PortalShell({ user, children }: { user: User; children: React.ReactNode }) {
-  const items = menus[user.role];
+  const items = menuFor(user);
   const counts = await navCounts(user).catch(() => ({}));
   // Keeps rent charges, late fees, reminders and escalations moving without anyone pressing a button.
   // Runs after the page is sent, at most once an hour across all users.
@@ -54,7 +54,7 @@ export async function PortalShell({ user, children }: { user: User; children: Re
             <Avatar name={user.name} className="h-9 w-9 text-xs ring-2 ring-gold-400/60" />
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-white">{display}</div>
-              <div className="text-xs text-white/60">{roleName[user.role]}</div>
+              <div className="text-xs text-white/60">{roleLabel(user)}</div>
             </div>
           </Link>
           <form action={logout}>

@@ -4,14 +4,14 @@ import { AlertTriangle, Building2, MessageCircle, Phone } from "lucide-react";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { fmtDate, ugx } from "@/lib/format";
-import { roleName } from "@/lib/nav";
+import { roleLabel } from "@/lib/nav";
 import { Badge, PageHeader, SectionTitle } from "@/components/ui";
 import { ConfirmSubmit, Submit } from "@/components/client";
 import { CollectedCard, MiniStat } from "@/components/Dashboard";
 import { PropertyList, TenantsTable, portfolioStats } from "@/components/Portfolio";
 import { landlordCodeFor } from "@/lib/landlord-code";
 import { SITE } from "@/lib/seo";
-import { newLandlordCode, setUserStatus } from "../../actions";
+import { newLandlordCode, setSuperAdmin, setUserStatus } from "../../actions";
 
 export const metadata = { title: "Person" };
 
@@ -29,16 +29,23 @@ export default async function Person({ params }: { params: Promise<{ id: string 
   ]);
   const s = u.role === "landlord" ? await portfolioStats(u.id) : null;
   const code = u.role === "landlord" && u.status !== "pending" ? await landlordCodeFor(u.id) : null;
+  // Office accounts, and approving a new landlord, are for super admins.
+  const canChange = me.superAdmin || !(u.role === "manager" || (u.role === "landlord" && u.status === "pending"));
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <Link href="/manager/people" className="link text-sm">← People</Link>
-      <PageHeader title={u.businessName || u.name} subtitle={`${roleName[u.role]}${u.businessName ? ` · ${u.name}` : ""} · joined ${fmtDate(u.createdAt)}`} />
+      <PageHeader title={u.businessName || u.name} subtitle={`${roleLabel(u)}${u.businessName ? ` · ${u.name}` : ""} · joined ${fmtDate(u.createdAt)}`} />
       <div className="card flex flex-wrap items-center gap-2">
         <span className="mr-auto text-sm">{u.phone}{u.phoneVerifiedAt ? <span className="text-brand-700"> · verified</span> : ""} · {u.email}</span>
         <Badge color={u.status === "active" ? "green" : u.status === "pending" ? "gold" : "red"}>{u.status}</Badge>
         <a href={`tel:${u.phone}`} className="btn-outline btn-sm"><Phone className="h-3.5 w-3.5" /> Call</a>
         <a href={`https://wa.me/${local}`} className="btn-outline btn-sm"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a>
-        {u.id !== me.id && u.status !== "active" && <form action={setUserStatus} className="flex items-center gap-2">
+        {!canChange && u.id !== me.id && <span className="text-xs text-stone-500">{u.role === "manager" ? "Only a super admin can change office accounts" : "A super admin approves landlords and sets their commission"}</span>}
+        {u.role === "manager" && u.id !== me.id && me.superAdmin && u.status === "active" && (
+          <form action={setSuperAdmin}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="on" value={u.superAdmin ? "0" : "1"} />
+            <ConfirmSubmit message={u.superAdmin ? "Make this account ordinary staff? They will lose the super admin powers." : "Make this account a super admin? They will be able to manage office accounts, approve landlords, change commission and waive charges."} className="btn-outline btn-sm">{u.superAdmin ? "Make ordinary staff" : "Make super admin"}</ConfirmSubmit></form>
+        )}
+        {canChange && u.id !== me.id && u.status !== "active" && <form action={setUserStatus} className="flex items-center gap-2">
           <input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" />
           {/* A landlord's commission is agreed when they sign up with CasaVilla, so it's set before approval. */}
           {u.role === "landlord" && u.status === "pending" && (
@@ -47,7 +54,7 @@ export default async function Person({ params }: { params: Promise<{ id: string 
           )}
           <Submit className="btn-primary btn-sm">{u.status === "pending" ? "Approve" : "Reactivate"}</Submit>
         </form>}
-        {u.id !== me.id && u.status !== "suspended" && <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="suspended" /><Submit className="btn-ghost btn-sm text-maroon-600">Suspend</Submit></form>}
+        {u.id !== me.id && (me.superAdmin || u.role !== "manager") && u.status !== "suspended" && <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="suspended" /><Submit className="btn-ghost btn-sm text-maroon-600">Suspend</Submit></form>}
       </div>
 
       {s && (

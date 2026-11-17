@@ -282,6 +282,7 @@ export async function addLeaseCharge(fd: FormData) {
 
 export async function waiveLeaseCharge(fd: FormData) {
   const u = await actor();
+  if (!u.superAdmin) return fail("Only a super admin can waive a charge");
   const c = await db.charge.findUnique({ where: { id: id(fd, "chargeId") }, include: { lease: true } });
   if (!c || !owns(u, c.lease.landlordId)) return fail("Charge not found");
   const open = c.amount - c.paid;

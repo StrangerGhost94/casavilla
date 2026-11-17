@@ -12,7 +12,7 @@ if (email && password) {
     await prisma.user.create({
       data: {
         name: "CasaVilla Manager", email, phone: "+256776593482",
-        passwordHash: await bcrypt.hash(password, 10), role: "manager", status: "active",
+        passwordHash: await bcrypt.hash(password, 10), role: "manager", status: "active", superAdmin: true,
       },
     });
     console.log("Created manager account", email);

@@ -10,6 +10,7 @@ import { notify } from "@/lib/notify";
 import { attachWaitingTenants, requestLink } from "@/lib/links";
 import { otpMode } from "@/lib/messaging";
 import { checkCode, issueCode, maskPhone, phoneTicket, readTicket } from "@/lib/otp";
+import { clearFailures, lockedFor, noteFailure } from "@/lib/throttle";
 
 export type FormState = { error?: string } | undefined;
 /** Sign-up and reset forms move to a "verify" step once a code has been sent. */
@@ -23,6 +24,9 @@ const safeNext = (n: FormDataEntryValue | null) => {
 export async function login(_: FormState, fd: FormData): Promise<FormState> {
   const id = String(fd.get("email") || "").trim().toLowerCase();
   const password = String(fd.get("password") || "");
+  const key = id.includes("@") ? id : normalizePhone(id);
+  const wait = lockedFor(key);
+  if (wait) return { error: `Too many wrong passwords. Try again in ${wait} minute${wait === 1 ? "" : "s"}, or use “Forgot password”.` };
   // Email, or the phone number (caretakers often have no email). Several accounts can share a phone: the password picks.
   let u = null;
   if (id.includes("@")) {
@@ -33,7 +37,8 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
       if (await bcrypt.compare(password, c.passwordHash)) { u = c; break; }
     }
   }
-  if (!u) return { error: "Wrong email/phone or password." };
+  if (!u) { noteFailure(key); return { error: "Wrong email/phone or password." }; }
+  clearFailures(key);
   if (u.status === "suspended") return { error: "This account is suspended. Contact CasaVilla." };
   if (u.role === "caretaker") return { error: "Caretaker accounts are no longer used. Contact the CasaVilla office." };
   await startSession(u, fd.get("remember") === "on");

@@ -17,7 +17,7 @@ const MethodIcon = ({ m }: { m: string }) => {
 };
 
 /** Rent charges and payment history for one lease. */
-/** `manage` lets a landlord/manager waive part or all of an open charge. */
+/** `manage` lets a super admin waive part or all of an open charge. */
 export async function Ledger({ leaseId, payHref, recordCash, manage }: { leaseId: number; payHref?: (chargeId: number) => string; recordCash?: React.ReactNode; manage?: boolean }) {
   const [cs, ps, lease] = await Promise.all([
     db.charge.findMany({ where: { leaseId }, orderBy: { dueDate: "desc" } }),

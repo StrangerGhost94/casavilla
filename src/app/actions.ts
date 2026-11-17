@@ -2,7 +2,10 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
+import bcrypt from "bcryptjs";
 import { endSession, requireUser } from "@/lib/auth";
+import { fail } from "@/lib/flash";
+import { audit } from "@/lib/audit";
 
 export async function logout() {
   await endSession();
@@ -61,5 +64,17 @@ export async function saveMessagePrefs(fd: FormData) {
     where: { id: u.id },
     data: { messageOptIn: fd.get("messageOptIn") === "on", ...(u.role === "landlord" ? { remindTenants: fd.get("remindTenants") === "on" } : {}) },
   });
+  revalidatePath("/profile");
+}
+
+/** Change your own password from the profile (staff are given a temporary one when their account is made). */
+export async function changePassword(fd: FormData) {
+  const u = await requireUser();
+  const current = String(fd.get("current") || ""), next = String(fd.get("next") || "");
+  if (!(await bcrypt.compare(current, u.passwordHash))) return fail("Your current password is wrong");
+  if (next.length < 8) return fail("The new password must be at least 8 characters");
+  if (next === current) return fail("Choose a password different from the current one");
+  await db.user.update({ where: { id: u.id }, data: { passwordHash: await bcrypt.hash(next, 10) } });
+  await audit(u.id, "user.password_changed", "user", u.id, "from profile");
   revalidatePath("/profile");
 }

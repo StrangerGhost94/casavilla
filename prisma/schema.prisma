@@ -78,6 +78,8 @@ model User {
   commissionPct    Float                 @default(0) @map("commission_pct")
   /// Landlords: the code existing tenants enter to join (instead of the landlord's phone, which stays private).
   landlordCode     String?               @unique @map("landlord_code")
+  /// Office accounts only: a super admin manages staff accounts, approves landlords, changes commission, waives charges and uses the system tools.
+  superAdmin       Boolean               @default(false) @map("super_admin")
   messages         MessageOutbox[]
   caretakerOf      CaretakerAssignment[] @relation("Caretaker")
   caretakers       CaretakerAssignment[] @relation("CaretakerLandlord")

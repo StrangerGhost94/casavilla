@@ -3,8 +3,11 @@ export type Role = "tenant" | "landlord" | "provider" | "manager" | "caretaker";
 export type NavItem = { href: string; label: string; icon: string; group?: string };
 
 export const roleName: Record<Role, string> = {
-  tenant: "Tenant", landlord: "Landlord", provider: "Service provider", manager: "Property manager", caretaker: "Caretaker",
+  tenant: "Tenant", landlord: "Landlord", provider: "Service provider", manager: "Office staff", caretaker: "Caretaker",
 };
+
+/** The name shown for one person: office accounts are "Super admin" or "Office staff". */
+export const roleLabel = (u: { role: Role; superAdmin?: boolean }) => u.role === "manager" ? (u.superAdmin ? "Super admin" : "Office staff") : roleName[u.role];
 
 // Long menus are split into labelled groups (`group` starts a new section; items after it stay in it).
 export const menus: Record<Role, NavItem[]> = {
@@ -76,6 +79,18 @@ export const menus: Record<Role, NavItem[]> = {
 };
 
 /** Splits a menu into its groups: [{ title, items }], the first group having no title. */
+/** The menu for one person: ordinary office staff don't get the system tools (super admins only). */
+export function menuFor(u: { role: Role; superAdmin?: boolean }): NavItem[] {
+  const items = menus[u.role];
+  if (u.role !== "manager" || u.superAdmin) return items;
+  const i = items.findIndex((x) => x.href === "/manager/health");
+  if (i < 0) return items;
+  const rest = items.filter((_, n) => n !== i);
+  // The hidden item started the "System" group, so the next one takes the heading over.
+  if (items[i].group && rest[i] && !rest[i].group) rest[i] = { ...rest[i], group: items[i].group };
+  return rest;
+}
+
 export function grouped(items: NavItem[]) {
   const out: { title?: string; items: NavItem[] }[] = [];
   for (const i of items) {

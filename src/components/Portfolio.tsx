@@ -750,7 +750,7 @@ export async function LeaseDetail({ id, viewer, base }: { id: number; viewer: Us
       </div>
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-5 lg:col-span-2">
-          <Ledger leaseId={id} manage recordCash={<><CashForm l={l} />{active && <ChargeForm leaseId={l.id} />}</>} />
+          <Ledger leaseId={id} manage={viewer.superAdmin} recordCash={<><CashForm l={l} />{active && <ChargeForm leaseId={l.id} />}</>} />
         </div>
         <div className="space-y-5">
           <LeaseFacts l={l} />

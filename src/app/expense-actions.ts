@@ -1,7 +1,7 @@
 "use server";
 import { revalidatePath } from "next/cache";
 import { db } from "@/db";
-import { requireUser } from "@/lib/auth";
+import { requireSuperAdmin, requireUser } from "@/lib/auth";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
@@ -61,7 +61,7 @@ export async function deleteExpense(fd: FormData) {
 
 /** CasaVilla's management commission for a landlord (shown as a line on their statements). */
 export async function setCommission(fd: FormData) {
-  const u = await requireUser("manager");
+  const u = await requireSuperAdmin();
   const landlordId = id(fd, "landlordId");
   const pct = Number(String(fd.get("pct") ?? "").replace("%", ""));
   if (!Number.isFinite(pct) || pct < 0 || pct > 50) return fail("Enter a commission between 0 and 50%");

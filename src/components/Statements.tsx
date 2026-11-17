@@ -80,7 +80,7 @@ export async function StatementPage({ viewer, landlordId, month, propertyId, bas
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <FileButton href={pdf} name={`statement-${month}.pdf`}>Download statement PDF</FileButton>
-        {landlords && (
+        {landlords && viewer.superAdmin && (
           <form action={setCommission} className="flex items-center gap-2">
             <input type="hidden" name="landlordId" value={landlordId} />
             <input name="pct" type="number" min={0} max={50} step={0.5} defaultValue={s.commissionPct} className="input w-24 py-2" aria-label="Commission %" />

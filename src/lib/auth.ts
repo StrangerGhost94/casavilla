@@ -21,6 +21,13 @@ export async function requireUser(...roles: Role[]): Promise<User> {
   return u;
 }
 
+/** Office accounts with full control: staff accounts, landlord approval and commission, waiving charges, system tools. */
+export async function requireSuperAdmin(): Promise<User> {
+  const u = await requireUser("manager");
+  if (!u.superAdmin) redirect("/manager");
+  return u;
+}
+
 export async function startSession(u: User, remember = true) {
   const token = await signSession({ uid: u.id, role: u.role });
   const store = await cookies();

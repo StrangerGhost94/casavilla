@@ -16,7 +16,7 @@ async function main() {
   const mk = (v: { name: string; email: string; role: Role; phone?: string; status?: UserStatus; businessName?: string; area?: string; bio?: string }) =>
     prisma.user.create({ data: { phone: "+256772000000", passwordHash: hash, status: "active", ...v } });
 
-  const manager = await mk({ name: "CasaVilla Office", email: "manager@demo.casavilla", role: "manager", phone: "+256776593482" });
+  const manager = await prisma.user.update({ where: { id: (await mk({ name: "CasaVilla Office", email: "manager@demo.casavilla", role: "manager", phone: "+256776593482" })).id }, data: { superAdmin: true } });
   const nakato = await mk({ name: "Grace Nakato", email: "landlord@demo.casavilla", role: "landlord", phone: "+256772410221" });
   const ssemwanga = await mk({ name: "Joseph Ssemwanga", email: "landlord2@demo.casavilla", role: "landlord", phone: "+256701553002", status: "pending" });
   const okello = await mk({ name: "Brian Okello", email: "tenant@demo.casavilla", role: "tenant", phone: "+256778220114" });
