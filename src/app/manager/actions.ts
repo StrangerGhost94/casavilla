@@ -2,6 +2,7 @@
 import { landlordCodeFor, replaceLandlordCode } from "@/lib/landlord-code";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { requireSuperAdmin, requireUser } from "@/lib/auth";
 import { notify, notifyManagers } from "@/lib/notify";
@@ -94,6 +95,21 @@ export async function setSuperAdmin(fd: FormData) {
   await db.user.update({ where: { id: u.id }, data: { superAdmin: on } });
   await audit(me.id, on ? "user.super_admin_on" : "user.super_admin_off", "user", u.id, u.email);
   revalidatePath("/", "layout");
+}
+
+/** One-time, before handover: removes every account but the super admin pressing the button, and all test records. */
+export async function handoverReset(fd: FormData) {
+  const me = await requireSuperAdmin();
+  if (String(fd.get("confirm") || "").trim().toUpperCase() !== "DELETE EVERYTHING") return fail("Type DELETE EVERYTHING to confirm");
+  const { clearTestData } = await import("@/lib/handover");
+  try {
+    await clearTestData(me.id);
+  } catch (e) {
+    console.error("handover reset", e);
+    return fail("Nothing was deleted: the clean-up stopped and everything was put back.");
+  }
+  revalidatePath("/", "layout");
+  redirect("/manager/health?ok=Test data cleared. Only your account remains.");
 }
 
 export async function generateCharges() {
