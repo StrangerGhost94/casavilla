@@ -122,17 +122,17 @@ function CodeStep({ state, pending, onBack, backLabel, confirmLabel = "Confirm &
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
   const wait = Math.max(0, 45 - Math.floor((now - (state.sentAt ?? 0)) / 1000));
-  const via = state.channel === "whatsapp" ? "WhatsApp" : state.channel === "sms" ? "SMS" : "WhatsApp or SMS";
+  const via = state.channel === "email" ? "email" : state.channel === "whatsapp" ? "WhatsApp" : state.channel === "sms" ? "SMS" : "WhatsApp or SMS";
   return (
     <div className="space-y-3.5">
       <div className="flex items-start gap-3 rounded-2xl border border-brand-100 bg-brand-50/70 p-3.5">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#25D366] text-white"><MessageCircle className="h-5 w-5" /></span>
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white ${state.channel === "email" ? "bg-brand-700" : "bg-[#25D366]"}`}>{state.channel === "email" ? <Mail className="h-5 w-5" /> : <MessageCircle className="h-5 w-5" />}</span>
         <div className="text-sm text-brand-950">
           <div className="font-semibold">Check your {via}</div>
           <div className="text-stone-600">We sent a 6-digit code to <b>{state.sentTo}</b>.</div>
         </div>
       </div>
-      {state.testCode && <div className="rounded-xl border border-dashed border-gold-400 bg-gold-50 p-3 text-xs text-gold-700">Test mode — WhatsApp/SMS isn&apos;t connected yet, so the code is shown here: <b className="font-mono text-base tracking-widest">{state.testCode}</b></div>}
+      {state.testCode && <div className="rounded-xl border border-dashed border-gold-400 bg-gold-50 p-3 text-xs text-gold-700">Test mode — codes aren&apos;t being sent yet, so the code is shown here: <b className="font-mono text-base tracking-widest">{state.testCode}</b></div>}
       <IconInput icon={ShieldCheck}>
         <input name="code" required inputMode="numeric" autoComplete="one-time-code" pattern="\d{6}" maxLength={6} autoFocus
           className="input pl-11 font-mono text-lg tracking-[0.4em]" placeholder="••••••"
@@ -149,21 +149,21 @@ function CodeStep({ state, pending, onBack, backLabel, confirmLabel = "Confirm &
   );
 }
 
-/** Forgot password: phone → code → new password (and which account, if the number has several). */
+/** Forgot password: email → code by email → new password. */
 export function ForgotForm() {
   const [state, action, pending] = useActionState(resetPassword, undefined);
-  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const step = state?.step;
   return (
     <form onSubmit={keepFields(action)} className="space-y-3.5">
       <div className={step ? "hidden" : ""}>
-        <IconInput icon={Phone}><input name="phone" required inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="input pl-11" placeholder="Phone number on your account" autoComplete="tel" /></IconInput>
+        <IconInput icon={Mail}><input name="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className="input pl-11" placeholder="Email address on your account" autoComplete="email" /></IconInput>
       </div>
       {step === "verify" && <CodeStep state={state!} pending={pending} confirmLabel="Continue" />}
       {step === "choose" && (
         <>
           <input type="hidden" name="ticket" value={state!.ticket} />
-          <div className="flex items-center gap-2 rounded-xl bg-brand-50 p-3 text-sm text-brand-900"><Check className="h-4 w-4" /> Number confirmed. Choose a new password.</div>
+          <div className="flex items-center gap-2 rounded-xl bg-brand-50 p-3 text-sm text-brand-900"><Check className="h-4 w-4" /> Email confirmed. Choose a new password.</div>
           {state!.accounts && (
             <fieldset className="space-y-2">
               <legend className="label">Which account?</legend>

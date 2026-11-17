@@ -8,8 +8,8 @@ import { homeFor, startSession } from "@/lib/auth";
 import { normalizePhone } from "@/lib/format";
 import { notify } from "@/lib/notify";
 import { attachWaitingTenants, requestLink } from "@/lib/links";
-import { otpMode } from "@/lib/messaging";
-import { checkCode, issueCode, maskPhone, phoneTicket, readTicket } from "@/lib/otp";
+import { codeMode } from "@/lib/mail";
+import { checkCode, issueCode, maskEmail, maskPhone, phoneTicket, readTicket } from "@/lib/otp";
 import { clearFailures, lockedFor, noteFailure } from "@/lib/throttle";
 
 export type FormState = { error?: string } | undefined;
@@ -75,18 +75,16 @@ export async function register(prev: CodeState, fd: FormData): Promise<CodeState
   const exists = await db.user.findUnique({ where: { email: d.email }, select: { id: true } });
   if (exists) return { error: "An account with this email already exists. Sign in instead." };
 
-  // Confirm the phone number with a WhatsApp/SMS code before the account is created.
-  let verified = false;
-  if (otpMode() !== "off") {
+  // Confirm the email address with a code before the account is created (once email is set up).
+  if (codeMode() !== "off") {
     const code = String(fd.get("code") || "");
     if (!code || fd.get("intent") === "resend" || !keep) {
-      const r = await issueCode(phone, "signup");
+      const r = await issueCode(d.email, "signup");
       if (!r.ok) return { ...keep, error: r.error };
-      return { step: "verify", sentTo: maskPhone(phone), channel: r.channel, testCode: r.testCode, sentAt: Date.now() };
+      return { step: "verify", sentTo: maskEmail(d.email), channel: r.channel, testCode: r.testCode, sentAt: Date.now() };
     }
-    const ok = await checkCode(phone, "signup", code);
+    const ok = await checkCode(d.email, "signup", code);
     if (!ok.ok) return { ...keep, error: ok.error };
-    verified = true;
   }
 
   const u = await db.user.create({ data: {
@@ -94,7 +92,6 @@ export async function register(prev: CodeState, fd: FormData): Promise<CodeState
     // Landlords and providers are reviewed by CasaVilla before they appear publicly.
     status: d.role === "tenant" ? "active" : "pending",
     businessName: d.businessName || null, area: d.area || null,
-    phoneVerifiedAt: verified ? new Date() : null,
     messageOptIn: fd.get("optIn") !== "off",
   } });
   if (d.role !== "tenant") {
@@ -108,44 +105,39 @@ export async function register(prev: CodeState, fd: FormData): Promise<CodeState
   redirect(safeNext(fd.get("next")) || (u.role === "tenant" ? "/" : homeFor(u.role)));
 }
 
-const accountLabel = (u: { role: string; email: string; name: string }) =>
-  `${u.name} · ${u.role === "provider" ? "service provider" : u.role} · ${u.email.endsWith("@phone.casavilla") ? "no email" : u.email.replace(/^(.).*(@.*)$/, "$1•••$2")}`;
-
 /**
- * Forgot password: phone → code on WhatsApp/SMS → new password. If several accounts use the number, the person
- * picks which one after proving the phone is theirs. Never reveals whether a number has an account before that.
+ * Forgot password: email → code by email → new password. Never reveals whether an email has an account
+ * before the code is entered.
  */
 export async function resetPassword(prev: CodeState, fd: FormData): Promise<CodeState> {
-  const phone = normalizePhone(String(fd.get("phone") || ""));
-  if (!/^\+256\d{9}$/.test(phone)) return { error: "Enter the phone number on your account, e.g. 0772 123 456" };
+  const email = String(fd.get("email") || "").trim().toLowerCase();
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "Enter the email address on your account" };
   const intent = String(fd.get("intent") || "");
+  const find = () => db.user.findFirst({ where: { email, status: { not: "suspended" }, role: { not: "caretaker" } } });
 
   if (!prev?.step || intent === "resend") {
-    const users = await db.user.findMany({ where: { phone, status: { not: "suspended" }, role: { not: "caretaker" } }, select: { id: true } });
+    const u = await find();
     // Same answer either way, so the form can't be used to find out who has an account.
-    if (!users.length) return { step: "verify", sentTo: maskPhone(phone), channel: null, sentAt: Date.now() };
-    const r = await issueCode(phone, "reset", users[0].id);
+    if (!u) return { step: "verify", sentTo: maskEmail(email), channel: "email", sentAt: Date.now() };
+    const r = await issueCode(email, "reset", u.id);
     if (!r.ok) return { ...prev, error: r.error };
-    return { step: "verify", sentTo: maskPhone(phone), channel: r.channel, testCode: r.testCode, sentAt: Date.now() };
+    return { step: "verify", sentTo: maskEmail(email), channel: r.channel, testCode: r.testCode, sentAt: Date.now() };
   }
 
   let ticket = String(fd.get("ticket") || "");
   if (prev.step === "verify") {
-    const ok = await checkCode(phone, "reset", String(fd.get("code") || ""));
+    const ok = await checkCode(email, "reset", String(fd.get("code") || ""));
     if (!ok.ok) return { ...prev, error: ok.error };
-    ticket = phoneTicket(phone);
+    ticket = phoneTicket(email);
   }
-  if (readTicket(ticket) !== phone) return { error: "That took too long — start again." };
-  const users = await db.user.findMany({ where: { phone, status: { not: "suspended" }, role: { not: "caretaker" } }, orderBy: { id: "asc" }, select: { id: true, role: true, email: true, name: true } });
-  if (!users.length) return { error: "No account uses this number." };
+  if (readTicket(ticket) !== email) return { error: "That took too long — start again." };
+  const found = await find();
+  if (!found) return { error: "No account uses this email." };
   const password = String(fd.get("password") || "");
-  const chosen = users.length === 1 ? users[0] : users.find((u) => u.id === Number(fd.get("account")));
-  if (!chosen || password.length < 8) {
-    return { step: "choose", ticket, sentTo: prev.sentTo, accounts: users.length > 1 ? users.map((u) => ({ id: u.id, label: accountLabel(u) })) : undefined,
-      error: prev.step === "choose" ? (!chosen ? "Choose the account to reset" : "The new password must be at least 8 characters") : undefined };
-  }
-  const u = await db.user.update({ where: { id: chosen.id }, data: { passwordHash: await bcrypt.hash(password, 10), phoneVerifiedAt: new Date() } });
-  await db.auditLog.create({ data: { actorId: u.id, action: "user.password_reset", entity: "user", entityId: u.id, detail: "by phone code" } });
+  if (password.length < 8) return { step: "choose", ticket, sentTo: prev.sentTo, error: prev.step === "choose" ? "The new password must be at least 8 characters" : undefined };
+  const u = await db.user.update({ where: { id: found.id }, data: { passwordHash: await bcrypt.hash(password, 10) } });
+  await db.auditLog.create({ data: { actorId: u.id, action: "user.password_reset", entity: "user", entityId: u.id, detail: "by email code" } });
+  clearFailures(email);
   await startSession(u);
   redirect(homeFor(u.role));
 }

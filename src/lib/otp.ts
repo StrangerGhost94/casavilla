@@ -3,6 +3,13 @@ import { createHmac, randomInt, timingSafeEqual } from "crypto";
 import { db } from "@/db";
 import { normalizePhone } from "./format";
 import { otpMode, sendCode } from "./messaging";
+import { codeMode, emailHtml, sendEmailNow } from "./mail";
+
+/** A code goes to an email address or a phone number; both are stored the same way. */
+const isEmail = (t: string) => t.includes("@");
+const norm = (t: string) => (isEmail(t) ? t.trim().toLowerCase() : normalizePhone(t));
+/** "grace@example.com" → "g•••@example.com". */
+export const maskEmail = (e: string) => e.trim().toLowerCase().replace(/^(.).*(@.*)$/, "$1•••$2");
 
 export type Purpose = "signup" | "reset";
 const TTL_MIN = 10, MAX_TRIES = 5, COOLDOWN_S = 45, PER_10MIN = 3, PER_DAY = 10;
@@ -17,7 +24,7 @@ export const maskPhone = (p: string) => { const l = normalizePhone(p).replace("+
  * In test mode (no provider set up) the code comes back in `testCode` so it can be shown on screen.
  */
 export async function issueCode(rawPhone: string, purpose: Purpose, userId?: number | null): Promise<{ ok: true; channel: string | null; testCode?: string } | { ok: false; error: string }> {
-  const phone = normalizePhone(rawPhone);
+  const phone = norm(rawPhone);
   const now = Date.now();
   const recent = await db.phoneCode.findMany({ where: { phone, purpose, createdAt: { gt: new Date(now - 86400000) } }, orderBy: { createdAt: "desc" }, select: { createdAt: true } });
   if (recent[0] && now - recent[0].createdAt.getTime() < COOLDOWN_S * 1000) {
@@ -29,6 +36,12 @@ export async function issueCode(rawPhone: string, purpose: Purpose, userId?: num
   // Any older codes stop working once a new one is sent.
   await db.phoneCode.updateMany({ where: { phone, purpose, consumedAt: null }, data: { consumedAt: new Date() } });
   await db.phoneCode.create({ data: { phone, purpose, codeHash: hash(phone, purpose, code), expiresAt: new Date(now + TTL_MIN * 60000) } });
+  if (isEmail(phone)) {
+    if (codeMode() === "test") return { ok: true, channel: "email", testCode: code };
+    const r = await sendEmailNow({ to: phone, subject: `${code} is your CasaVilla code`, html: emailHtml({ title: "Your CasaVilla code", lines: [`Your code is ${code}`, "It expires in 10 minutes. Never share it with anyone, even CasaVilla staff.", "If you didn't ask for this code, you can ignore this email."] }) });
+    if (!r.ok) { console.error("code email failed", r.error); return { ok: false, error: "We couldn't send the code just now. Check the email address and try again in a minute." }; }
+    return { ok: true, channel: "email" };
+  }
   const sent = await sendCode(phone, code, userId);
   if (!sent.ok) return { ok: false, error: "We couldn't send the code just now. Check the number and try again in a minute." };
   return { ok: true, channel: sent.channel, ...(otpMode() === "test" ? { testCode: code } : {}) };
@@ -36,7 +49,7 @@ export async function issueCode(rawPhone: string, purpose: Purpose, userId?: num
 
 /** Checks a code and uses it up. Five wrong tries and the code stops working. */
 export async function checkCode(rawPhone: string, purpose: Purpose, raw: string): Promise<{ ok: true } | { ok: false; error: string }> {
-  const phone = normalizePhone(rawPhone);
+  const phone = norm(rawPhone);
   const code = raw.replace(/\D/g, "");
   if (code.length !== 6) return { ok: false, error: "Enter the 6-digit code." };
   const c = await db.phoneCode.findFirst({ where: { phone, purpose, consumedAt: null }, orderBy: { createdAt: "desc" } });
@@ -57,11 +70,11 @@ export async function checkCode(rawPhone: string, purpose: Purpose, raw: string)
 /** Short-lived proof that a phone was verified, for the step after the code (choosing which account to reset). */
 export function phoneTicket(phone: string, minutes = 10) {
   const exp = Date.now() + minutes * 60000;
-  const p = normalizePhone(phone);
-  return `${p}.${exp}.${createHmac("sha256", secret()).update(`ticket|${p}|${exp}`).digest("hex").slice(0, 32)}`;
+  const p = norm(phone);
+  return `${p}|${exp}|${createHmac("sha256", secret()).update(`ticket|${p}|${exp}`).digest("hex").slice(0, 32)}`;
 }
 export function readTicket(t: string): string | null {
-  const [p, exp, sig] = t.split(".");
+  const [p, exp, sig] = t.split("|");
   if (!p || !exp || !sig || Number(exp) < Date.now()) return null;
   const want = createHmac("sha256", secret()).update(`ticket|${p}|${exp}`).digest("hex").slice(0, 32);
   return want.length === sig.length && timingSafeEqual(Buffer.from(want), Buffer.from(sig)) ? p : null;

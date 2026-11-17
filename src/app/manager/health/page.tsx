@@ -5,7 +5,7 @@ import { fmtDateTime } from "@/lib/format";
 import { runChecks } from "@/lib/integrity";
 import { METRICS, vitalsSummary } from "@/lib/vitals";
 import { provider } from "@/lib/momo";
-import { otpMode } from "@/lib/messaging";
+import { mailConfigured } from "@/lib/mail";
 import { PageHeader, SectionTitle } from "@/components/ui";
 import { ConfirmSubmit, Submit } from "@/components/client";
 import { handoverReset, repairCheck, runMaintenance } from "../actions";
@@ -57,7 +57,7 @@ export default async function SystemHealth() {
       <div className="card divide-y divide-stone-100 p-0 text-sm">
         {[
           { ok: provider === "flutterwave", title: "Mobile Money", good: "Live: real money through Flutterwave.", bad: "TEST MODE: no money moves and anyone signed in can approve their own payment. Set PAYMENT_PROVIDER=flutterwave before real tenants use it." },
-          { ok: otpMode() === "live", title: "Phone codes (WhatsApp / SMS)", good: "Live: codes are sent to the phone.", bad: otpMode() === "test" ? "TEST MODE: codes are shown on the screen, so anyone can reset any account's password. Remove OTP_TEST_MODE." : "Off: phone numbers aren't checked at sign-up and “Forgot password” can't send a code. Set up WhatsApp or SMS." },
+          { ok: mailConfigured(), title: "Email (codes and receipts)", good: "Live: sign-up and password codes and receipts are sent by email.", bad: "Off: no codes or receipts are emailed, email addresses aren't checked at sign-up and “Forgot password” can't work. Set RESEND_API_KEY and MAIL_FROM." },
           { ok: !!process.env.AUTH_SECRET && process.env.AUTH_SECRET.length >= 32, title: "Sign-in secret", good: "Set.", bad: "AUTH_SECRET is missing or short. Set a long random value." },
           { ok: !!process.env.FLW_WEBHOOK_HASH || provider !== "flutterwave", title: "Payment confirmations", good: "Protected by the webhook secret.", bad: "FLW_WEBHOOK_HASH is missing, so Flutterwave can't confirm payments." },
         ].map((c) => (

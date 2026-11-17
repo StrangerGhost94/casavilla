@@ -1,13 +1,13 @@
 import { ForgotForm } from "@/components/AuthForms";
 import { Logo } from "@/components/ui";
-import { otpMode } from "@/lib/messaging";
+import { codeMode } from "@/lib/mail";
 import { waLink } from "@/lib/social";
 
 export const metadata = { title: "Reset password" };
 export const dynamic = "force-dynamic";
 
 export default function Forgot() {
-  const off = otpMode() === "off";
+  const off = codeMode() === "off";
   return (
     <main className="md:py-12">
       <div className="mx-auto max-w-md px-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-[calc(env(safe-area-inset-top)+2rem)] md:rounded-3xl md:bg-white md:px-8 md:pt-8 md:shadow-float">
@@ -20,7 +20,7 @@ export default function Forgot() {
           </>
         ) : (
           <>
-            <p className="muted mb-6 mt-1">We&apos;ll send a code to your phone on WhatsApp (or SMS).</p>
+            <p className="muted mb-6 mt-1">We&apos;ll send a 6-digit code to the email address on your account.</p>
             <ForgotForm />
           </>
         )}
