@@ -93,7 +93,7 @@ export async function financialReport(period: Period, scope: Scope = {}) {
       select: { amount: true, paid: true, dueDate: true, lease: { select: { id: true, landlordId: true, status: true, tenant: { select: { name: true, phone: true } }, unit: { select: { label: true, propertyId: true, property: { select: { name: true } } } } } } },
     }),
     db.charge.findMany({ where: { kind: "deposit", lease: { ...leaseWhere, status: "active" } }, select: { paid: true } }),
-    db.user.findMany({ where: { role: "landlord", ...(scope.landlordId ? { id: scope.landlordId } : {}) }, select: { id: true, name: true, businessName: true, commissionPct: true }, orderBy: { name: "asc" } }),
+    db.user.findMany({ where: { role: { in: ["landlord", "agent"] }, ...(scope.landlordId ? { id: scope.landlordId } : {}) }, select: { id: true, name: true, businessName: true, commissionPct: true }, orderBy: { name: "asc" } }),
   ]);
 
   // Money in, by what it paid for, by property and by method.

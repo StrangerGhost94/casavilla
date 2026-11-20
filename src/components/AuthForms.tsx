@@ -1,7 +1,7 @@
 "use client";
 import { startTransition, useActionState, useEffect, useState } from "react";
 import Link from "next/link";
-import { Building, Check, Eye, EyeOff, Home, KeyRound, Lock, Mail, MessageCircle, Phone, ShieldCheck, User, UserRound, Wrench } from "lucide-react";
+import { Building, Check, Eye, EyeOff, Home, KeyRound, Lock, Mail, MessageCircle, Phone, ShieldCheck, User, UserRound, Wrench, Tag } from "lucide-react";
 import { login, register, resetPassword, startPhoneCheck, type CodeState } from "@/app/auth-actions";
 
 function IconInput({ icon: I, children }: { icon: typeof Mail; children: React.ReactNode }) {
@@ -60,6 +60,7 @@ const roles = [
   { id: "tenant", title: "Tenant", body: "Find a home, pay rent, request services", icon: UserRound, tone: "bg-brand-800 text-gold-300" },
   { id: "landlord", title: "Landlord", body: "CasaVilla manages it; you see the rent come in", icon: Home, tone: "bg-gold-400 text-brand-950" },
   { id: "provider", title: "Service provider", body: "Offer your services, get hired", icon: Wrench, tone: "bg-brand-800 text-gold-300" },
+  { id: "agent", title: "Agent", body: "List land and property for sale, or run short stays", icon: Tag, tone: "bg-gold-400 text-brand-950" },
 ] as const;
 
 export function RegisterForm({ role: initial, next, messaging = false, landlordCode }: { role?: string; next?: string; messaging?: boolean; landlordCode?: string }) {
@@ -92,6 +93,7 @@ export function RegisterForm({ role: initial, next, messaging = false, landlordC
         </div>
         <div className="pt-2 text-xs font-semibold uppercase tracking-wide text-stone-500">Your details</div>
         <IconInput icon={User}><input name="name" required className="input pl-11" placeholder="Full name" autoComplete="name" /></IconInput>
+        {role === "agent" && <IconInput icon={Building}><input name="businessName" className="input pl-11" placeholder="Agency name (optional)" /></IconInput>}
         {role === "provider" && (
           <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             <IconInput icon={Building}><input name="businessName" className="input pl-11" placeholder="Business name" /></IconInput>
@@ -107,7 +109,7 @@ export function RegisterForm({ role: initial, next, messaging = false, landlordC
           <span>Send me rent reminders, receipts and updates on WhatsApp or SMS</span>
         </label>}
         <input type="hidden" name="optIn" defaultValue="on" />
-        {role !== "tenant" && <p className="text-xs text-stone-500">CasaVilla reviews new {role === "landlord" ? "landlords" : "providers"} before they appear publicly. You can set up your account straight away.</p>}
+        {role !== "tenant" && <p className="text-xs text-stone-500">{role === "agent" ? "CasaVilla checks every agent before their listings go public: after signing up, upload your ID and the signed CasaVilla agent agreement." : `CasaVilla reviews new ${role === "landlord" ? "landlords" : "providers"} before they appear publicly. You can set up your account straight away.`}</p>}
       </div>
       {verifying && <CodeStep state={state} pending={pending} onBack={() => setEditing(true)} backLabel="Change my details" />}
       {state?.error && <div role="alert" className="rounded-xl bg-maroon-50 p-3 text-sm text-maroon-600">{state.error}</div>}

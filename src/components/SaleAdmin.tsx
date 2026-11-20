@@ -13,23 +13,24 @@ import { SaleBasics, SaleDetails } from "./SaleFields";
 import { SalePhotos, ScrollTop } from "./SalePhotos";
 import { AddChoice } from "./AddChoice";
 import { Checklist } from "./Checklist";
-import { deleteSaleListing, markEnquiry, reviewSale, saveSaleListing, setSaleStatus, verifySaleTitle } from "@/app/sale-actions";
+import { closeListingReport, deleteSaleListing, markEnquiry, recordAgentSale, renewSaleListing, reviewSale, saveSaleListing, setSaleStatus, uploadMandate, verifySaleTitle } from "@/app/sale-actions";
 
 const pill = (s: string) => <Badge color={STATUS[s]?.tone ?? "gray"}>{STATUS[s]?.label ?? s}</Badge>;
 
-/** Landlord: their listings. Manager: everything, with the review queue first. */
+/** An agent: their own listings. The office: everything, with the review queue first. */
 export async function SaleList({ viewer, tab }: { viewer: User; tab?: string }) {
   const manager = viewer.role === "manager";
   const where: Prisma.SaleListingWhereInput = manager
-    ? tab === "review" || !tab ? { status: "pending" } : tab === "live" ? { status: { in: ["active", "under_offer"] } } : {}
+    ? tab === "review" || !tab ? { status: "pending" } : tab === "live" ? { status: { in: ["active", "under_offer"] } } : tab === "reported" ? { reports: { some: { status: "new" } } } : {}
     : { ownerId: viewer.id };
-  const [rows, pending, newEnq] = await Promise.all([
+  const [rows, pending, newEnq, reported] = await Promise.all([
     db.saleListing.findMany({
       where, orderBy: [{ updatedAt: "desc" }], take: 100,
       include: { owner: { select: { name: true } }, _count: { select: { enquiries: { where: { status: "new" } }, photos: true } } },
     }),
     manager ? db.saleListing.count({ where: { status: "pending" } }) : 0,
     db.saleEnquiry.count({ where: { status: "new", ...(manager ? {} : { listing: { ownerId: viewer.id } }) } }),
+    manager ? db.saleListing.count({ where: { reports: { some: { status: "new" } } } }) : 0,
   ]);
   const base = `/${viewer.role}/sale`;
   return (
@@ -38,12 +39,12 @@ export async function SaleList({ viewer, tab }: { viewer: User; tab?: string }) 
         actions={<Link href={`${base}/new`} className="btn-primary btn-sm"><Plus className="h-4 w-4" /> New listing</Link>} />
       {manager && (
         <div className="mb-4 flex gap-2">
-          {[["review", `To review${pending ? ` (${pending})` : ""}`], ["live", "Live"], ["all", "All"]].map(([k, label]) => (
+          {[["review", `To review${pending ? ` (${pending})` : ""}`], ["reported", `Reported${reported ? ` (${reported})` : ""}`], ["live", "Live"], ["all", "All"]].map(([k, label]) => (
             <Link key={k} href={`${base}?tab=${k}`} className={(tab ?? "review") === k ? "chip-active" : "chip"}>{label}</Link>
           ))}
         </div>
       )}
-      {newEnq > 0 && <div className="card mb-4 border-brand-100 bg-brand-50/60 text-sm text-brand-900"><b>{newEnq} new buyer enquir{newEnq === 1 ? "y" : "ies"}</b> — open the listing to call them back.</div>}
+      {newEnq > 0 && viewer.role !== "agent" && <div className="card mb-4 border-brand-100 bg-brand-50/60 text-sm text-brand-900"><b>{newEnq} new buyer enquir{newEnq === 1 ? "y" : "ies"}</b> — open the listing to call them back.</div>}
       {rows.length ? (
         <div className="card divide-y divide-stone-100 p-0">
           {rows.map((l) => (
@@ -92,12 +93,20 @@ export async function SaleForm({ viewer, id }: { viewer: User; id?: number }) {
 export async function SaleManage({ viewer, id, fresh }: { viewer: User; id: number; fresh?: boolean }) {
   const l = await db.saleListing.findUnique({
     where: { id },
-    include: { photos: { orderBy: [{ isCover: "desc" }, { sort: "asc" }] }, enquiries: { orderBy: { createdAt: "desc" } }, owner: { select: { name: true, phone: true } } },
+    include: { photos: { orderBy: [{ isCover: "desc" }, { sort: "asc" }] }, enquiries: { orderBy: { createdAt: "desc" } }, owner: { select: { id: true, name: true, phone: true, role: true, status: true, salesCommissionPct: true } }, reports: { orderBy: { createdAt: "desc" } } },
   });
   if (!l || (viewer.role !== "manager" && l.ownerId !== viewer.id)) notFound();
   const manager = viewer.role === "manager";
+  const agentListing = l.owner.role === "agent";
   const base = `/${viewer.role}/sale`;
   const live = ["active", "under_offer", "sold"].includes(l.status);
+  // Office: other listings that may be the same plot or house (same area and kind, and the same estate/plot or a close price).
+  const dupes = manager ? await db.saleListing.findMany({
+    where: { id: { not: l.id }, kind: l.kind, status: { in: ["pending", "active", "under_offer"] }, ...(l.locationId ? { locationId: l.locationId } : { location: l.location }),
+      OR: [...(l.plot ? [{ plot: { equals: l.plot, mode: "insensitive" as const } }] : []), ...(l.estate ? [{ estate: { equals: l.estate, mode: "insensitive" as const } }] : []), { price: { gte: l.price * 0.9, lte: l.price * 1.1 } }] },
+    select: { id: true, title: true, price: true, owner: { select: { name: true } } }, take: 5,
+  }) : [];
+  const expiresSoon = !!l.expiresAt && ["active", "under_offer"].includes(l.status) && l.expiresAt.getTime() - Date.now() < 30 * 86400000;
   // Straight after saving (or while there are none), photos are the next step — shown first and highlighted.
   const photosFirst = !!fresh || l.photos.length === 0;
   const photosCard = (
@@ -118,7 +127,8 @@ export async function SaleManage({ viewer, id, fresh }: { viewer: User; id: numb
           <div className="mt-1 flex flex-wrap items-center gap-3 text-xs text-stone-500">
             <span className="flex items-center gap-1"><Eye className="h-3.5 w-3.5" /> {l.views} views</span>
             <span>{l.enquiries.length} enquir{l.enquiries.length === 1 ? "y" : "ies"}</span>
-            {manager && <span>Owner: {l.owner.name} · <a href={`tel:${l.owner.phone}`} className="link">{l.owner.phone}</a></span>}
+            {manager && <span>{agentListing ? "Agent" : "Owner"}: <Link href={`/manager/people/${l.owner.id}`} className="link">{l.owner.name}</Link> · <a href={`tel:${l.owner.phone}`} className="link">{l.owner.phone}</a></span>}
+            {l.expiresAt && ["active", "under_offer"].includes(l.status) && <span className={expiresSoon ? "font-semibold text-gold-700" : ""}>Expires {fmtDate(l.expiresAt)}</span>}
           </div>
         </div>
         {pill(l.status)}
@@ -128,6 +138,43 @@ export async function SaleManage({ viewer, id, fresh }: { viewer: User; id: numb
       {photosFirst && photosCard}
       {l.status === "rejected" && l.reviewNote && <div className="card border-maroon-100 bg-maroon-50/50 text-sm"><b className="text-maroon-700">CasaVilla asked for changes:</b> {l.reviewNote}<div className="mt-1 text-xs text-stone-500">Edit the listing and save — it goes back for review.</div></div>}
 
+      {agentListing && (
+        <div className="card space-y-2 text-sm">
+          <div className="font-semibold text-brand-950">Owner&apos;s authority to sell</div>
+          {l.mandateFileId
+            ? <div className="flex flex-wrap items-center gap-2"><span className="flex items-center gap-1 font-semibold text-brand-700"><BadgeCheck className="h-4 w-4" /> On file</span><a href={`/api/files/${l.mandateFileId}`} target="_blank" rel="noreferrer" className="link text-xs">Open</a></div>
+            : <p className="text-stone-600">{manager ? "Not uploaded yet. The listing can't be published without it." : "Upload the owner's signed letter allowing you to sell. CasaVilla won't publish the listing without it."}</p>}
+          <form action={uploadMandate} className="flex flex-wrap items-center gap-2">
+            <input type="hidden" name="id" value={l.id} />
+            <input type="file" name="mandate" accept="application/pdf,image/*" required className="input max-w-xs py-1.5 text-xs" />
+            <Submit className="btn-outline btn-sm">{l.mandateFileId ? "Replace" : "Upload"}</Submit>
+          </form>
+        </div>
+      )}
+      {(l.status === "expired" || (expiresSoon && l.expiresAt)) && (
+        <form action={renewSaleListing} className="card flex flex-wrap items-center gap-3 border-gold-200 bg-gold-50/60 text-sm">
+          <input type="hidden" name="id" value={l.id} />
+          <span className="mr-auto">{l.status === "expired" ? "This listing expired and is no longer public. Still for sale? Renew it (CasaVilla checks it again)." : `Comes down on ${fmtDate(l.expiresAt!)}. Still for sale? Renew it for another 90 days.`}</span>
+          <Submit className="btn-primary btn-sm">Renew</Submit>
+        </form>
+      )}
+      {manager && l.reports.some((r) => r.status === "new") && (
+        <div className="card space-y-2 border-maroon-100 bg-maroon-50/40 text-sm">
+          <div className="font-semibold text-maroon-700">Reported by the public</div>
+          {l.reports.filter((r) => r.status === "new").map((r) => (
+            <div key={r.id} className="flex flex-wrap items-start justify-between gap-2 border-t border-maroon-100 pt-2">
+              <div className="min-w-0"><b>{r.reason}</b>{r.details && <div className="break-words text-stone-700">{r.details}</div>}<div className="text-xs text-stone-500">{fmtDateTime(r.createdAt)}{r.contact ? ` · ${r.contact}` : ""}</div></div>
+              <form action={closeListingReport}><input type="hidden" name="id" value={r.id} /><Submit className="btn-ghost btn-sm">Checked — close</Submit></form>
+            </div>
+          ))}
+        </div>
+      )}
+      {manager && dupes.length > 0 && (
+        <div className="card text-sm">
+          <div className="font-semibold text-gold-700">Possible duplicates — check it isn&apos;t the same plot or house</div>
+          {dupes.map((d) => <Link key={d.id} href={`/manager/sale/${d.id}`} className="link block">{d.title} · {shortUgx(d.price)} · {d.owner.name}</Link>)}
+        </div>
+      )}
       {manager && (
         <div className="card space-y-3">
           <div className="font-semibold text-brand-950">CasaVilla review</div>
@@ -149,15 +196,28 @@ export async function SaleManage({ viewer, id, fresh }: { viewer: User; id: numb
         </div>
       )}
 
+      {agentListing && l.status === "sold" && l.soldPrice != null && (
+        <div className="card text-sm">Sold for <b>{fullUgx(l.soldPrice)}</b>{l.saleCommission != null && <> · CasaVilla commission <b>{fullUgx(l.saleCommission)}</b></>}{l.soldAt && ` · ${fmtDate(l.soldAt)}`}</div>
+      )}
+      {manager && agentListing && ["active", "under_offer"].includes(l.status) && (
+        <form action={recordAgentSale} className="card flex flex-wrap items-end gap-2 text-sm">
+          <input type="hidden" name="id" value={l.id} />
+          <label className="min-w-0"><span className="label">Sold for (UGX)</span><input name="soldPrice" type="number" min={100000} required className="input w-44 py-2" defaultValue={l.price} /></label>
+          <span className="pb-2 text-xs text-stone-500">CasaVilla&apos;s {l.owner.salesCommissionPct}% is worked out from this.</span>
+          <ConfirmSubmit message="Record this listing as sold at this price?" className="btn-primary btn-sm">Record the sale</ConfirmSubmit>
+        </form>
+      )}
+      {viewer.role === "agent" && ["active", "under_offer"].includes(l.status) && <p className="text-xs text-stone-500">Sold? Tell the CasaVilla office; they record the price and close the listing.</p>}
       <div className="card flex flex-wrap items-center gap-2">
         {live && <Link href={`/sale/${l.id}`} className="btn-ghost btn-sm">View public page</Link>}
         {!live && <Link href={`/sale/${l.id}`} className="btn-ghost btn-sm">Preview</Link>}
         <Link href={`${base}/${l.id}/edit`} className="btn-outline btn-sm">Edit details</Link>
         {l.status === "active" && statusBtn("under_offer", "Mark under offer")}
         {l.status === "under_offer" && statusBtn("active", "Back on the market")}
-        {["active", "under_offer"].includes(l.status) && statusBtn("sold", "Mark as sold", "btn-primary btn-sm", "Mark this as sold? It stays visible as “Sold” and stops taking enquiries.")}
+        {["active", "under_offer"].includes(l.status) && !agentListing && statusBtn("sold", "Mark as sold", "btn-primary btn-sm", "Mark this as sold? It stays visible as “Sold” and stops taking enquiries.")}
         {["active", "under_offer", "pending", "rejected"].includes(l.status) && statusBtn("withdrawn", "Withdraw", "btn-ghost btn-sm text-maroon-600", "Take this listing down?")}
         {["withdrawn", "sold"].includes(l.status) && statusBtn("active", manager ? "Publish again" : "Relist (sends for review)")}
+        {l.status === "expired" && statusBtn("withdrawn", "Withdraw", "btn-ghost btn-sm text-maroon-600", "Take this listing down for good?")}
         {l.enquiries.length === 0 && (
           <form action={deleteSaleListing} className="ml-auto"><input type="hidden" name="id" value={l.id} /><ConfirmSubmit message="Delete this listing for good?" className="text-xs font-semibold text-maroon-600 hover:underline">Delete</ConfirmSubmit></form>
         )}
@@ -175,6 +235,12 @@ export async function SaleManage({ viewer, id, fresh }: { viewer: User; id: numb
         <Row k="Listed" v={l.publishedAt ? fmtDate(l.publishedAt) : "Not yet published"} />
       </div>
 
+      {viewer.role === "agent" ? (
+        <div className="card text-sm">
+          <div className="font-semibold text-brand-950">Buyer enquiries</div>
+          <p className="mt-1 text-stone-600">{l.enquiries.length ? `${l.enquiries.length} enquir${l.enquiries.length === 1 ? "y" : "ies"} so far (${l.enquiries.filter((e) => e.wantsViewing).length} asking to view).` : "No enquiries yet."} Buyers deal with the CasaVilla office, which passes serious buyers on to you.</p>
+        </div>
+      ) : (
       <div className="card p-0">
         <div className="px-4 pb-2 pt-4 font-semibold text-brand-950">Buyer enquiries</div>
         {l.enquiries.length ? (
@@ -200,6 +266,7 @@ export async function SaleManage({ viewer, id, fresh }: { viewer: User; id: numb
           </div>
         ) : <p className="px-4 pb-4 text-sm text-stone-500">No enquiries yet{live ? " — share the public page to reach buyers." : "."}</p>}
       </div>
+      )}
     </div>
   );
 }

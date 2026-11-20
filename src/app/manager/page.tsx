@@ -4,6 +4,7 @@ import { CollectedCard, DashHeader, MiniStat, TodoList } from "@/components/Dash
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { accessReviewThisMonth, unclosedCashDays } from "@/lib/controls";
+import { AGENT_WAITING } from "@/lib/queries";
 import { ensureChargesFor } from "@/lib/billing";
 import { fmtDate, ugx } from "@/lib/format";
 import { Avatar, SectionTitle } from "@/components/ui";
@@ -27,11 +28,12 @@ export default async function ManagerHome() {
     missingCount(),
     db.buildRequest.count({ where: { status: "new" } }),
     db.saleListing.count({ where: { status: "pending" } }),
-    db.viewing.count({ where: { status: "requested", host: { role: "manager" } } }),
+    db.viewing.count({ where: { status: "requested" } }),
     // Listed homes nobody from CasaVilla has visited yet (the "Verified" badge sells them).
-    db.property.count({ where: { archivedAt: null, verifiedAt: null, units: { some: { listed: true, status: "vacant" } } } }),
+    db.property.count({ where: { archivedAt: null, verifiedAt: null, OR: [{ units: { some: { listed: true, status: "vacant" } } }, AGENT_WAITING] } }),
   ]);
   const dataIssues = (await runChecks()).filter((c) => c.count > 0).length;
+  const reported = await db.saleListing.count({ where: { reports: { some: { status: "new" } } } });
   // Super admins' own duties: decisions others are waiting on, cash to sign off, the monthly access review.
   const [toApprove, cashToClose, reviewDone] = me.superAdmin
     ? await Promise.all([db.approvalRequest.count({ where: { status: "pending", requestedById: { not: me.id } } }), unclosedCashDays(), accessReviewThisMonth()])
@@ -62,6 +64,7 @@ export default async function ManagerHome() {
           { href: "/manager/applications", count: pendingApps, label: "Applications & tenants to connect", tone: "blue" },
           { href: "/manager/build", count: newBuild, label: "New build requests to call back", tone: "blue" },
           { href: "/manager/sale?tab=review", count: saleReview, label: "Listings for sale to review", tone: "blue" },
+          { href: "/manager/sale?tab=reported", count: reported, label: "Listings reported by the public", tone: "red" },
           { href: "/viewings", count: viewingAsks, label: "Viewing requests to confirm", tone: "blue" },
           { href: "/manager/properties?show=verify", count: toVerify, label: "Listed properties to visit & verify", tone: "gold" },
           { href: "/manager/jobs", count: unassigned, label: "Repairs with no provider", tone: "gold" },

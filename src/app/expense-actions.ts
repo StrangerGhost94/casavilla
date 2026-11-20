@@ -66,7 +66,7 @@ export async function setCommission(fd: FormData) {
   const landlordId = id(fd, "landlordId");
   const pct = Number(String(fd.get("pct") ?? "").replace("%", ""));
   if (!Number.isFinite(pct) || pct < 0 || pct > 50) return fail("Enter a commission between 0 and 50%");
-  const l = await db.user.findFirst({ where: { id: landlordId, role: "landlord" } });
+  const l = await db.user.findFirst({ where: { id: landlordId, role: { in: ["landlord", "agent"] } } });
   if (!l) return fail("Landlord not found");
   const reason = await requireSignature(fd, u);
   const next = Math.round(pct * 100) / 100;

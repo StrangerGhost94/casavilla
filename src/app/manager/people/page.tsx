@@ -11,7 +11,7 @@ import { Signature } from "@/components/Signature";
 export default async function People({ searchParams }: { searchParams: Promise<{ role?: string; status?: string; q?: string }> }) {
   const me = await requireUser("manager");
   const sp = await searchParams;
-  const roles = ["tenant", "landlord", "provider", "manager"] as const;
+  const roles = ["tenant", "landlord", "agent", "provider", "manager"] as const;
   const statuses = ["pending", "active", "suspended"] as const;
   const role = roles.find((r) => r === sp.role);
   const status = statuses.find((s) => s === sp.status);
@@ -28,7 +28,7 @@ export default async function People({ searchParams }: { searchParams: Promise<{
     <>
       <PageHeader title="People & approvals" subtitle="Approve landlords and providers before they go public. Suspend anyone who breaks the rules." />
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        {tab("Everyone", "?")}{tab("Awaiting approval", "?status=pending")}{tab("Landlords", "?role=landlord")}{tab("Tenants", "?role=tenant")}{tab("Providers", "?role=provider")}{tab("Staff", "?role=manager")}
+        {tab("Everyone", "?")}{tab("Awaiting approval", "?status=pending")}{tab("Landlords", "?role=landlord")}{tab("Agents", "?role=agent")}{tab("Tenants", "?role=tenant")}{tab("Providers", "?role=provider")}{tab("Staff", "?role=manager")}
         <form className="ml-auto flex gap-2">
           {sp.role && <input type="hidden" name="role" value={sp.role} />}
           <input name="q" defaultValue={sp.q} className="input" placeholder="Search name, email, phone" />
@@ -48,7 +48,7 @@ export default async function People({ searchParams }: { searchParams: Promise<{
                 <td data-label="Status"><Badge>{u.status}</Badge></td>
                 <td data-label="">{u.id !== me.id && (
                   <div className="flex gap-1">
-                    {<Link href={`/manager/people/${u.id}`} className={u.status === "pending" ? "btn-primary btn-sm" : "btn-ghost btn-sm"}>{u.status === "pending" ? (u.role === "landlord" ? "Set commission & approve" : "Review & approve") : "Open"}</Link>}
+                    {<Link href={`/manager/people/${u.id}`} className={u.status === "pending" ? "btn-primary btn-sm" : "btn-ghost btn-sm"}>{u.status === "pending" ? (u.role === "landlord" || u.role === "agent" ? "Set commission & approve" : "Review & approve") : "Open"}</Link>}
                   </div>
                 )}</td>
               </tr>

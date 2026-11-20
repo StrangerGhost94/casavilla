@@ -10,7 +10,8 @@ import { db } from "@/db";
 import { getUser } from "@/lib/auth";
 import { crumbText, trailFor } from "@/lib/geo";
 import { AroundHere } from "@/components/AroundHere";
-import { KIND, TENURE, TITLE, fullUgx, perAcre, shortUgx, sizeText, toAcres, type SaleKind } from "@/lib/sales";
+import { KIND, REPORT_REASONS, TENURE, TITLE, fullUgx, perAcre, shortUgx, sizeText, toAcres, type SaleKind } from "@/lib/sales";
+import { reportListing } from "@/app/sale-actions";
 import { PhotoMosaic } from "@/components/Gallery";
 import { VideoTour } from "@/components/VideoTour";
 import { ViewingBox } from "@/components/Viewings";
@@ -35,7 +36,8 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   };
 }
 
-export default async function SaleListingPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function SaleListingPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ reported?: string }> }) {
+  const reported = (await searchParams).reported === "1";
   const l = await db.saleListing.findUnique({
     where: { id: idFrom((await params).id) },
     include: { photos: { orderBy: [{ isCover: "desc" }, { sort: "asc" }] }, owner: { select: { id: true, name: true, businessName: true, role: true } } },
@@ -157,7 +159,7 @@ export default async function SaleListingPage({ params }: { params: Promise<{ id
             <div>
               <div className="text-xs text-stone-500">Listed by</div>
               <div className="font-semibold text-brand-950">{OFFICE.name}</div>
-              <div className="text-xs text-stone-500">Viewings and offers are handled through CasaVilla.</div>
+              <div className="text-xs text-stone-500">{l.owner.role === "agent" ? "Listed by a CasaVilla verified agent. " : ""}Viewings and offers are handled through CasaVilla.</div>
             </div>
             {l.status === "sold"
               ? <div className="rounded-xl bg-stone-100 p-3 text-sm text-stone-600">This property has been sold. <Link href="/sale" className="link">See what&apos;s still available →</Link></div>
@@ -170,6 +172,21 @@ export default async function SaleListingPage({ params }: { params: Promise<{ id
               <a href={wa} className="btn-outline"><MessageCircle className="h-4 w-4" /> WhatsApp</a>
             </div>
             <div className="flex items-center justify-between text-xs text-stone-500"><span>Listing #{l.id}</span><ShareButton title={l.title} /></div>
+            {!mine && (reported ? <p className="rounded-xl bg-brand-50 p-3 text-xs text-brand-800">Thank you. CasaVilla will check this listing.</p> : (
+              <details className="text-xs">
+                <summary className="cursor-pointer text-stone-500 hover:text-stone-700">Something wrong with this listing? Report it</summary>
+                <form action={reportListing} className="mt-2 space-y-2">
+                  <input type="hidden" name="id" value={l.id} />
+                  <select name="reason" required className="input py-2 text-sm" defaultValue="">
+                    <option value="" disabled>What&apos;s wrong?</option>
+                    {REPORT_REASONS.map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                  <textarea name="details" rows={2} maxLength={1000} className="input text-sm" placeholder="Anything that helps us check it (optional)" />
+                  <input name="contact" maxLength={120} className="input py-2 text-sm" placeholder="Your phone or email, if we may follow up (optional)" />
+                  <button className="btn-outline btn-sm">Send report</button>
+                </form>
+              </details>
+            ))}
           </div>
         </aside>
       </div>

@@ -12,7 +12,7 @@ import { saveUpload } from "@/lib/uploads";
 import { normalizePhone, kampalaToday } from "@/lib/format";
 import { placeLine, readPlace } from "@/lib/geo-form";
 import { id, num, oneOf, reqText, text } from "@/lib/validate";
-import { SALE_FEATURES, SALE_KINDS, SIZE_UNITS, TENURES, TITLE_STATUSES } from "@/lib/sales";
+import { AGENT_LISTING_DAYS, REPORT_REASONS, SALE_FEATURES, SALE_KINDS, SIZE_UNITS, TENURES, TITLE_STATUSES } from "@/lib/sales";
 
 const refresh = () => revalidatePath("/", "layout");
 const base = (u: User) => `/${u.role}/sale`;
@@ -24,9 +24,11 @@ async function ownedListing(u: User, listingId: number) {
 }
 
 
-/** Create or edit a listing. A landlord's new listing waits for CasaVilla's review; a manager's goes live. */
+const inDays = (n: number) => new Date(Date.now() + n * 86400000);
+
+/** Create or edit a listing. An agent's new or edited listing waits for CasaVilla's review; the office's goes live. */
 export async function saveSaleListing(fd: FormData) {
-  const u = await requireUser("manager");
+  const u = await requireUser("manager", "agent");
   const existing = id(fd) ? await ownedListing(u, id(fd)) : null;
   const kind = await oneOf(fd, "kind", SALE_KINDS, "what you're selling");
   const title = await reqText(fd, "title", "a headline", { max: 100 });
@@ -57,8 +59,10 @@ export async function saveSaleListing(fd: FormData) {
   if (existing) {
     // Changing the title status after CasaVilla verified it means it has to be checked again.
     const reverify = existing.titleVerified && existing.titleStatus !== titleStatus;
-    await db.saleListing.update({ where: { id: existing.id }, data: { ...data, ...(reverify ? { titleVerified: false } : {}), ...(existing.status === "rejected" ? { status: "pending", reviewNote: null } : {}) } });
-    if (existing.status === "rejected") await notifyManagers(`Sale listing updated for review: ${title}`, `/manager/sale/${existing.id}`);
+    // An agent's changes to a live listing are checked again before the public sees them.
+    const recheck = existing.status === "rejected" || (u.role === "agent" && ["active", "under_offer"].includes(existing.status));
+    await db.saleListing.update({ where: { id: existing.id }, data: { ...data, ...(reverify ? { titleVerified: false } : {}), ...(recheck ? { status: "pending", reviewNote: null } : {}) } });
+    if (recheck) await notifyManagers(`Sale listing updated for review: ${title}`, `/manager/sale/${existing.id}`);
     await audit(u.id, "sale.updated", "sale", existing.id, title);
     refresh();
     redirect(`${base(u)}/${existing.id}`);
@@ -73,15 +77,17 @@ export async function saveSaleListing(fd: FormData) {
 
 /** Owner: mark under offer / sold / withdrawn, or put back on the market. */
 export async function setSaleStatus(fd: FormData) {
-  const u = await requireUser("manager");
+  const u = await requireUser("manager", "agent");
   const l = await ownedListing(u, id(fd));
   const to = await oneOf(fd, "status", ["active", "under_offer", "sold", "withdrawn"] as const, "status");
   const allowed: Record<string, string[]> = {
-    active: ["under_offer", "sold", "withdrawn"], under_offer: ["active", "sold", "withdrawn"], withdrawn: ["active"], sold: ["active"], pending: ["withdrawn"], rejected: ["withdrawn"],
+    active: ["under_offer", "sold", "withdrawn"], under_offer: ["active", "sold", "withdrawn"], withdrawn: ["active"], sold: ["active"], pending: ["withdrawn"], rejected: ["withdrawn"], expired: ["active", "withdrawn"],
   };
   if (!allowed[l.status]?.includes(to)) return fail("That change isn't possible right now");
+  // A sale by an agent is recorded by the office with the price, so CasaVilla's commission is right.
+  if (to === "sold" && (u.role === "agent" || (await isAgentListing(l.ownerId)))) return fail(u.role === "agent" ? "Tell the CasaVilla office it sold; they record the price" : "Use “Record the sale” and enter the price");
   // Back on the market after being withdrawn or sold: a landlord's listing is reviewed again.
-  const status = to === "active" && ["withdrawn", "sold"].includes(l.status) && u.role !== "manager" ? "pending" : to;
+  const status = to === "active" && ["withdrawn", "sold", "expired"].includes(l.status) && u.role !== "manager" ? "pending" : to;
   await db.saleListing.update({ where: { id: l.id }, data: { status, soldAt: to === "sold" ? new Date() : status === "active" || status === "pending" ? null : l.soldAt } });
   if (status === "pending") await notifyManagers(`Listing back for review: ${l.title}`, `/manager/sale/${l.id}`);
   await audit(u.id, `sale.${status}`, "sale", l.id, l.title);
@@ -98,7 +104,11 @@ export async function reviewSale(fd: FormData) {
   const checklist = d === "approve" ? await requireChecklist(fd, "sale") : null;
   if (d === "approve") {
     if (!l.photos.length) return fail("Add at least one photo before publishing");
-    await db.saleListing.update({ where: { id: l.id }, data: { status: "active", reviewNote: null, publishedAt: l.publishedAt ?? new Date() } });
+    const owner = await db.user.findUnique({ where: { id: l.ownerId }, select: { role: true, status: true } });
+    const agent = owner?.role === "agent";
+    if (agent && owner.status !== "active") return fail("Approve the agent first (People & approvals)");
+    if (agent && !l.mandateFileId) return fail("The agent must upload the owner's written authority to sell first");
+    await db.saleListing.update({ where: { id: l.id }, data: { status: "active", reviewNote: null, publishedAt: l.publishedAt ?? new Date(), ...(agent ? { expiresAt: inDays(AGENT_LISTING_DAYS) } : {}) } });
     await notify(l.ownerId, `Your listing "${l.title}" is now live on CasaVilla.`, `/sale/${l.id}`);
   } else {
     const note = await reqText(fd, "note", "what needs changing", { max: 500 });
@@ -121,7 +131,7 @@ export async function verifySaleTitle(fd: FormData) {
 }
 
 export async function uploadSalePhoto(fd: FormData) {
-  const u = await requireUser("manager");
+  const u = await requireUser("manager", "agent");
   const l = await ownedListing(u, id(fd, "listingId"));
   const count = await db.salePhoto.count({ where: { listingId: l.id } });
   if (count >= 20) return { error: "Up to 20 photos per listing" };
@@ -137,7 +147,7 @@ export async function uploadSalePhoto(fd: FormData) {
 }
 
 export async function setSaleCover(fd: FormData) {
-  const u = await requireUser("manager");
+  const u = await requireUser("manager", "agent");
   const ph = await db.salePhoto.findUnique({ where: { id: id(fd) } });
   if (!ph) return fail("Photo not found");
   await ownedListing(u, ph.listingId);
@@ -150,7 +160,7 @@ export async function setSaleCover(fd: FormData) {
 }
 
 export async function deleteSalePhoto(fd: FormData) {
-  const u = await requireUser("manager");
+  const u = await requireUser("manager", "agent");
   const ph = await db.salePhoto.findUnique({ where: { id: id(fd) } });
   if (!ph) return fail("Photo not found");
   await ownedListing(u, ph.listingId);
@@ -165,13 +175,82 @@ export async function deleteSalePhoto(fd: FormData) {
 
 /** Deletes a listing nobody has enquired about; otherwise it can only be withdrawn. */
 export async function deleteSaleListing(fd: FormData) {
-  const u = await requireUser("manager");
+  const u = await requireUser("manager", "agent");
   const l = await ownedListing(u, id(fd));
   if (await db.saleEnquiry.count({ where: { listingId: l.id } })) return fail("Buyers have enquired about this listing — withdraw it instead, so their messages are kept");
   await db.saleListing.delete({ where: { id: l.id } });
   await audit(u.id, "sale.deleted", "sale", l.id, l.title);
   refresh();
   redirect(base(u));
+}
+
+async function isAgentListing(ownerId: number) {
+  return (await db.user.findUnique({ where: { id: ownerId }, select: { role: true } }))?.role === "agent";
+}
+
+/** The owner's written authority to sell (agents). A private file only the agent and the office can open. */
+export async function uploadMandate(fd: FormData) {
+  const u = await requireUser("manager", "agent");
+  const l = await ownedListing(u, id(fd));
+  const fileId = await saveUpload(fd.get("mandate"), u.id, false);
+  if (!fileId) return fail("Choose the signed letter (PDF or photo)");
+  await db.saleListing.update({ where: { id: l.id }, data: { mandateFileId: fileId } });
+  await audit(u.id, "sale.mandate_uploaded", "sale", l.id, l.title);
+  if (l.status === "pending") await notifyManagers(`Owner's authority uploaded for "${l.title}" — ready to review`, `/manager/sale/${l.id}`);
+  refresh();
+}
+
+/** Keeps an agent's listing up for another 90 days. An expired one goes back for review first. */
+export async function renewSaleListing(fd: FormData) {
+  const u = await requireUser("manager", "agent");
+  const l = await ownedListing(u, id(fd));
+  if (l.status === "expired") {
+    await db.saleListing.update({ where: { id: l.id }, data: { status: "pending", expiresAt: null } });
+    await notifyManagers(`Expired listing sent back for review: ${l.title}`, `/manager/sale/${l.id}`);
+  } else if (["active", "under_offer"].includes(l.status) && l.expiresAt) {
+    if (l.expiresAt.getTime() - Date.now() > 30 * 86400000) return fail("You can renew in the last 30 days before it expires");
+    await db.saleListing.update({ where: { id: l.id }, data: { expiresAt: inDays(AGENT_LISTING_DAYS) } });
+  } else return fail("This listing doesn't need renewing");
+  await audit(u.id, "sale.renewed", "sale", l.id, l.title);
+  refresh();
+}
+
+/** The office records an agent's sale with the price; CasaVilla's commission is the agent's agreed % of it. */
+export async function recordAgentSale(fd: FormData) {
+  const u = await requireUser("manager");
+  const l = await db.saleListing.findUnique({ where: { id: id(fd) }, include: { owner: { select: { name: true, role: true, salesCommissionPct: true } } } });
+  if (!l || l.owner.role !== "agent") return fail("Listing not found");
+  if (!["active", "under_offer"].includes(l.status)) return fail("Only a live listing can be marked sold");
+  const price = num(fd, "soldPrice");
+  if (!price || !Number.isFinite(price) || price < 100_000 || price > 1e13) return fail("Enter the price it sold for, in UGX");
+  const commission = Math.round((price * l.owner.salesCommissionPct) / 100);
+  await db.saleListing.update({ where: { id: l.id }, data: { status: "sold", soldAt: new Date(), soldPrice: Math.round(price), saleCommission: commission } });
+  await audit(u.id, "sale.sold", "sale", l.id, `${l.title}: sold for UGX ${Math.round(price).toLocaleString()}, CasaVilla commission UGX ${commission.toLocaleString()} (${l.owner.salesCommissionPct}%)`);
+  await notify(l.ownerId, `"${l.title}" is recorded as sold. CasaVilla's commission: UGX ${commission.toLocaleString()}.`, `/agent/sale/${l.id}`);
+  refresh();
+}
+
+/** Anyone can report a listing that looks wrong. The office checks every report. */
+export async function reportListing(fd: FormData) {
+  const me = await getUser();
+  const listingId = id(fd);
+  const l = await db.saleListing.findUnique({ where: { id: listingId }, select: { id: true, title: true } });
+  if (!l) return fail("Listing not found");
+  const reason = await oneOf(fd, "reason", REPORT_REASONS, "what's wrong");
+  const details = await text(fd, "details", "the details", { optional: true, max: 1000 });
+  const contact = await text(fd, "contact", "your phone or email", { optional: true, max: 120 });
+  // Light flood control: a handful per listing per day is plenty.
+  if (await db.listingReport.count({ where: { listingId, createdAt: { gt: new Date(Date.now() - 86400000) } } }) >= 10) return fail("Thanks — this listing has already been reported today. CasaVilla is checking it.");
+  await db.listingReport.create({ data: { listingId, userId: me?.id ?? null, reason, details: details || null, contact: contact || null } });
+  await notifyManagers(`Listing reported (${reason}): ${l.title}`, `/manager/sale/${l.id}`);
+  redirect(`/sale/${l.id}?reported=1`);
+}
+
+export async function closeListingReport(fd: FormData) {
+  const u = await requireUser("manager");
+  const r = await db.listingReport.update({ where: { id: id(fd) }, data: { status: "closed" } });
+  await audit(u.id, "sale.report_closed", "sale", r.listingId, r.reason);
+  refresh();
 }
 
 export type EnquiryState = { ok?: boolean; error?: string } | undefined;

@@ -51,7 +51,7 @@ const schema = z.object({
   email: z.string().trim().toLowerCase().email("Enter a valid email"),
   phone: z.string().trim().min(9, "Enter a valid phone number"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  role: z.enum(["tenant", "landlord", "provider"]),
+  role: z.enum(["tenant", "landlord", "provider", "agent"]),
   businessName: z.string().trim().optional(),
   area: z.string().trim().optional(),
   landlordCode: z.string().trim().max(20).optional(),

@@ -1,9 +1,9 @@
 // Navigation for each kind of account. Icons are lucide names, resolved in NavIcons.tsx.
-export type Role = "tenant" | "landlord" | "provider" | "manager" | "caretaker";
+export type Role = "tenant" | "landlord" | "provider" | "manager" | "caretaker" | "agent";
 export type NavItem = { href: string; label: string; icon: string; group?: string };
 
 export const roleName: Record<Role, string> = {
-  tenant: "Tenant", landlord: "Landlord", provider: "Service provider", manager: "Office staff", caretaker: "Caretaker",
+  tenant: "Tenant", landlord: "Landlord", provider: "Service provider", manager: "Office staff", caretaker: "Caretaker", agent: "Agent",
 };
 
 /** The name shown for one person: office accounts are "Super admin" or "Office staff". */
@@ -43,6 +43,14 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/provider/products", label: "Items for sale", icon: "package" },
     { href: "/provider/orders", label: "Orders", icon: "bag" },
     { href: "/provider/profile", label: "Business profile", icon: "store" },
+  ],
+  // Agents sell land and property and run short stays (never monthly rentals). Buyers and guests deal with CasaVilla.
+  agent: [
+    { href: "/agent", label: "Dashboard", icon: "home" },
+    { href: "/agent/sale", label: "Listings for sale", icon: "tag", group: "Listings" },
+    { href: "/agent/properties", label: "Short-stay properties", icon: "building" },
+    { href: "/agent/bookings", label: "Bookings", icon: "calendar" },
+    { href: "/agent/statements", label: "Statements", icon: "receipt", group: "Money" },
   ],
   caretaker: [
     { href: "/caretaker", label: "Today", icon: "home" },
@@ -133,6 +141,11 @@ export const tabs: Record<Role | "guest", Tabs> = {
     left: [{ href: "/provider", label: "Home", icon: "home" }, { href: "/provider/jobs", label: "Jobs", icon: "briefcase" }],
     action: { href: "/provider/services#add", label: "Add service", icon: "plus" },
     right: [{ href: "/provider/orders", label: "Orders", icon: "bag" }, { href: "/profile", label: "Profile", icon: "user" }],
+  },
+  agent: {
+    left: [{ href: "/agent", label: "Home", icon: "home" }, { href: "/agent/sale", label: "For sale", icon: "tag" }],
+    action: { href: "/agent/sale/new", label: "New listing", icon: "plus" },
+    right: [{ href: "/agent/bookings", label: "Bookings", icon: "calendar" }, { href: "/profile", label: "Profile", icon: "user" }],
   },
   caretaker: {
     left: [{ href: "/caretaker", label: "Today", icon: "home" }, { href: "/caretaker/rent", label: "Rent", icon: "wallet" }],

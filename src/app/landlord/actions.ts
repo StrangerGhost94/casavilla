@@ -27,6 +27,12 @@ const refresh = () => revalidatePath("/", "layout");
 
 /** Only the CasaVilla office changes records; landlords just see their own (see lib/nav.ts). */
 async function actor() { return requireUser("manager"); }
+/** Agents look after their own short-stay properties (never monthly rentals); everything else is the office's. */
+async function editor() { return requireUser("manager", "agent"); }
+/** An agent's property: short stays only, and nothing goes public until the office has verified it. */
+async function agentOwned(landlordId: number) {
+  return (await db.user.findUnique({ where: { id: landlordId }, select: { role: true } }))?.role === "agent";
+}
 const owns = (u: User, landlordId: number) => u.role === "manager" || u.id === landlordId;
 const MAX_RENT = 500_000_000;
 
@@ -42,7 +48,7 @@ async function ownedLease(u: User, lid: number) {
 }
 
 export async function saveProperty(fd: FormData) {
-  const u = await actor();
+  const u = await editor();
   const pid = id(fd) || null;
   const existing = pid ? await ownedProperty(u, pid) : null;
   // New properties must be placed in the canonical location list; older ones can be saved until they're verified.
@@ -73,9 +79,10 @@ export async function saveProperty(fd: FormData) {
     redirect(`/${u.role}/properties/${existing.id}`);
   }
   const landlordId = u.role === "manager" ? id(fd, "landlordId") : u.id;
-  const landlord = await db.user.findFirst({ where: { id: landlordId, role: "landlord" } });
+  const landlord = await db.user.findFirst({ where: { id: landlordId, role: { in: ["landlord", "agent"] } } });
   if (!landlord) return fail("Choose a landlord");
-  const units = await readUnitGroups(fd);
+  // Agents add short-stay units on the property page; the monthly unit groups are for landlords' rentals.
+  const units = landlord.role === "agent" ? [] : await readUnitGroups(fd);
   const listed = fd.get("listed") === "on";
   const p = await db.$transaction(async (tx) => {
     const created = await tx.property.create({ data: { ...data, landlordId, photoId } });
@@ -112,8 +119,8 @@ async function readUnitGroups(fd: FormData) {
 }
 
 /** Unit features + short-stay settings, shared by add and edit. */
-async function readUnitDetails(fd: FormData, current?: { mode: string; bathrooms: number }) {
-  const mode = await oneOf(fd, "mode", ["long", "short"] as const, "letting type", (current?.mode as "long" | "short") ?? "long");
+async function readUnitDetails(fd: FormData, current?: { mode: string; bathrooms: number }, shortOnly = false) {
+  const mode = shortOnly ? "short" : await oneOf(fd, "mode", ["long", "short"] as const, "letting type", (current?.mode as "long" | "short") ?? "long");
   const amenities = fd.getAll("amenities").map(String).filter((a) => (AMENITIES as readonly string[]).includes(a));
   const nightlyRate = mode === "short" ? await int(fd, "nightlyRate", "the price per night", { min: 5000, max: 20_000_000 }) : null;
   const time = (k: string, d: string) => { const v = String(fd.get(k) || d); return /^([01]\d|2[0-3]):[0-5]\d$/.test(v) ? v : d; };
@@ -133,28 +140,30 @@ async function readUnitDetails(fd: FormData, current?: { mode: string; bathrooms
 }
 
 export async function addUnit(fd: FormData) {
-  const u = await actor();
+  const u = await editor();
   const p = await ownedProperty(u, id(fd, "propertyId"));
   if (p.archivedAt) return fail("This property is archived — restore it first");
+  const agent = await agentOwned(p.landlordId);
   const count = await int(fd, "count", "how many units", { min: 1, max: 50, fallback: 1 });
   const label = await reqText(fd, "label", "a unit name", { max: 40 });
-  const details = await readUnitDetails(fd);
+  const details = await readUnitDetails(fd, undefined, agent);
   const rent = details.mode === "short" ? await int(fd, "rent", "the rent", { min: 0, max: MAX_RENT, fallback: details.nightlyRate! * 30 }) : await int(fd, "rent", "the rent", { min: 1000, max: MAX_RENT });
   const bedrooms = await int(fd, "bedrooms", "bedrooms", { min: 0, max: 20, fallback: 1 });
   const labels = Array.from({ length: count }, (_, i) => (count > 1 ? `${label} ${i + 1}` : label));
   const clash = await db.unit.findFirst({ where: { propertyId: p.id, label: { in: labels, mode: "insensitive" } }, select: { label: true } });
   if (clash) return fail(`${p.name} already has a unit called "${clash.label}"`);
-  await db.unit.createMany({ data: labels.map((l) => ({ propertyId: p.id, label: l, bedrooms, rent, listed: fd.get("listed") === "on", ...details })) });
+  await db.unit.createMany({ data: labels.map((l) => ({ propertyId: p.id, label: l, bedrooms, rent, listed: fd.get("listed") === "on" && (!agent || !!p.verifiedAt), ...details })) });
   await audit(u.id, "unit.created", "property", p.id, `${count} × ${label} at ${ugx(rent)}`);
   refresh();
 }
 
 export async function updateUnit(fd: FormData) {
-  const u = await actor();
+  const u = await editor();
   const unit = await db.unit.findUnique({ where: { id: id(fd) }, include: { property: true } });
   if (!unit || !owns(u, unit.property.landlordId)) return fail("Unit not found");
+  const agent = await agentOwned(unit.property.landlordId);
   const label = await reqText(fd, "label", "a unit name", { max: 40 });
-  const details = await readUnitDetails(fd, unit);
+  const details = await readUnitDetails(fd, unit, agent);
   const rent = details.mode === "short" ? await int(fd, "rent", "the rent", { min: 0, max: MAX_RENT, fallback: unit.rent }) : await int(fd, "rent", "the rent", { min: 1000, max: MAX_RENT });
   const bedrooms = await int(fd, "bedrooms", "bedrooms", { min: 0, max: 20, fallback: unit.bedrooms });
   if (details.mode !== unit.mode) {
@@ -168,7 +177,7 @@ export async function updateUnit(fd: FormData) {
   await db.unit.update({
     where: { id: unit.id },
     // An occupied unit can never be listed; its lease rent is changed through a renewal, not here.
-    data: { label, rent, bedrooms, listed: unit.status === "occupied" || unit.property.archivedAt ? false : fd.get("listed") === "on", ...details },
+    data: { label, rent, bedrooms, listed: unit.status === "occupied" || unit.property.archivedAt || (agent && !unit.property.verifiedAt) ? false : fd.get("listed") === "on", ...details },
   });
   if (rent !== unit.rent) await audit(u.id, "unit.rent_changed", "unit", unit.id, `${unit.label}: ${ugx(unit.rent)} → ${ugx(rent)}`);
   refresh();
@@ -393,7 +402,7 @@ export async function verifyProperty(fd: FormData) {
 
 /** Removes a property: deleted if nothing depends on it, otherwise archived (see propertyRemoval). */
 export async function removeProperty(fd: FormData) {
-  const u = await actor();
+  const u = await editor();
   const p = await ownedProperty(u, id(fd));
   if (String(fd.get("confirm") || "").trim().toLowerCase() !== p.name.trim().toLowerCase()) return fail(`Type the property name (${p.name}) to confirm`);
   const plan = await propertyRemoval(p.id);
@@ -422,7 +431,7 @@ export async function removeProperty(fd: FormData) {
 }
 
 export async function restoreProperty(fd: FormData) {
-  const u = await actor();
+  const u = await editor();
   const p = await ownedProperty(u, id(fd));
   await db.property.update({ where: { id: p.id }, data: { archivedAt: null } });
   await audit(u.id, "property.restored", "property", p.id, p.name);
@@ -432,7 +441,7 @@ export async function restoreProperty(fd: FormData) {
 
 /** Deletes a unit that was never let, booked or repaired (otherwise it can only be unlisted). */
 export async function removeUnit(fd: FormData) {
-  const u = await actor();
+  const u = await editor();
   const unit = await db.unit.findUnique({ where: { id: id(fd) }, include: { property: true } });
   if (!unit || !owns(u, unit.property.landlordId)) return fail("Unit not found");
   const plan = await unitRemoval(unit.id);

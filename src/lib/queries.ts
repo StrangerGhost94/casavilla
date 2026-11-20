@@ -118,3 +118,6 @@ export async function shopProducts(providerId?: number) {
     providerId: p.provider.id, seller: p.provider.businessName, sellerName: p.provider.name,
   }));
 }
+
+/** An agent's short-stay property with units that can't be listed until CasaVilla visits and verifies it. */
+export const AGENT_WAITING = { landlord: { role: "agent" as const }, units: { some: {} } };

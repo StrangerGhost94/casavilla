@@ -38,7 +38,14 @@ export const SALE_FEATURES = [
 export const STATUS: Record<string, { label: string; tone: "green" | "gold" | "gray" | "red" | "blue" }> = {
   pending: { label: "Waiting for review", tone: "gold" }, active: { label: "Live", tone: "green" }, under_offer: { label: "Under offer", tone: "blue" },
   sold: { label: "Sold", tone: "gray" }, withdrawn: { label: "Withdrawn", tone: "gray" }, rejected: { label: "Needs changes", tone: "red" },
+  expired: { label: "Expired — renew it", tone: "gray" },
 };
+
+/** Agents' listings stay up for 90 days, then come down unless renewed, so buyers don't chase stale listings. */
+export const AGENT_LISTING_DAYS = 90;
+
+/** Why someone reports a listing. */
+export const REPORT_REASONS = ["Already sold or not for sale", "Looks fake or a scam", "Someone else's land or property", "Wrong price, size or location", "Other"] as const;
 export const PUBLIC_STATUSES = ["active", "under_offer"] as const;
 
 /** UGX 350,000,000 → "UGX 350M"; 1,250,000,000 → "UGX 1.25B" (cards); full figure on the listing page. */

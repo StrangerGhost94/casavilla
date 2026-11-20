@@ -57,7 +57,15 @@ function BasicsFields({ p }: { p?: Property }) {
 }
 
 /** Adding a property: three short steps in one form — the basics, where it is, and its units. */
-export async function NewPropertyForm({ landlords, landlordId }: { landlords?: { id: number; name: string }[]; landlordId?: number }) {
+export async function NewPropertyForm({ landlords, landlordId, stays = false }: { landlords?: { id: number; name: string }[]; landlordId?: number; stays?: boolean }) {
+  if (stays) return (
+    <form action={saveProperty}>
+      <Steps titles={["Basics", "Location"]} submitLabel="Add property">
+        <div className="space-y-4"><BasicsFields /></div>
+        <div><PlaceFields /></div>
+      </Steps>
+    </form>
+  );
   return (
     <form action={saveProperty}>
       <Steps titles={["Basics", "Location", "Units"]} submitLabel="Add property">
@@ -152,6 +160,9 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
   if (!p || (viewer.role !== "manager" && p.landlordId !== viewer.id)) notFound();
   const tenantsBase = base.replace("/properties", "/tenants");
   if (viewer.role === "landlord") return <PropertySummary p={p} base={base} tenantsBase={tenantsBase} />;
+  // An agent's property: short stays only, listed once CasaVilla has verified it.
+  const agentProp = viewer.role === "agent" || (await db.user.findUnique({ where: { id: p.landlordId }, select: { role: true } }))?.role === "agent";
+  const canList = !agentProp || !!p.verifiedAt;
   const trail = await trailFor(p.locationId);
   const photos = await db.propertyPhoto.findMany({ where: { propertyId: p.id }, orderBy: [{ sort: "asc" }] });
   const markets = new Map(await Promise.all(p.units.filter((u) => u.status === "vacant" && u.mode === "long").map(async (u) => [u.id, await marketRent(p, u.bedrooms, u.id)] as const)));
@@ -229,9 +240,9 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
                         <input type="hidden" name="id" value={u.id} />
                         <label className="min-w-0"><span className="label">Unit</span><input name="label" defaultValue={u.label} className="input py-2" /></label>
                         <label className="min-w-0"><span className="label">Beds</span><input name="bedrooms" type="number" min={0} defaultValue={u.bedrooms} className="input py-2" /></label>
-                        <label className="min-w-0"><span className="label">Rent (UGX)</span><input name="rent" type="number" min={0} defaultValue={u.rent} className="input py-2" /></label>
-                        <label className="col-span-full flex items-center gap-2 text-sm text-stone-600"><input name="listed" type="checkbox" defaultChecked={u.listed} className="h-4 w-4 accent-brand-700" disabled={u.status === "occupied"} /> {u.status === "occupied" ? "Let — not listed" : "Listed publicly"}</label>
-                        <UnitFields u={u} />
+                        {agentProp ? <span /> : <label className="min-w-0"><span className="label">Rent (UGX)</span><input name="rent" type="number" min={0} defaultValue={u.rent} className="input py-2" /></label>}
+                        <label className="col-span-full flex items-center gap-2 text-sm text-stone-600"><input name="listed" type="checkbox" defaultChecked={u.listed} className="h-4 w-4 accent-brand-700" disabled={u.status === "occupied" || !canList} /> {u.status === "occupied" ? "Let — not listed" : canList ? "Listed publicly" : "Can be listed once CasaVilla verifies the property"}</label>
+                        <UnitFields u={u} shortOnly={agentProp} />
                         <div className="col-span-full"><Submit className="btn-primary btn-sm">Save {u.label}</Submit></div>
                       </form>
                       {!used.has(u.id) && (
@@ -253,10 +264,10 @@ export async function PropertyDetail({ id, viewer, base }: { id: number; viewer:
                 <label className="col-span-2 min-w-0"><span className="label">Name</span><input name="label" className="input" placeholder="e.g. Apt B" required /></label>
                 <label className="min-w-0"><span className="label">How many</span><input name="count" type="number" min={1} max={50} className="input" defaultValue={1} /></label>
                 <label className="min-w-0"><span className="label">Beds</span><input name="bedrooms" type="number" min={0} className="input" defaultValue={1} /></label>
-                <label className="col-span-2 min-w-0"><span className="label">Rent / month (UGX)</span><input name="rent" type="number" min={0} className="input" placeholder="e.g. 800000" required /></label>
-                <label className="col-span-2 flex items-center gap-2 self-end pb-3 text-sm text-stone-600"><input type="checkbox" name="listed" defaultChecked className="h-4 w-4 accent-brand-700" /> List publicly</label>
+                {!agentProp && <label className="col-span-2 min-w-0"><span className="label">Rent / month (UGX)</span><input name="rent" type="number" min={0} className="input" placeholder="e.g. 800000" required /></label>}
+                <label className="col-span-2 flex items-center gap-2 self-end pb-3 text-sm text-stone-600"><input type="checkbox" name="listed" defaultChecked={canList} disabled={!canList} className="h-4 w-4 accent-brand-700" /> {canList ? "List publicly" : "Can be listed once CasaVilla verifies the property"}</label>
                 <p className="col-span-full text-[11px] text-stone-500">Several at once are numbered: Apt B 1, Apt B 2…</p>
-                <UnitFields />
+                <UnitFields shortOnly={agentProp} />
                 <div className="col-span-full"><Submit className="btn-primary btn-sm">Add</Submit></div>
               </form>
             </details>}

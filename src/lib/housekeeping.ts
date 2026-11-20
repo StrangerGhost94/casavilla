@@ -45,6 +45,7 @@ async function sweep(force: boolean) {
     await searchAlerts().catch((e) => console.error("search alerts", e));
     await viewingReminders().catch((e) => console.error("viewing reminders", e));
     await taxReminders().catch((e) => console.error("tax reminder", e));
+    await expireAgentListings().catch((e) => console.error("listing expiry", e));
     await db.marker.deleteMany({ where: { key: { startsWith: "sweep:" }, createdAt: { lt: new Date(Date.now() - 7 * 86400000) } } });
   } catch (e) {
     console.error("housekeeping failed", e);
@@ -203,4 +204,16 @@ async function viewingReminders() {
     for (const who of [v.requesterId, v.hostId]) if (await notifyOnce(`view-${stage}:${v.id}`, who, msg, "/viewings")) n++;
   }
   return n;
+}
+/** Agents' listings come down after 90 days unless renewed; the agent is warned a week before and told when it happens. */
+async function expireAgentListings() {
+  const now = new Date();
+  const soon = await db.saleListing.findMany({ where: { status: { in: ["active", "under_offer"] }, expiresAt: { gt: now, lt: new Date(now.getTime() + 7 * 86400000) } }, select: { id: true, ownerId: true, title: true, expiresAt: true } });
+  for (const l of soon) await notifyOnce(`listing-expiring:${l.id}:${ymd(l.expiresAt!)}`, l.ownerId, `"${l.title}" comes down on ${fmtDate(l.expiresAt!)}. Renew it if it's still for sale.`, `/agent/sale/${l.id}`);
+  const gone = await db.saleListing.findMany({ where: { status: { in: ["active", "under_offer"] }, expiresAt: { lte: now } }, select: { id: true, ownerId: true, title: true } });
+  for (const l of gone) {
+    const n = await db.saleListing.updateMany({ where: { id: l.id, status: { in: ["active", "under_offer"] } }, data: { status: "expired" } });
+    if (n.count) await notifyOnce(`listing-expired:${l.id}:${kampalaToday()}`, l.ownerId, `"${l.title}" has expired and is no longer public. Renew it if it's still for sale.`, `/agent/sale/${l.id}`);
+  }
+  return gone.length;
 }

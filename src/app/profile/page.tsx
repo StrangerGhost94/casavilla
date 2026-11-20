@@ -19,7 +19,7 @@ export const metadata = { title: "Profile" };
 
 export default async function Profile() {
   const u = await requireUser();
-  const reviewed = u.role === "landlord" || u.role === "provider";
+  const reviewed = u.role === "landlord" || u.role === "provider" || u.role === "agent";
   const items = menuFor(u).slice(1);
   const myPlace = await trailFor(u.locationId);
   return (

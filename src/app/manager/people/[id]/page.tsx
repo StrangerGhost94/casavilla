@@ -33,7 +33,11 @@ export default async function Person({ params }: { params: Promise<{ id: string 
   const s = u.role === "landlord" ? await portfolioStats(u.id) : null;
   const code = u.role === "landlord" && u.status !== "pending" ? await landlordCodeFor(u.id) : null;
   // Office accounts, and approving a new landlord, are for super admins.
-  const canChange = me.superAdmin || !(u.role === "manager" || (u.role === "landlord" && u.status === "pending"));
+  const canChange = me.superAdmin || !(u.role === "manager" || ((u.role === "landlord" || u.role === "agent") && u.status === "pending"));
+  const agentStats = u.role === "agent" ? await Promise.all([
+    db.saleListing.groupBy({ by: ["status"], where: { ownerId: u.id }, _count: true }),
+    db.property.count({ where: { landlordId: u.id, archivedAt: null } }),
+  ]) : null;
   const provider = u.role === "provider";
   return (
     <div className="mx-auto max-w-5xl space-y-5">
@@ -64,6 +68,15 @@ export default async function Person({ params }: { params: Promise<{ id: string 
                 <input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" />
                 {/* A landlord's commission is agreed when they sign up with CasaVilla, so it's set before approval. */}
                 {u.role === "landlord" && u.status === "pending" && <Checklist name="landlord" />}
+                {u.role === "agent" && u.status === "pending" && <Checklist name="agent" />}
+                {u.role === "agent" && u.status === "pending" && (
+                  <div className="flex flex-wrap gap-3">
+                    <label className="flex items-center gap-1.5"><span className="text-stone-600">Commission on short stays</span>
+                      <input name="commission" type="number" min={0} max={50} step={0.5} required defaultValue={u.commissionPct || ""} className="input w-20 py-1.5" aria-label="Commission on short stays %" />%</label>
+                    <label className="flex items-center gap-1.5"><span className="text-stone-600">On sales</span>
+                      <input name="salesCommission" type="number" min={0} max={20} step={0.25} required defaultValue={u.salesCommissionPct || ""} className="input w-20 py-1.5" aria-label="Commission on sales %" />% of the price</label>
+                  </div>
+                )}
                 {u.role === "landlord" && u.status === "pending" && (
                   <label className="flex items-center gap-1.5"><span className="text-stone-600">Commission agreed</span>
                     <input name="commission" type="number" min={0} max={50} step={0.5} required defaultValue={u.commissionPct || ""} className="input w-20 py-1.5" aria-label="Commission %" />%</label>
@@ -163,6 +176,23 @@ export default async function Person({ params }: { params: Promise<{ id: string 
           <div className="font-semibold text-brand-950">Building with CasaVilla</div>
           {sites.map((b) => <Link key={b.id} href={`/manager/build/sites/${b.id}`} className="link block">{b.title} ({b.status.replace("_", " ")})</Link>)}
           {requests > 0 && <Link href="/manager/build?tab=all" className="mt-1 block text-stone-600 hover:underline">{requests} build request{requests === 1 ? "" : "s"}</Link>}
+        </section>
+      )}
+
+      {u.role === "agent" && agentStats && (
+        <section className="card space-y-2 text-sm">
+          <div className="font-semibold text-brand-950">Agent</div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1">
+            <span>ID: {u.idFileId ? <a href={`/api/files/${u.idFileId}`} target="_blank" rel="noreferrer" className="link">open</a> : <span className="text-maroon-600">not uploaded</span>}</span>
+            <span>Signed agreement: {u.agreementFileId ? <a href={`/api/files/${u.agreementFileId}`} target="_blank" rel="noreferrer" className="link">open</a> : <span className="text-maroon-600">not uploaded</span>}</span>
+            {u.status !== "pending" && <span>Commission: {u.commissionPct}% on stays · {u.salesCommissionPct}% on sales</span>}
+          </div>
+          <div className="text-stone-600">{agentStats[0].map((g) => `${g._count} ${g.status.replace("_", " ")}`).join(" · ") || "No listings for sale yet"} · {agentStats[1]} short-stay propert{agentStats[1] === 1 ? "y" : "ies"}</div>
+          <div className="flex flex-wrap gap-2">
+            <Link href="/manager/sale?tab=all" className="btn-outline btn-sm">Listings for sale</Link>
+            <Link href={`/manager/properties?landlord=${u.id}`} className="btn-outline btn-sm">Short-stay properties</Link>
+            <Link href={`/manager/statements?landlord=${u.id}`} className="btn-outline btn-sm">Statements</Link>
+          </div>
         </section>
       )}
 

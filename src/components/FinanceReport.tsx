@@ -19,7 +19,7 @@ export async function FinanceReport({ viewer, q }: { viewer: User; q: Record<str
   const propertyId = Number(q.property) || undefined;
   const [r, landlords, properties, scope] = await Promise.all([
     financialReport(period, { landlordId, propertyId }),
-    manager ? db.user.findMany({ where: { role: "landlord" }, orderBy: { name: "asc" }, select: { id: true, name: true, businessName: true } }) : [],
+    manager ? db.user.findMany({ where: { role: { in: ["landlord", "agent"] } }, orderBy: { name: "asc" }, select: { id: true, name: true, businessName: true } }) : [],
     db.property.findMany({ where: landlordId ? { landlordId } : {}, orderBy: { name: "asc" }, select: { id: true, name: true } }),
     scopeName(landlordId, propertyId),
   ]);

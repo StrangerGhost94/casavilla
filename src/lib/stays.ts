@@ -119,7 +119,8 @@ export async function confirmBooking(bookingId: number) {
   const b = await db.booking.findUniqueOrThrow({ where: { id: bookingId }, include: { guest: true, unit: { include: { property: true } } } });
   const where = `${b.unit.property.name} · ${b.unit.label}`;
   await notify(b.guestId, `Booking confirmed! ${where}, ${fmtDate(b.checkIn)} → ${fmtDate(b.checkOut)} (${b.nights} night${b.nights > 1 ? "s" : ""}). Receipt ${receiptNo}.`, `/stays/bookings/${b.id}`);
-  await notify(b.unit.property.landlordId, `New booking at ${where}, ${fmtDate(b.checkIn)} → ${fmtDate(b.checkOut)} — ${ugx(b.total)} paid.`, `/landlord`);
+  const ownerRole = (await db.user.findUnique({ where: { id: b.unit.property.landlordId }, select: { role: true } }))?.role;
+  await notify(b.unit.property.landlordId, `New booking at ${where}, ${fmtDate(b.checkIn)} → ${fmtDate(b.checkOut)} — ${ugx(b.total)} paid.`, ownerRole === "agent" ? "/agent/bookings" : "/landlord");
   await audit(b.guestId, "booking.confirmed", "booking", b.id, `${where} ${ymd(b.checkIn)}→${ymd(b.checkOut)} ${ugx(b.total)}`);
   if (b.guest.emailReceipts) {
     const brand = await brandFor(b.unit.property.landlordId);

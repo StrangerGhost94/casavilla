@@ -5,7 +5,7 @@ import { AMENITIES } from "@/lib/rules";
  * Unit features and how it's let. Asked step by step: rooms first (they drive the photo shot list),
  * then features, then monthly vs nightly letting with the short-stay settings.
  */
-export function UnitFields({ u }: { u?: Partial<Unit> }) {
+export function UnitFields({ u, shortOnly = false }: { u?: Partial<Unit>; shortOnly?: boolean }) {
   return (
     <div className="col-span-full space-y-3 rounded-xl bg-stone-50 p-3">
       <div className="grid grid-cols-3 gap-2">
@@ -26,13 +26,14 @@ export function UnitFields({ u }: { u?: Partial<Unit> }) {
           ))}
         </div>
       </div>
-      <details open={u?.mode === "short"} className="rounded-xl border border-stone-200 bg-white p-3">
-        <summary className="cursor-pointer list-none text-sm font-semibold text-brand-900">Letting: {u?.mode === "short" ? "short stays (nightly)" : "monthly tenancy"} — change…</summary>
+      <details open={shortOnly || u?.mode === "short"} className="rounded-xl border border-stone-200 bg-white p-3">
+        <summary className="cursor-pointer list-none text-sm font-semibold text-brand-900">{shortOnly ? "Short-stay settings" : <>Letting: {u?.mode === "short" ? "short stays (nightly)" : "monthly tenancy"} — change…</>}</summary>
         <div className="mt-3 space-y-3">
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          {shortOnly && <input type="hidden" name="mode" value="short" />}
+          {!shortOnly && <div className="grid grid-cols-2 gap-2 text-sm">
             <label className="flex items-center gap-2 rounded-xl border border-stone-200 p-2.5 has-[:checked]:border-brand-700 has-[:checked]:bg-brand-50"><input type="radio" name="mode" value="long" defaultChecked={(u?.mode ?? "long") === "long"} className="accent-brand-700" /> Monthly tenancy</label>
             <label className="flex items-center gap-2 rounded-xl border border-stone-200 p-2.5 has-[:checked]:border-brand-700 has-[:checked]:bg-brand-50"><input type="radio" name="mode" value="short" defaultChecked={u?.mode === "short"} className="accent-brand-700" /> Short stays (Airbnb-style)</label>
-          </div>
+          </div>}
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <label><span className="label">Price / night (UGX)</span><input name="nightlyRate" type="number" min={5000} defaultValue={u?.nightlyRate ?? ""} className="input py-2" placeholder="e.g. 150000" /></label>
             <label><span className="label">Cleaning fee</span><input name="cleaningFee" type="number" min={0} defaultValue={u?.cleaningFee ?? 0} className="input py-2" /></label>

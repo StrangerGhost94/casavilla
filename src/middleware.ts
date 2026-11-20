@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { SESSION_COOKIE, verifySession } from "@/lib/session";
 
-const areas = ["tenant", "landlord", "provider", "manager", "caretaker"] as const;
+const areas = ["tenant", "landlord", "provider", "manager", "caretaker", "agent"] as const;
 
 export async function middleware(req: NextRequest) {
   // One address for Google and for the Play Store app: www.casavillaproperties.com → casavillaproperties.com (same path).

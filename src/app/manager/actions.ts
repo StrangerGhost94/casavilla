@@ -25,24 +25,35 @@ export async function setUserStatus(fd: FormData) {
   if (before.status === status) return;
   // Office accounts, and approving a new landlord (which sets their commission), are for super admins only.
   if (!me.superAdmin && before.role === "manager") return fail("Only a super admin can suspend or reactivate office accounts");
-  if (!me.superAdmin && before.role === "landlord" && before.status === "pending" && status === "active") return fail("Only a super admin can approve a landlord and set their commission");
+  if (!me.superAdmin && (before.role === "landlord" || before.role === "agent") && before.status === "pending" && status === "active") return fail(`Only a super admin can approve ${before.role === "agent" ? "an agent" : "a landlord"} and set their commission`);
   // Approving follows the written checklist. Approving a service provider is otherwise routine; every other change
   // of status (suspending, reactivating, approving a landlord) is also signed.
   const approving = before.status === "pending" && status === "active";
-  const checklist = approving && before.role === "landlord" ? await requireChecklist(fd, "landlord") : approving && before.role === "provider" ? await requireChecklist(fd, "provider") : null;
+  if (approving && before.role === "agent" && !(before.idFileId && before.agreementFileId)) return fail("The agent must upload their ID and signed agreement first");
+  const checklist = approving && (before.role === "landlord" || before.role === "provider" || before.role === "agent") ? await requireChecklist(fd, before.role) : null;
   const routine = approving && before.role === "provider";
   const reason = routine ? null : await requireSignature(fd, me);
   // Approving a new landlord: their commission is agreed at sign-up, and they get their private landlord code.
-  let commissionPct: number | undefined;
-  if (status === "active" && before.role === "landlord" && before.status === "pending") {
-    const pct = Number(String(fd.get("commission") ?? "").replace("%", ""));
-    if (fd.get("commission") === null || String(fd.get("commission")).trim() === "" || !Number.isFinite(pct) || pct < 0 || pct > 50) return fail("Set the landlord's commission (0–50%) on their page before approving them");
-    commissionPct = Math.round(pct * 100) / 100;
+  let commissionPct: number | undefined, salesCommissionPct: number | undefined;
+  const pctOf = (k: string, max: number) => {
+    const raw = String(fd.get(k) ?? "").replace("%", "").trim();
+    const pct = Number(raw);
+    return raw === "" || !Number.isFinite(pct) || pct < 0 || pct > max ? null : Math.round(pct * 100) / 100;
+  };
+  if (status === "active" && (before.role === "landlord" || before.role === "agent") && before.status === "pending") {
+    const c = pctOf("commission", 50);
+    if (c === null) return fail(`Set the ${before.role}'s commission (0–50%) before approving them`);
+    commissionPct = c;
+    if (before.role === "agent") {
+      const sc = pctOf("salesCommission", 20);
+      if (sc === null) return fail("Set CasaVilla's commission on the agent's sales (0–20%)");
+      salesCommissionPct = sc;
+    }
   }
-  const u = await db.user.update({ where: { id: uid }, data: { status, ...(commissionPct !== undefined ? { commissionPct } : {}) } });
+  const u = await db.user.update({ where: { id: uid }, data: { status, ...(commissionPct !== undefined ? { commissionPct } : {}), ...(salesCommissionPct !== undefined ? { salesCommissionPct } : {}) } });
   if (u.role === "landlord" && status === "active") await landlordCodeFor(u.id);
-  await audit(me.id, `user.${status}`, "user", u.id, `${u.name} (${u.role}): ${before.status} → ${status}${commissionPct !== undefined ? `, commission ${commissionPct}%` : ""}`, db,
-    { reason, signed: !routine, before: { status: before.status, ...(commissionPct !== undefined ? { commissionPct: before.commissionPct } : {}) }, after: { status, ...(commissionPct !== undefined ? { commissionPct } : {}), ...(checklist ? { checklist } : {}) } });
+  await audit(me.id, `user.${status}`, "user", u.id, `${u.name} (${u.role}): ${before.status} → ${status}${commissionPct !== undefined ? `, commission ${commissionPct}%` : ""}${salesCommissionPct !== undefined ? `, sales ${salesCommissionPct}%` : ""}`, db,
+    { reason, signed: !routine, before: { status: before.status, ...(commissionPct !== undefined ? { commissionPct: before.commissionPct } : {}) }, after: { status, ...(commissionPct !== undefined ? { commissionPct } : {}), ...(salesCommissionPct !== undefined ? { salesCommissionPct } : {}), ...(checklist ? { checklist } : {}) } });
 
   if (status === "active") {
     const link = `/${u.role}`;
@@ -57,6 +68,11 @@ export async function setUserStatus(fd: FormData) {
     }
     if (jobs.length) await notifyManagers(`${jobs.length} job(s) from ${u.businessName || u.name} need reassigning.`, "/manager/jobs");
     await db.product.updateMany({ where: { providerId: u.id }, data: { active: false } });
+  }
+  if (status === "suspended" && u.role === "agent") {
+    // A suspended agent's listings and short stays come down straight away.
+    await db.saleListing.updateMany({ where: { ownerId: u.id, status: { in: ["pending", "active", "under_offer"] } }, data: { status: "withdrawn", reviewNote: "Agent suspended" } });
+    await db.unit.updateMany({ where: { property: { landlordId: u.id } }, data: { listed: false } });
   }
   if (status === "suspended" && u.role === "landlord") {
     await db.unit.updateMany({ where: { property: { landlordId: u.id }, status: "vacant" }, data: { listed: false } });

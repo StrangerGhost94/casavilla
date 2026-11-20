@@ -11,6 +11,11 @@ export const CHECKLISTS = {
     ["call", "Spoke to them on the phone"],
     ["agreement", "Management agreement signed, with the commission entered here"],
   ],
+  agent: [
+    ["id", "Saw their national ID (or company registration) and it matches the upload"],
+    ["agreement", "CasaVilla agent agreement signed, with the commission entered here"],
+    ["call", "Spoke to them and checked their references or past sales"],
+  ],
   provider: [
     ["id", "Saw their ID or business registration"],
     ["call", "Spoke to them and checked their work or references"],
