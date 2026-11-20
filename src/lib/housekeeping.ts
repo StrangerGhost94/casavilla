@@ -1,4 +1,5 @@
 import "server-only";
+import { systemScope } from "@/db/track";
 import { db } from "@/db";
 import { ensureChargesFor, expireStalePayments, daysBetween } from "./billing";
 import { managerIds, notifyOnce } from "./notify";
@@ -17,7 +18,12 @@ import { alertHref, matchesAfter, type AlertKind, type AlertParams } from "./sav
  * rent charges and late fees, expired payment requests, rent and lease reminders, and repair escalations.
  * Runs at most once an hour (whoever opens the app first triggers it); every reminder is sent only once.
  */
-export async function runHousekeeping(force = false) {
+export function runHousekeeping(force = false) {
+  // Background work: not recorded as the change of whoever happened to open a page.
+  return systemScope.run(true, () => sweep(force));
+}
+
+async function sweep(force: boolean) {
   const hour = new Date().toISOString().slice(0, 13);
   if (!force) {
     const claimed = await db.marker.createMany({ data: [{ key: `sweep:${hour}` }], skipDuplicates: true });

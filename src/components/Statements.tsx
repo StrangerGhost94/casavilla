@@ -8,6 +8,7 @@ import { FileButton } from "./FileButton";
 import { Empty, Field, PageHeader } from "./ui";
 import { ConfirmSubmit, Submit } from "./client";
 import { addExpense, decideExpense, deleteExpense, setCommission } from "@/app/expense-actions";
+import { Signature } from "@/components/Signature";
 
 /**
  * Monthly statement for one landlord: money in (by what it paid for and by property), money out (expenses and
@@ -81,11 +82,15 @@ export async function StatementPage({ viewer, landlordId, month, propertyId, bas
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <FileButton href={pdf} name={`statement-${month}.pdf`}>Download statement PDF</FileButton>
         {landlords && viewer.superAdmin && (
-          <form action={setCommission} className="flex items-center gap-2">
-            <input type="hidden" name="landlordId" value={landlordId} />
-            <input name="pct" type="number" min={0} max={50} step={0.5} defaultValue={s.commissionPct} className="input w-24 py-2" aria-label="Commission %" />
-            <Submit className="btn-outline btn-sm">Set commission %</Submit>
-          </form>
+          <details className="w-full sm:w-auto">
+            <summary className="btn-outline btn-sm cursor-pointer list-none">Change commission ({s.commissionPct}%)</summary>
+            <form action={setCommission} className="mt-2 space-y-2">
+              <input type="hidden" name="landlordId" value={landlordId} />
+              <label className="flex items-center gap-1.5 text-sm">New commission <input name="pct" type="number" min={0} max={50} step={0.5} defaultValue={s.commissionPct} className="input w-24 py-1.5" aria-label="Commission %" />%</label>
+              <Signature reasonHint="e.g. new agreement signed 1 Dec" />
+              <Submit className="btn-outline btn-sm">Save commission</Submit>
+            </form>
+          </details>
         )}
       </div>
 

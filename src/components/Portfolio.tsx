@@ -15,6 +15,7 @@ import { PhotoStudio } from "./PhotoStudio";
 import { Steps, UnitGroups } from "./NewPropertyFlow";
 import { shotList } from "@/lib/photo-check";
 import { Ledger } from "./Ledger";
+import { Signature } from "@/components/Signature";
 import { saveProperty, addUnit, updateUnit, decideApplication, removeProperty, restoreProperty, removeUnit, verifyProperty } from "@/app/landlord/actions";
 import { propertyRemoval } from "@/lib/removal";
 import { AgreementCard, CashForm, ChargeForm, LeaseFacts, MoveOutForm, RenewForm, ScorePill, TenantScoreCard } from "./LeaseTools";
@@ -368,6 +369,7 @@ async function RemoveProperty({ id, name }: { id: number; name: string }) {
           <form action={removeProperty} className="space-y-2">
             <input type="hidden" name="id" value={id} />
             <label className="block"><span className="label">Type <b>{name}</b> to confirm</span><input name="confirm" required autoComplete="off" className="input" /></label>
+            <Signature reasonHint="Why remove it?" />
             <ConfirmSubmit message={plan.mode === "delete" ? `Delete ${name} for good?` : `Archive ${name}?`} className="btn-outline btn-sm border-maroon-200 text-maroon-600">
               {plan.mode === "delete" ? "Delete property" : "Archive property"}
             </ConfirmSubmit>

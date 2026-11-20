@@ -544,9 +544,23 @@ model AuditLog {
   entityId  Int?     @map("entity_id")
   detail    String?
   createdAt DateTime @default(now()) @map("created_at")
+  /// Filled in by the database when the entry is made: the person's name and level at that moment.
+  actorName String?  @map("actor_name")
+  actorRole String?  @map("actor_role")
+  /// Why it was done (required for signed actions).
+  reason    String?
+  /// The person re-entered their password to confirm this action.
+  signed    Boolean  @default(false)
+  before    Json?
+  after     Json?
+  /// Place in the tamper-evident chain (set by the database).
+  seq       BigInt?  @unique
+  prevHash  String?  @map("prev_hash")
+  hash      String?
 
   @@index([entity, entityId])
   @@index([createdAt])
+  @@index([actorId, createdAt])
   @@map("audit_logs")
 }
 

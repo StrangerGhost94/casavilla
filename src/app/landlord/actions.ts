@@ -10,6 +10,7 @@ import { addCharge, completePayment, ensureCharges, leaseBalance, settleLease, w
 import { dateOnly, fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
+import { requireSignature } from "@/lib/signature";
 import { date, id, int, isUniqueViolation, oneOf, reqText, text } from "@/lib/validate";
 import { AMENITIES, CHARGE_KINDS, CHARGE_KIND_LABEL, MAX_ADVANCE_MONTHS } from "@/lib/rules";
 import { triage } from "@/lib/insights";
@@ -288,8 +289,8 @@ export async function waiveLeaseCharge(fd: FormData) {
   const open = c.amount - c.paid;
   if (open <= 0) return fail("Nothing left to waive on this charge");
   const amount = await int(fd, "amount", "the amount to waive", { min: 1, max: open, fallback: open });
-  const reason = (await text(fd, "reason", "a reason", { optional: true, max: 200 })) ?? "";
-  const w = await waiveCharge(c.id, amount, u.id, reason);
+  const reason = await requireSignature(fd, u);
+  const w = await waiveCharge(c.id, amount, u.id, reason, true);
   if (w) await notify(c.lease.tenantId, `${ugx(w)} was waived on ${c.description}.${reason ? ` (${reason})` : ""}`, "/tenant/rent");
   refresh();
 }
@@ -384,11 +385,12 @@ export async function markRefundPaid(fd: FormData) {
   const u = await actor();
   const l = await ownedLease(u, id(fd));
   if (l.status !== "ended" || !l.settlement || l.settlement <= 0) return fail("No refund is due on this lease");
+  const reason = await requireSignature(fd, u);
   const method = await oneOf(fd, "method", ["cash", "bank", "mobile money"] as const, "refund method", "cash");
   const done = await db.lease.updateMany({ where: { id: l.id, settlement: l.settlement }, data: { settlement: 0 } });
   if (!done.count) return fail("This lease was just updated — refresh");
   await notify(l.tenantId, `Your deposit refund of ${ugx(l.settlement)} has been paid (${method}). Your account is fully settled.`, "/tenant/lease");
-  await audit(u.id, "lease.refund_paid", "lease", l.id, `${ugx(l.settlement)} via ${method}`);
+  await audit(u.id, "lease.refund_paid", "lease", l.id, `${ugx(l.settlement)} via ${method}`, db, { reason, signed: true });
   refresh();
 }
 
@@ -418,6 +420,7 @@ export async function removeProperty(fd: FormData) {
   if (String(fd.get("confirm") || "").trim().toLowerCase() !== p.name.trim().toLowerCase()) return fail(`Type the property name (${p.name}) to confirm`);
   const plan = await propertyRemoval(p.id);
   if (plan.mode === "blocked") return fail(plan.reason);
+  const reason = await requireSignature(fd, u);
   if (plan.mode === "archive") {
     await db.$transaction([
       db.property.update({ where: { id: p.id }, data: { archivedAt: new Date() } }),
@@ -425,7 +428,7 @@ export async function removeProperty(fd: FormData) {
       db.application.updateMany({ where: { unit: { propertyId: p.id }, status: "pending" }, data: { status: "rejected" } }),
       db.booking.deleteMany({ where: { unit: { propertyId: p.id }, status: "blocked" } }),
     ]);
-    await audit(u.id, "property.archived", "property", p.id, p.name);
+    await audit(u.id, "property.archived", "property", p.id, p.name, db, { reason, signed: true });
   } else {
     const unitIds = (await db.unit.findMany({ where: { propertyId: p.id }, select: { id: true } })).map((x) => x.id);
     await db.$transaction([
@@ -434,7 +437,7 @@ export async function removeProperty(fd: FormData) {
       db.expense.updateMany({ where: { propertyId: p.id }, data: { propertyId: null, unitId: null } }),
       db.property.delete({ where: { id: p.id } }),
     ]);
-    await audit(u.id, "property.deleted", "property", p.id, p.name);
+    await audit(u.id, "property.deleted", "property", p.id, p.name, db, { reason, signed: true });
   }
   refresh();
   redirect(`/${u.role}/properties`);

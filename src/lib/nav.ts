@@ -74,6 +74,7 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/manager/utilities", label: "Utilities & meters", icon: "zap" },
     { href: "/manager/orders", label: "Shop orders", icon: "bag" },
     { href: "/manager/health", label: "System health", icon: "shield", group: "System" },
+    { href: "/manager/activity", label: "Activity & audit trail", icon: "history" },
   ],
 };
 

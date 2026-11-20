@@ -6,6 +6,7 @@ import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { Badge } from "./ui";
 import { Submit } from "./client";
 import { waiveLeaseCharge } from "@/app/landlord/actions";
+import { Signature } from "@/components/Signature";
 import { EfrisBadge } from "./Efris";
 
 const methodLabel: Record<string, string> = { mtn: "MTN MoMo", airtel: "Airtel Money", cash: "Cash", bank: "Bank" };
@@ -51,7 +52,7 @@ export async function Ledger({ leaseId, payHref, recordCash, manage }: { leaseId
                       <form action={waiveLeaseCharge} className="mt-1.5 flex flex-wrap gap-1.5">
                         <input type="hidden" name="chargeId" value={c.id} />
                         <input name="amount" type="number" min={1} max={c.amount - c.paid} defaultValue={c.amount - c.paid} inputMode="numeric" className="input w-28 py-1.5" aria-label="Amount to waive" />
-                        <input name="reason" className="input w-40 flex-1 py-1.5" placeholder="Reason" maxLength={200} />
+                        <Signature reasonHint="Why waive it?" />
                         <Submit className="btn-outline btn-sm">Waive</Submit>
                       </form>
                     </details>

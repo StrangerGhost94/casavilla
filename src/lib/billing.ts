@@ -241,7 +241,7 @@ export async function addCharge(o: { leaseId: number; kind: string; description:
 }
 
 /** Writes off some or all of what's left on a charge. */
-export async function waiveCharge(chargeId: number, amount: number, actorId: number, reason: string) {
+export async function waiveCharge(chargeId: number, amount: number, actorId: number, reason: string, signed = false) {
   return db.$transaction(async (tx) => {
     const c0 = await tx.charge.findUniqueOrThrow({ where: { id: chargeId } });
     await lockLease(tx, c0.leaseId);
@@ -253,7 +253,7 @@ export async function waiveCharge(chargeId: number, amount: number, actorId: num
     // After move-out, writing off a debt also improves the final settlement.
     const l = await tx.lease.findUniqueOrThrow({ where: { id: c.leaseId }, select: { status: true, settlement: true } });
     if (l.status === "ended" && c.kind !== "deposit") await tx.lease.update({ where: { id: c.leaseId }, data: { settlement: (l.settlement ?? 0) + w } });
-    await audit(actorId, "charge.waived", "charge", c.id, `${ugx(w)} waived on ${c.description}${reason ? ` — ${reason}` : ""}`, tx);
+    await audit(actorId, "charge.waived", "charge", c.id, `${ugx(w)} waived on ${c.description}`, tx, { reason, signed, before: { open: c.amount - c.paid - c.waived }, after: { open: c.amount - c.paid - c.waived - w } });
     return w;
   });
 }

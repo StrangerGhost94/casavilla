@@ -4,6 +4,7 @@ import { db } from "@/db";
 import { requireSuperAdmin, requireUser } from "@/lib/auth";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
+import { requireSignature } from "@/lib/signature";
 import { notify } from "@/lib/notify";
 import { saveUpload } from "@/lib/uploads";
 import { workableProperty } from "@/lib/access";
@@ -67,7 +68,9 @@ export async function setCommission(fd: FormData) {
   if (!Number.isFinite(pct) || pct < 0 || pct > 50) return fail("Enter a commission between 0 and 50%");
   const l = await db.user.findFirst({ where: { id: landlordId, role: "landlord" } });
   if (!l) return fail("Landlord not found");
-  await db.user.update({ where: { id: l.id }, data: { commissionPct: Math.round(pct * 100) / 100 } });
-  await audit(u.id, "landlord.commission", "user", l.id, `${l.commissionPct}% → ${pct}%`);
+  const reason = await requireSignature(fd, u);
+  const next = Math.round(pct * 100) / 100;
+  await db.user.update({ where: { id: l.id }, data: { commissionPct: next } });
+  await audit(u.id, "landlord.commission", "user", l.id, `${l.name}: ${l.commissionPct}% → ${next}%`, db, { reason, signed: true, before: { commissionPct: l.commissionPct }, after: { commissionPct: next } });
   refresh();
 }

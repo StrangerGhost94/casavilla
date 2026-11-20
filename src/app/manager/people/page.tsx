@@ -6,6 +6,7 @@ import { fmtDate } from "@/lib/format";
 import { PageHeader, Badge, Field } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { setUserStatus, createStaff } from "../actions";
+import { Signature } from "@/components/Signature";
 
 export default async function People({ searchParams }: { searchParams: Promise<{ role?: string; status?: string; q?: string }> }) {
   const me = await requireUser("manager");
@@ -45,10 +46,10 @@ export default async function People({ searchParams }: { searchParams: Promise<{
                 <td data-label="Contact">{u.phone}<div className="text-xs text-stone-500">{u.email}</div></td>
                 <td data-label="Joined" className="whitespace-nowrap">{fmtDate(u.createdAt)}</td>
                 <td data-label="Status"><Badge>{u.status}</Badge></td>
-                <td data-label="">{u.id !== me.id && (me.superAdmin || u.role !== "manager") && (
+                <td data-label="">{u.id !== me.id && (
                   <div className="flex gap-1">
-                    {u.status === "pending" && u.role === "landlord" ? <Link href={`/manager/people/${u.id}`} className="btn-primary btn-sm">Set commission &amp; approve</Link> : u.status !== "active" && <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" /><Submit className="btn-primary btn-sm">{u.status === "pending" ? "Approve" : "Reactivate"}</Submit></form>}
-                    {u.status !== "suspended" && <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="suspended" /><Submit className="btn-ghost btn-sm text-maroon-600">Suspend</Submit></form>}
+                    {u.status === "pending" && u.role === "provider" ? <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" /><Submit className="btn-primary btn-sm">Approve</Submit></form>
+                      : <Link href={`/manager/people/${u.id}`} className={u.status === "pending" ? "btn-primary btn-sm" : "btn-ghost btn-sm"}>{u.status === "pending" ? (u.role === "landlord" ? "Set commission & approve" : "Review") : "Open"}</Link>}
                   </div>
                 )}</td>
               </tr>
@@ -65,6 +66,7 @@ export default async function People({ searchParams }: { searchParams: Promise<{
           <Field label="Email"><input name="email" type="email" className="input" required /></Field>
           <Field label="Temporary password"><input name="password" type="password" minLength={8} className="input" required /></Field>
           <label className="flex items-center gap-2 text-sm sm:col-span-2"><input type="checkbox" name="superAdmin" className="h-4 w-4" /> Make this account a super admin</label>
+          <div className="sm:col-span-2"><Signature reasonHint="e.g. new receptionist starting Monday" /></div>
           <div><Submit>Create account</Submit></div>
         </form>
       </details>}

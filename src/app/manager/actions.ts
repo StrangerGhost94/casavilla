@@ -8,6 +8,7 @@ import { notify, notifyManagers } from "@/lib/notify";
 import { normalizePhone } from "@/lib/format";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
+import { requireSignature } from "@/lib/signature";
 import { runHousekeeping } from "@/lib/housekeeping";
 import { checkIds, fixCheck } from "@/lib/integrity";
 import { advanceOrder } from "@/lib/orders";
@@ -24,6 +25,9 @@ export async function setUserStatus(fd: FormData) {
   // Office accounts, and approving a new landlord (which sets their commission), are for super admins only.
   if (!me.superAdmin && before.role === "manager") return fail("Only a super admin can suspend or reactivate office accounts");
   if (!me.superAdmin && before.role === "landlord" && before.status === "pending" && status === "active") return fail("Only a super admin can approve a landlord and set their commission");
+  // Approving a service provider is routine; every other change of status (suspending, reactivating, approving a landlord) is signed.
+  const routine = before.role === "provider" && before.status === "pending" && status === "active";
+  const reason = routine ? null : await requireSignature(fd, me);
   // Approving a new landlord: their commission is agreed at sign-up, and they get their private landlord code.
   let commissionPct: number | undefined;
   if (status === "active" && before.role === "landlord" && before.status === "pending") {
@@ -33,7 +37,8 @@ export async function setUserStatus(fd: FormData) {
   }
   const u = await db.user.update({ where: { id: uid }, data: { status, ...(commissionPct !== undefined ? { commissionPct } : {}) } });
   if (u.role === "landlord" && status === "active") await landlordCodeFor(u.id);
-  await audit(me.id, `user.${status}`, "user", u.id, `${u.name} (${u.role}): ${before.status} → ${status}${commissionPct !== undefined ? `, commission ${commissionPct}%` : ""}`);
+  await audit(me.id, `user.${status}`, "user", u.id, `${u.name} (${u.role}): ${before.status} → ${status}${commissionPct !== undefined ? `, commission ${commissionPct}%` : ""}`, db,
+    { reason, signed: !routine, before: { status: before.status, ...(commissionPct !== undefined ? { commissionPct: before.commissionPct } : {}) }, after: { status, ...(commissionPct !== undefined ? { commissionPct } : {}) } });
 
   if (status === "active") {
     const link = `/${u.role}`;
@@ -60,11 +65,12 @@ export async function setUserStatus(fd: FormData) {
 
 /** Replaces a landlord's code (e.g. it was shared with the wrong people). The old code stops working at once. */
 export async function newLandlordCode(fd: FormData) {
-  const me = await requireUser("manager");
+  const me = await requireSuperAdmin();
   const u = await db.user.findFirst({ where: { id: id(fd), role: "landlord" }, select: { id: true, name: true, landlordCode: true } });
   if (!u) return fail("Landlord not found");
+  const reason = await requireSignature(fd, me);
   const code = await replaceLandlordCode(u.id);
-  await audit(me.id, "landlord.code_replaced", "user", u.id, `${u.name}: ${u.landlordCode ?? "none"} → ${code}`);
+  await audit(me.id, "landlord.code_replaced", "user", u.id, `${u.name}: ${u.landlordCode ?? "none"} → ${code}`, db, { reason, signed: true });
   revalidatePath("/", "layout");
 }
 
@@ -77,10 +83,11 @@ export async function createStaff(fd: FormData) {
   const phone = normalizePhone(String(fd.get("phone") || ""));
   if (!/^\+256\d{9}$/.test(phone)) return fail("Enter a valid Ugandan phone number");
   if (await db.user.findUnique({ where: { email } })) return fail("Someone already uses that email");
+  const reason = await requireSignature(fd, me);
   const u = await db.user.create({
     data: { name: await reqText(fd, "name", "a name", { max: 100 }), email, phone, passwordHash: await bcrypt.hash(password, 10), role: "manager", status: "active", superAdmin: fd.get("superAdmin") === "on" },
   });
-  await audit(me.id, u.superAdmin ? "user.super_admin_created" : "user.staff_created", "user", u.id, email);
+  await audit(me.id, u.superAdmin ? "user.super_admin_created" : "user.staff_created", "user", u.id, `${u.name} · ${email}`, db, { reason, signed: true });
   revalidatePath("/manager/people");
 }
 
@@ -90,9 +97,10 @@ export async function setSuperAdmin(fd: FormData) {
   const u = await db.user.findFirst({ where: { id: id(fd), role: "manager" } });
   if (!u) return fail("Staff account not found");
   if (u.id === me.id) return fail("You can't change your own level");
+  const reason = await requireSignature(fd, me);
   const on = fd.get("on") === "1";
   await db.user.update({ where: { id: u.id }, data: { superAdmin: on } });
-  await audit(me.id, on ? "user.super_admin_on" : "user.super_admin_off", "user", u.id, u.email);
+  await audit(me.id, on ? "user.super_admin_on" : "user.super_admin_off", "user", u.id, `${u.name} · ${u.email}`, db, { reason, signed: true, before: { superAdmin: u.superAdmin }, after: { superAdmin: on } });
   revalidatePath("/", "layout");
 }
 

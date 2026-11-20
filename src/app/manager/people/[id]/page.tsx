@@ -6,7 +6,9 @@ import { requireUser } from "@/lib/auth";
 import { fmtDate, ugx } from "@/lib/format";
 import { roleLabel } from "@/lib/nav";
 import { Badge, PageHeader, SectionTitle } from "@/components/ui";
-import { ConfirmSubmit, Submit } from "@/components/client";
+import { Submit } from "@/components/client";
+import { Signature } from "@/components/Signature";
+import { History } from "@/components/History";
 import { CollectedCard, MiniStat } from "@/components/Dashboard";
 import { PropertyList, TenantsTable, portfolioStats } from "@/components/Portfolio";
 import { landlordCodeFor } from "@/lib/landlord-code";
@@ -31,6 +33,7 @@ export default async function Person({ params }: { params: Promise<{ id: string 
   const code = u.role === "landlord" && u.status !== "pending" ? await landlordCodeFor(u.id) : null;
   // Office accounts, and approving a new landlord, are for super admins.
   const canChange = me.superAdmin || !(u.role === "manager" || (u.role === "landlord" && u.status === "pending"));
+  const provider = u.role === "provider";
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <Link href="/manager/people" className="link text-sm">← People</Link>
@@ -41,21 +44,57 @@ export default async function Person({ params }: { params: Promise<{ id: string 
         <a href={`tel:${u.phone}`} className="btn-outline btn-sm"><Phone className="h-3.5 w-3.5" /> Call</a>
         <a href={`https://wa.me/${local}`} className="btn-outline btn-sm"><MessageCircle className="h-3.5 w-3.5" /> WhatsApp</a>
         {!canChange && u.id !== me.id && <span className="text-xs text-stone-500">{u.role === "manager" ? "Only a super admin can change office accounts" : "A super admin approves landlords and sets their commission"}</span>}
-        {u.role === "manager" && u.id !== me.id && me.superAdmin && u.status === "active" && (
-          <form action={setSuperAdmin}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="on" value={u.superAdmin ? "0" : "1"} />
-            <ConfirmSubmit message={u.superAdmin ? "Make this account ordinary staff? They will lose the super admin powers." : "Make this account a super admin? They will be able to manage office accounts, approve landlords, change commission and waive charges."} className="btn-outline btn-sm">{u.superAdmin ? "Make ordinary staff" : "Make super admin"}</ConfirmSubmit></form>
-        )}
-        {canChange && u.id !== me.id && u.status !== "active" && <form action={setUserStatus} className="flex items-center gap-2">
-          <input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" />
-          {/* A landlord's commission is agreed when they sign up with CasaVilla, so it's set before approval. */}
-          {u.role === "landlord" && u.status === "pending" && (
-            <label className="flex items-center gap-1.5 text-sm"><span className="text-stone-600">Commission</span>
-              <input name="commission" type="number" min={0} max={50} step={0.5} required defaultValue={u.commissionPct || ""} className="input w-20 py-1.5" aria-label="Commission %" />%</label>
-          )}
-          <Submit className="btn-primary btn-sm">{u.status === "pending" ? "Approve" : "Reactivate"}</Submit>
-        </form>}
-        {u.id !== me.id && (me.superAdmin || u.role !== "manager") && u.status !== "suspended" && <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="suspended" /><Submit className="btn-ghost btn-sm text-maroon-600">Suspend</Submit></form>}
       </div>
+
+      {/* Changes to an account are signed: a reason and the office member's own password, kept in the audit trail. */}
+      {u.id !== me.id && (
+        <div className="space-y-2">
+          {provider && u.status === "pending" && (
+            <form action={setUserStatus} className="card flex flex-wrap items-center gap-2 text-sm">
+              <input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" />
+              <span className="mr-auto">Checked their business and contacts?</span>
+              <Submit className="btn-primary btn-sm">Approve provider</Submit>
+            </form>
+          )}
+          {canChange && u.status !== "active" && !(provider && u.status === "pending") && (
+            <details className="card text-sm" open={u.status === "pending"}>
+              <summary className="cursor-pointer font-semibold text-brand-950">{u.status === "pending" ? "Approve" : "Reactivate"} this account</summary>
+              <form action={setUserStatus} className="mt-3 space-y-2">
+                <input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" />
+                {/* A landlord's commission is agreed when they sign up with CasaVilla, so it's set before approval. */}
+                {u.role === "landlord" && u.status === "pending" && (
+                  <label className="flex items-center gap-1.5"><span className="text-stone-600">Commission agreed</span>
+                    <input name="commission" type="number" min={0} max={50} step={0.5} required defaultValue={u.commissionPct || ""} className="input w-20 py-1.5" aria-label="Commission %" />%</label>
+                )}
+                <Signature reasonHint={u.status === "pending" ? "e.g. ID checked, agreement signed" : "Why reactivate?"} />
+                <Submit className="btn-primary btn-sm">{u.status === "pending" ? "Approve" : "Reactivate"}</Submit>
+              </form>
+            </details>
+          )}
+          {u.role === "manager" && me.superAdmin && u.status === "active" && (
+            <details className="card text-sm">
+              <summary className="cursor-pointer font-semibold text-brand-950">{u.superAdmin ? "Make ordinary staff" : "Make super admin"}</summary>
+              <form action={setSuperAdmin} className="mt-3 space-y-2">
+                <input type="hidden" name="id" value={u.id} /><input type="hidden" name="on" value={u.superAdmin ? "0" : "1"} />
+                <p className="text-xs text-stone-500">{u.superAdmin ? "They will lose the super admin powers." : "They will be able to manage office accounts, approve landlords, change commission and waive charges."}</p>
+                <Signature />
+                <Submit className="btn-outline btn-sm">{u.superAdmin ? "Make ordinary staff" : "Make super admin"}</Submit>
+              </form>
+            </details>
+          )}
+          {(me.superAdmin || u.role !== "manager") && u.status !== "suspended" && (
+            <details className="card text-sm">
+              <summary className="cursor-pointer font-semibold text-maroon-600">Suspend this account</summary>
+              <form action={setUserStatus} className="mt-3 space-y-2">
+                <input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="suspended" />
+                <p className="text-xs text-stone-500">They can no longer sign in{u.role === "landlord" ? "; their vacant units come off the listings" : u.role === "provider" ? "; their open jobs go back to be reassigned" : ""}. Their history stays.</p>
+                <Signature reasonHint="Why suspend?" />
+                <Submit className="btn-outline btn-sm border-maroon-200 text-maroon-600">Suspend</Submit>
+              </form>
+            </details>
+          )}
+        </div>
+      )}
 
       {s && (
         <>
@@ -76,7 +115,17 @@ export default async function Person({ params }: { params: Promise<{ id: string 
                 <div className="font-semibold text-brand-950">Landlord code: <span className="font-mono tracking-wider">{code}</span> · commission {u.commissionPct}%</div>
                 <div className="text-xs text-stone-500">Give this code to their existing tenants. They enter it when they sign up, instead of the landlord&apos;s phone number.</div>
               </div>
-              <form action={newLandlordCode}><input type="hidden" name="id" value={u.id} /><ConfirmSubmit message="Replace this code? The old one stops working, so tenants who haven't joined yet will need the new one." className="btn-ghost btn-sm">New code</ConfirmSubmit></form>
+              {me.superAdmin && (
+                <details className="w-full">
+                  <summary className="cursor-pointer text-xs font-semibold text-brand-700">New code…</summary>
+                  <form action={newLandlordCode} className="mt-2 space-y-2">
+                    <input type="hidden" name="id" value={u.id} />
+                    <p className="text-xs text-stone-500">The old code stops working, so tenants who haven&apos;t joined yet will need the new one.</p>
+                    <Signature reasonHint="e.g. code shared with the wrong people" />
+                    <Submit className="btn-outline btn-sm">Replace code</Submit>
+                  </form>
+                </details>
+              )}
               <a href={`https://wa.me/?text=${encodeURIComponent(`Hello, CasaVilla Property Management now manages your home. Join the CasaVilla app to pay rent by Mobile Money, get receipts and report repairs: ${SITE}/register?code=${code}`)}`} className="btn-outline btn-sm"><MessageCircle className="h-3.5 w-3.5" /> Send sign-up link</a>
             </div>
           )}
@@ -114,6 +163,8 @@ export default async function Person({ params }: { params: Promise<{ id: string 
           {requests > 0 && <Link href="/manager/build?tab=all" className="mt-1 block text-stone-600 hover:underline">{requests} build request{requests === 1 ? "" : "s"}</Link>}
         </section>
       )}
+
+      <History refs={[{ entity: "user", ids: [u.id] }]} />
     </div>
   );
 }

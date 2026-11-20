@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CheckCircle2, ShieldAlert } from "lucide-react";
 import { db } from "@/db";
 import { requireSuperAdmin } from "@/lib/auth";
@@ -14,10 +15,9 @@ export const metadata = { title: "System health" };
 
 export default async function SystemHealth() {
   await requireSuperAdmin();
-  const [checks, lastSweep, log] = await Promise.all([
+  const [checks, lastSweep] = await Promise.all([
     runChecks(),
     db.marker.findFirst({ where: { key: { startsWith: "sweep:" } }, orderBy: { createdAt: "desc" } }),
-    db.auditLog.findMany({ orderBy: { createdAt: "desc" }, take: 40, include: { actor: { select: { name: true } } } }),
   ]);
   const ds = await db.locationDataset.findFirst();
   const problems = checks.filter((c) => c.count > 0);
@@ -81,19 +81,8 @@ export default async function SystemHealth() {
         ) : <div className="text-maroon-600">Not loaded yet.</div>}
       </div>
 
-      <SectionTitle title="Activity log" />
-      <div className="card divide-y divide-stone-100 p-0">
-        {log.length === 0 && <div className="muted p-4">No activity recorded yet.</div>}
-        {log.map((a) => (
-          <div key={a.id} className="px-4 py-2.5 text-sm">
-            <div className="flex flex-wrap items-baseline justify-between gap-x-3">
-              <span className="font-medium text-stone-800">{a.actor?.name ?? "System"} · <span className="font-mono text-xs text-brand-700">{a.action}</span></span>
-              <span className="text-[11px] text-stone-400">{fmtDateTime(a.createdAt)}</span>
-            </div>
-            {a.detail && <div className="break-words text-xs text-stone-500">{a.detail}</div>}
-          </div>
-        ))}
-      </div>
+      <SectionTitle title="Audit trail" />
+      <Link href="/manager/activity" className="card block text-sm hover:bg-stone-50">Everything the office did, who did it and why, with the tamper check → <span className="link">Activity &amp; audit trail</span></Link>
     </div>
   );
 }
