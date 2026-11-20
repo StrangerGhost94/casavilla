@@ -9,6 +9,7 @@ import { normalizePhone } from "@/lib/format";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
 import { requireSignature } from "@/lib/signature";
+import { requireChecklist } from "@/lib/checklist";
 import { runHousekeeping } from "@/lib/housekeeping";
 import { checkIds, fixCheck } from "@/lib/integrity";
 import { advanceOrder } from "@/lib/orders";
@@ -25,8 +26,11 @@ export async function setUserStatus(fd: FormData) {
   // Office accounts, and approving a new landlord (which sets their commission), are for super admins only.
   if (!me.superAdmin && before.role === "manager") return fail("Only a super admin can suspend or reactivate office accounts");
   if (!me.superAdmin && before.role === "landlord" && before.status === "pending" && status === "active") return fail("Only a super admin can approve a landlord and set their commission");
-  // Approving a service provider is routine; every other change of status (suspending, reactivating, approving a landlord) is signed.
-  const routine = before.role === "provider" && before.status === "pending" && status === "active";
+  // Approving follows the written checklist. Approving a service provider is otherwise routine; every other change
+  // of status (suspending, reactivating, approving a landlord) is also signed.
+  const approving = before.status === "pending" && status === "active";
+  const checklist = approving && before.role === "landlord" ? await requireChecklist(fd, "landlord") : approving && before.role === "provider" ? await requireChecklist(fd, "provider") : null;
+  const routine = approving && before.role === "provider";
   const reason = routine ? null : await requireSignature(fd, me);
   // Approving a new landlord: their commission is agreed at sign-up, and they get their private landlord code.
   let commissionPct: number | undefined;
@@ -38,7 +42,7 @@ export async function setUserStatus(fd: FormData) {
   const u = await db.user.update({ where: { id: uid }, data: { status, ...(commissionPct !== undefined ? { commissionPct } : {}) } });
   if (u.role === "landlord" && status === "active") await landlordCodeFor(u.id);
   await audit(me.id, `user.${status}`, "user", u.id, `${u.name} (${u.role}): ${before.status} → ${status}${commissionPct !== undefined ? `, commission ${commissionPct}%` : ""}`, db,
-    { reason, signed: !routine, before: { status: before.status, ...(commissionPct !== undefined ? { commissionPct: before.commissionPct } : {}) }, after: { status, ...(commissionPct !== undefined ? { commissionPct } : {}) } });
+    { reason, signed: !routine, before: { status: before.status, ...(commissionPct !== undefined ? { commissionPct: before.commissionPct } : {}) }, after: { status, ...(commissionPct !== undefined ? { commissionPct } : {}), ...(checklist ? { checklist } : {}) } });
 
   if (status === "active") {
     const link = `/${u.role}`;
@@ -85,7 +89,7 @@ export async function createStaff(fd: FormData) {
   if (await db.user.findUnique({ where: { email } })) return fail("Someone already uses that email");
   const reason = await requireSignature(fd, me);
   const u = await db.user.create({
-    data: { name: await reqText(fd, "name", "a name", { max: 100 }), email, phone, passwordHash: await bcrypt.hash(password, 10), role: "manager", status: "active", superAdmin: fd.get("superAdmin") === "on" },
+    data: { name: await reqText(fd, "name", "a name", { max: 100 }), email, phone, passwordHash: await bcrypt.hash(password, 10), role: "manager", status: "active", superAdmin: fd.get("superAdmin") === "on", mustChangePassword: true },
   });
   await audit(me.id, u.superAdmin ? "user.super_admin_created" : "user.staff_created", "user", u.id, `${u.name} · ${email}`, db, { reason, signed: true });
   revalidatePath("/manager/people");

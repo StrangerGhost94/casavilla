@@ -12,7 +12,7 @@ export const systemScope = new AsyncLocalStorage<true>();
 const WRITES = new Set(["create", "update", "upsert", "delete", "createMany", "createManyAndReturn", "updateMany", "updateManyAndReturn", "deleteMany"]);
 // Logs, caches and outboxes: their changes aren't decisions anyone makes.
 const SKIP = new Set(["AuditLog", "Notification", "PushSubscription", "FileVariant", "Marker", "MessageOutbox", "EmailOutbox", "PhoneCode", "Location", "LocationAlias", "LocationDataset"]);
-const IGNORE_FIELDS = new Set(["updatedAt", "createdAt"]);
+const IGNORE_FIELDS = new Set(["updatedAt", "createdAt", "lastLoginAt"]);
 const ENTITY: Record<string, string> = { SaleListing: "sale" };
 
 export const tracked = (model: string | undefined, operation: string) => !!model && WRITES.has(operation) && !SKIP.has(model);

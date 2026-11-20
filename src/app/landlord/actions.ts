@@ -6,11 +6,14 @@ import { db, type User } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { saveUpload } from "@/lib/uploads";
 import { notify, notifyManagers } from "@/lib/notify";
-import { addCharge, completePayment, ensureCharges, leaseBalance, settleLease, waiveCharge } from "@/lib/billing";
+import { addCharge, completePayment, ensureCharges, leaseBalance, settleLease } from "@/lib/billing";
 import { dateOnly, fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
 import { requireSignature } from "@/lib/signature";
+import { requireChecklist } from "@/lib/checklist";
+
+const daysBetweenDates = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 import { date, id, int, isUniqueViolation, oneOf, reqText, text } from "@/lib/validate";
 import { AMENITIES, CHARGE_KINDS, CHARGE_KIND_LABEL, MAX_ADVANCE_MONTHS } from "@/lib/rules";
 import { triage } from "@/lib/insights";
@@ -281,20 +284,6 @@ export async function addLeaseCharge(fd: FormData) {
   refresh();
 }
 
-export async function waiveLeaseCharge(fd: FormData) {
-  const u = await actor();
-  if (!u.superAdmin) return fail("Only a super admin can waive a charge");
-  const c = await db.charge.findUnique({ where: { id: id(fd, "chargeId") }, include: { lease: true } });
-  if (!c || !owns(u, c.lease.landlordId)) return fail("Charge not found");
-  const open = c.amount - c.paid;
-  if (open <= 0) return fail("Nothing left to waive on this charge");
-  const amount = await int(fd, "amount", "the amount to waive", { min: 1, max: open, fallback: open });
-  const reason = await requireSignature(fd, u);
-  const w = await waiveCharge(c.id, amount, u.id, reason, true);
-  if (w) await notify(c.lease.tenantId, `${ugx(w)} was waived on ${c.description}.${reason ? ` (${reason})` : ""}`, "/tenant/rent");
-  refresh();
-}
-
 /**
  * Renewal under the Landlord and Tenant Act, 2022 (s.26): a rise needs at least 60 days' written notice, can't take
  * effect during the current fixed term, can't come within 12 months of the last rise, and is capped at 10% a year
@@ -381,19 +370,6 @@ export async function landlordJob(fd: FormData) {
 }
 
 /** Closes a move-out refund once the landlord has paid the tenant back. */
-export async function markRefundPaid(fd: FormData) {
-  const u = await actor();
-  const l = await ownedLease(u, id(fd));
-  if (l.status !== "ended" || !l.settlement || l.settlement <= 0) return fail("No refund is due on this lease");
-  const reason = await requireSignature(fd, u);
-  const method = await oneOf(fd, "method", ["cash", "bank", "mobile money"] as const, "refund method", "cash");
-  const done = await db.lease.updateMany({ where: { id: l.id, settlement: l.settlement }, data: { settlement: 0 } });
-  if (!done.count) return fail("This lease was just updated — refresh");
-  await notify(l.tenantId, `Your deposit refund of ${ugx(l.settlement)} has been paid (${method}). Your account is fully settled.`, "/tenant/lease");
-  await audit(u.id, "lease.refund_paid", "lease", l.id, `${ugx(l.settlement)} via ${method}`, db, { reason, signed: true });
-  refresh();
-}
-
 /** A CasaVilla manager confirms they visited the property and checked who owns it — this earns the public badge. */
 export async function verifyProperty(fd: FormData) {
   const u = await requireUser("manager");
@@ -402,11 +378,13 @@ export async function verifyProperty(fd: FormData) {
     await db.property.update({ where: { id: p.id }, data: { verifiedAt: null, verifiedBy: null } });
     await audit(u.id, "property.unverified", "property", p.id, p.name);
   } else {
-    const checks = ["visited", "owner", "photos"].filter((k) => fd.get(k) === "on");
-    if (checks.length < 3) return fail("Tick all three checks before verifying");
+    const checklist = await requireChecklist(fd, "property");
+    const visit = String(fd.get("visitDate") || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(visit) || visit > kampalaToday()) return fail("Enter the date you visited (not in the future)");
+    if (daysBetweenDates(visit, kampalaToday()) > 90) return fail("That visit was more than 90 days ago. Visit again before verifying");
     if (!p.locationId) return fail("Confirm the property's location first");
     await db.property.update({ where: { id: p.id }, data: { verifiedAt: new Date(), verifiedBy: u.id } });
-    await audit(u.id, "property.verified", "property", p.id, p.name);
+    await audit(u.id, "property.verified", "property", p.id, `${p.name} · visited ${visit}`, db, { after: { visitDate: visit, checklist } });
     await notify(p.landlordId, `${p.name} is now verified by CasaVilla — its listings show the Verified badge.`, `/landlord/properties/${p.id}`);
   }
   refresh();

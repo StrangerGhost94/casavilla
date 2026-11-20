@@ -5,7 +5,7 @@ import { db } from "@/db";
 import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { Badge } from "./ui";
 import { Submit } from "./client";
-import { waiveLeaseCharge } from "@/app/landlord/actions";
+import { requestWaiver } from "@/app/approval-actions";
 import { Signature } from "@/components/Signature";
 import { EfrisBadge } from "./Efris";
 
@@ -18,7 +18,7 @@ const MethodIcon = ({ m }: { m: string }) => {
 };
 
 /** Rent charges and payment history for one lease. */
-/** `manage` lets a super admin waive part or all of an open charge. */
+/** `manage` lets office staff ask for part or all of an open charge to be waived (a second person approves). */
 export async function Ledger({ leaseId, payHref, recordCash, manage }: { leaseId: number; payHref?: (chargeId: number) => string; recordCash?: React.ReactNode; manage?: boolean }) {
   const [cs, ps, lease] = await Promise.all([
     db.charge.findMany({ where: { leaseId }, orderBy: { dueDate: "desc" } }),
@@ -48,12 +48,12 @@ export async function Ledger({ leaseId, payHref, recordCash, manage }: { leaseId
                   <div className="text-xs text-stone-500">Due {fmtDate(c.dueDate)}{c.paid > 0 && c.status !== "paid" && <> · paid {ugx(c.paid)}</>}{c.waived > 0 && <> · {ugx(c.waived)} waived</>}</div>
                   {manage && c.status !== "paid" && (
                     <details className="mt-1">
-                      <summary className="cursor-pointer list-none text-[11px] font-semibold text-brand-700">Waive…</summary>
-                      <form action={waiveLeaseCharge} className="mt-1.5 flex flex-wrap gap-1.5">
+                      <summary className="cursor-pointer list-none text-[11px] font-semibold text-brand-700">Ask to waive…</summary>
+                      <form action={requestWaiver} className="mt-1.5 flex flex-wrap gap-1.5">
                         <input type="hidden" name="chargeId" value={c.id} />
                         <input name="amount" type="number" min={1} max={c.amount - c.paid} defaultValue={c.amount - c.paid} inputMode="numeric" className="input w-28 py-1.5" aria-label="Amount to waive" />
                         <Signature reasonHint="Why waive it?" />
-                        <Submit className="btn-outline btn-sm">Waive</Submit>
+                        <Submit className="btn-outline btn-sm">Send for approval</Submit>
                       </form>
                     </details>
                   )}

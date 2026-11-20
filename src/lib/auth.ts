@@ -18,6 +18,8 @@ export async function requireUser(...roles: Role[]): Promise<User> {
   const u = await getUser();
   if (!u) redirect("/login");
   if (roles.length && !roles.includes(u.role)) redirect(homeFor(u.role));
+  // New office accounts set their own password and accept the office rules before anything else.
+  if (u.role === "manager" && (u.mustChangePassword || !u.rulesAcceptedAt)) redirect("/onboarding");
   return u;
 }
 
@@ -29,6 +31,7 @@ export async function requireSuperAdmin(): Promise<User> {
 }
 
 export async function startSession(u: User, remember = true) {
+  await db.user.update({ where: { id: u.id }, data: { lastLoginAt: new Date() } }).catch(() => null);
   const token = await signSession({ uid: u.id, role: u.role });
   const store = await cookies();
   store.set(SESSION_COOKIE, token, {

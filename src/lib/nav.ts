@@ -60,6 +60,7 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/manager/tenants", label: "Leases & rent", icon: "file", group: "Money" },
     { href: "/manager/payments", label: "Payments", icon: "wallet" },
     { href: "/manager/statements", label: "Landlord statements", icon: "receipt" },
+    { href: "/manager/cash", label: "Daily cash close", icon: "wallet" },
     { href: "/manager/tax", label: "Tax for URA", icon: "landmark" },
     { href: "/manager/efris", label: "EFRIS receipts", icon: "receiptText" },
     { href: "/manager/reports", label: "Financial reports", icon: "chart" },
@@ -70,25 +71,33 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/manager/build", label: "Build & construction", icon: "hardHat" },
     { href: "/manager/areas", label: "By area", icon: "map" },
     { href: "/manager/jobs", label: "Maintenance jobs", icon: "wrench", group: "Day to day" },
+    { href: "/manager/approvals", label: "Approvals", icon: "clipboardCheck" },
     { href: "/manager/inspections", label: "Inspections", icon: "clipboardCheck" },
     { href: "/manager/utilities", label: "Utilities & meters", icon: "zap" },
     { href: "/manager/orders", label: "Shop orders", icon: "bag" },
     { href: "/manager/health", label: "System health", icon: "shield", group: "System" },
     { href: "/manager/activity", label: "Activity & audit trail", icon: "history" },
+    { href: "/manager/access-review", label: "Access review", icon: "users" },
   ],
 };
 
 /** Splits a menu into its groups: [{ title, items }], the first group having no title. */
-/** The menu for one person: ordinary office staff don't get the system tools (super admins only). */
+/** Pages only super admins can open. */
+const SUPER_ADMIN_ONLY = new Set(["/manager/health", "/manager/access-review"]);
+
+/** The menu for one person: ordinary office staff don't get the super-admin pages. */
 export function menuFor(u: { role: Role; superAdmin?: boolean }): NavItem[] {
   const items = menus[u.role];
   if (u.role !== "manager" || u.superAdmin) return items;
-  const i = items.findIndex((x) => x.href === "/manager/health");
-  if (i < 0) return items;
-  const rest = items.filter((_, n) => n !== i);
-  // The hidden item started the "System" group, so the next one takes the heading over.
-  if (items[i].group && rest[i] && !rest[i].group) rest[i] = { ...rest[i], group: items[i].group };
-  return rest;
+  const out: NavItem[] = [];
+  let heading: string | undefined;
+  for (const i of items) {
+    if (SUPER_ADMIN_ONLY.has(i.href)) { heading ??= i.group; continue; }
+    // A hidden item that started a group hands its heading to the next item shown.
+    out.push(heading && !i.group ? { ...i, group: heading } : i);
+    heading = undefined;
+  }
+  return out;
 }
 
 export function grouped(items: NavItem[]) {

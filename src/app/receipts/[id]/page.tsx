@@ -7,6 +7,8 @@ import { fmtDate, ugx } from "@/lib/format";
 import { receiptData } from "@/lib/receipts";
 import { testLine } from "@/lib/efris";
 import { mailConfigured } from "@/lib/mail";
+import { requestReversal } from "@/app/approval-actions";
+import { Signature } from "@/components/Signature";
 import { Logo } from "@/components/ui";
 import { PrintButton, Submit } from "@/components/client";
 import { emailMyReceipt } from "@/app/doc-actions";
@@ -16,7 +18,8 @@ export const metadata = { title: "Receipt" };
 
 export default async function Receipt({ params }: { params: Promise<{ id: string }> }) {
   const me = await requireUser();
-  const r = await receiptData(Number((await params).id) || 0, me);
+  const r = await receiptData(Number((await params).id) || 0, me, true);
+  const reversed = r?.p.status === "reversed";
   if (!r) notFound();
   const accent = r.brand.accentColor;
   return (
@@ -24,10 +27,22 @@ export default async function Receipt({ params }: { params: Promise<{ id: string
       <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2">
         <Link href={homeFor(me.role)} className="btn-ghost">← Dashboard</Link>
         <div className="flex flex-wrap gap-2">
-          <FileButton href={`/receipts/${r.p.id}/pdf`} name={`CasaVilla-receipt-${r.p.receiptNo}.pdf`} className="btn-primary">Download PDF</FileButton>
+          {!reversed && <FileButton href={`/receipts/${r.p.id}/pdf`} name={`CasaVilla-receipt-${r.p.receiptNo}.pdf`} className="btn-primary">Download PDF</FileButton>}
           <PrintButton />
         </div>
       </div>
+      {reversed && <div className="mb-3 rounded-xl bg-maroon-600 px-4 py-2.5 text-center text-sm font-bold text-white">This payment was reversed. This receipt is no longer valid.</div>}
+      {me.role === "manager" && !reversed && ["cash", "bank"].includes(r.p.method) && (
+        <details className="no-print card mb-3 text-sm">
+          <summary className="cursor-pointer font-semibold text-maroon-600">Recorded by mistake? Ask to reverse it</summary>
+          <form action={requestReversal} className="mt-3 space-y-2">
+            <input type="hidden" name="id" value={r.p.id} />
+            <p className="text-xs text-stone-500">A super admin (not you) must approve. The charges it paid will be owed again and the tenant is told.</p>
+            <Signature reasonHint="What went wrong? e.g. recorded twice" />
+            <Submit className="btn-outline btn-sm border-maroon-200 text-maroon-600">Send for approval</Submit>
+          </form>
+        </details>
+      )}
       {r.efris?.test && <div className="mb-3 rounded-xl bg-maroon-600 px-4 py-2.5 text-center text-sm font-bold text-white">{testLine(r.efris)}</div>}
       <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8 print:border-0 print:shadow-none">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 pb-5" style={{ borderColor: accent }}>
@@ -50,7 +65,7 @@ export default async function Receipt({ params }: { params: Promise<{ id: string
         {/* The one number people look for, stamped paid */}
         <div className="mt-5 flex items-center justify-between gap-3 rounded-2xl border-2 border-dashed p-4" style={{ borderColor: accent }}>
           <div><div className="text-xs text-stone-500">Amount paid</div><div className="whitespace-nowrap text-2xl font-bold" style={{ color: accent }}>{ugx(r.p.amount)}</div></div>
-          <span className="-rotate-6 rounded-lg border-2 px-3 py-1 text-sm font-black uppercase tracking-[0.2em]" style={{ borderColor: accent, color: accent }}>Paid</span>
+          <span className="-rotate-6 rounded-lg border-2 px-3 py-1 text-sm font-black uppercase tracking-[0.2em]" style={reversed ? { borderColor: "#9f1239", color: "#9f1239" } : { borderColor: accent, color: accent }}>{reversed ? "Reversed" : "Paid"}</span>
         </div>
         <dl className="mt-6 grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-2">
           <div><dt className="text-stone-500">Received from</dt><dd className="font-semibold">{r.tenant.name}</dd><dd className="text-stone-500">{r.tenant.phone}</dd></div>

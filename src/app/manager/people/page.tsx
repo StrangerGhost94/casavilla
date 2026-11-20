@@ -48,8 +48,7 @@ export default async function People({ searchParams }: { searchParams: Promise<{
                 <td data-label="Status"><Badge>{u.status}</Badge></td>
                 <td data-label="">{u.id !== me.id && (
                   <div className="flex gap-1">
-                    {u.status === "pending" && u.role === "provider" ? <form action={setUserStatus}><input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" /><Submit className="btn-primary btn-sm">Approve</Submit></form>
-                      : <Link href={`/manager/people/${u.id}`} className={u.status === "pending" ? "btn-primary btn-sm" : "btn-ghost btn-sm"}>{u.status === "pending" ? (u.role === "landlord" ? "Set commission & approve" : "Review") : "Open"}</Link>}
+                    {<Link href={`/manager/people/${u.id}`} className={u.status === "pending" ? "btn-primary btn-sm" : "btn-ghost btn-sm"}>{u.status === "pending" ? (u.role === "landlord" ? "Set commission & approve" : "Review & approve") : "Open"}</Link>}
                   </div>
                 )}</td>
               </tr>

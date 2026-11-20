@@ -16,6 +16,7 @@ import { Steps, UnitGroups } from "./NewPropertyFlow";
 import { shotList } from "@/lib/photo-check";
 import { Ledger } from "./Ledger";
 import { Signature } from "@/components/Signature";
+import { Checklist } from "@/components/Checklist";
 import { saveProperty, addUnit, updateUnit, decideApplication, removeProperty, restoreProperty, removeUnit, verifyProperty } from "@/app/landlord/actions";
 import { propertyRemoval } from "@/lib/removal";
 import { AgreementCard, CashForm, ChargeForm, LeaseFacts, MoveOutForm, RenewForm, ScorePill, TenantScoreCard } from "./LeaseTools";
@@ -349,9 +350,8 @@ async function VerifyCard({ p, manager }: { p: Property; manager: boolean }) {
       <input type="hidden" name="id" value={p.id} />
       <div className="flex items-center gap-2 font-semibold text-brand-950"><ShieldCheck className="h-5 w-5 text-brand-700" /> Verify this property</div>
       {!p.locationId && <p className="text-xs text-gold-700">Confirm its location first (Edit).</p>}
-      {[["visited", "I visited it and it matches the address"], ["owner", "I checked the landlord owns it or may let it"], ["photos", "The photos are of this property"]].map(([k, t]) => (
-        <label key={k} className="flex items-start gap-2 text-stone-700"><input type="checkbox" name={k} required className="mt-0.5 h-4 w-4 shrink-0 accent-brand-700" /> {t}</label>
-      ))}
+      <Checklist name="property" title="Checklist" />
+      <label className="flex items-center gap-2 text-stone-700">Date of the visit <input name="visitDate" type="date" required max={kampalaToday()} className="input w-40 py-1.5" /></label>
       <Submit className="btn-primary btn-sm">Mark as verified</Submit>
     </form>
   );
@@ -752,7 +752,7 @@ export async function LeaseDetail({ id, viewer, base }: { id: number; viewer: Us
       </div>
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="min-w-0 space-y-5 lg:col-span-2">
-          <Ledger leaseId={id} manage={viewer.superAdmin} recordCash={<><CashForm l={l} />{active && <ChargeForm leaseId={l.id} />}</>} />
+          <Ledger leaseId={id} manage recordCash={<><CashForm l={l} />{active && <ChargeForm leaseId={l.id} />}</>} />
         </div>
         <div className="space-y-5">
           <LeaseFacts l={l} />

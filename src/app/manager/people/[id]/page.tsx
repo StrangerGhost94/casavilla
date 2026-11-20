@@ -8,6 +8,7 @@ import { roleLabel } from "@/lib/nav";
 import { Badge, PageHeader, SectionTitle } from "@/components/ui";
 import { Submit } from "@/components/client";
 import { Signature } from "@/components/Signature";
+import { Checklist } from "@/components/Checklist";
 import { History } from "@/components/History";
 import { CollectedCard, MiniStat } from "@/components/Dashboard";
 import { PropertyList, TenantsTable, portfolioStats } from "@/components/Portfolio";
@@ -50,9 +51,9 @@ export default async function Person({ params }: { params: Promise<{ id: string 
       {u.id !== me.id && (
         <div className="space-y-2">
           {provider && u.status === "pending" && (
-            <form action={setUserStatus} className="card flex flex-wrap items-center gap-2 text-sm">
+            <form action={setUserStatus} className="card space-y-2 text-sm">
               <input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" />
-              <span className="mr-auto">Checked their business and contacts?</span>
+              <Checklist name="provider" />
               <Submit className="btn-primary btn-sm">Approve provider</Submit>
             </form>
           )}
@@ -62,6 +63,7 @@ export default async function Person({ params }: { params: Promise<{ id: string 
               <form action={setUserStatus} className="mt-3 space-y-2">
                 <input type="hidden" name="id" value={u.id} /><input type="hidden" name="status" value="active" />
                 {/* A landlord's commission is agreed when they sign up with CasaVilla, so it's set before approval. */}
+                {u.role === "landlord" && u.status === "pending" && <Checklist name="landlord" />}
                 {u.role === "landlord" && u.status === "pending" && (
                   <label className="flex items-center gap-1.5"><span className="text-stone-600">Commission agreed</span>
                     <input name="commission" type="number" min={0} max={50} step={0.5} required defaultValue={u.commissionPct || ""} className="input w-20 py-1.5" aria-label="Commission %" />%</label>

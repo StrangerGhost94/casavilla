@@ -3,6 +3,7 @@ import { AlertTriangle, BarChart3, Building2, Plus, Wallet } from "lucide-react"
 import { CollectedCard, DashHeader, MiniStat, TodoList } from "@/components/Dashboard";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
+import { accessReviewThisMonth, unclosedCashDays } from "@/lib/controls";
 import { ensureChargesFor } from "@/lib/billing";
 import { fmtDate, ugx } from "@/lib/format";
 import { Avatar, SectionTitle } from "@/components/ui";
@@ -15,7 +16,7 @@ import { chargeLabel } from "@/lib/rules";
 import { missingCount } from "@/lib/efris";
 
 export default async function ManagerHome() {
-  await requireUser("manager");
+  const me = await requireUser("manager");
   await ensureChargesFor("all");
   const s = await portfolioStats();
   const [pending, pendingApps, unassigned, recentRaw, efrisMissing, newBuild, saleReview, viewingAsks, toVerify] = await Promise.all([
@@ -31,6 +32,10 @@ export default async function ManagerHome() {
     db.property.count({ where: { archivedAt: null, verifiedAt: null, units: { some: { listed: true, status: "vacant" } } } }),
   ]);
   const dataIssues = (await runChecks()).filter((c) => c.count > 0).length;
+  // Super admins' own duties: decisions others are waiting on, cash to sign off, the monthly access review.
+  const [toApprove, cashToClose, reviewDone] = me.superAdmin
+    ? await Promise.all([db.approvalRequest.count({ where: { status: "pending", requestedById: { not: me.id } } }), unclosedCashDays(), accessReviewThisMonth()])
+    : [0, 0, true];
   const vacant = s.units - s.occupied;
   const occupancy = s.units ? Math.round((s.occupied / s.units) * 100) : 0;
   return (
@@ -49,6 +54,9 @@ export default async function ManagerHome() {
 
       <div className="grid grid-cols-1 gap-x-6 lg:grid-cols-2">
         <TodoList rows={[
+          { href: "/manager/approvals", count: toApprove, label: "Requests waiting for your approval", tone: "red" },
+          { href: "/manager/cash", count: cashToClose, label: "Days of cash to count & close", tone: "red" },
+          { href: "/manager/access-review", count: reviewDone ? 0 : 1, label: "Monthly access review due", tone: "gold" },
           { href: "/manager/tenants", count: s.lateTenants, label: "Tenants behind on rent", tone: "red" },
           { href: "/manager/people?status=pending", count: pending, label: "Landlords & providers to approve", tone: "blue" },
           { href: "/manager/applications", count: pendingApps, label: "Applications & tenants to connect", tone: "blue" },

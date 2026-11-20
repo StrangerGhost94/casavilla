@@ -6,7 +6,8 @@ import { tenantScore, marketRent, type TenantScore } from "@/lib/insights";
 import { daysBetween } from "@/lib/billing";
 import { CHARGE_KINDS, CHARGE_KIND_LABEL, MAX_ADVANCE_MONTHS } from "@/lib/rules";
 import { Signature } from "@/components/Signature";
-import { addLeaseCharge, endLease, markRefundPaid, recordCashPayment, renewLease, saveSpecialTerms } from "@/app/landlord/actions";
+import { requestRefund } from "@/app/approval-actions";
+import { addLeaseCharge, endLease, recordCashPayment, renewLease, saveSpecialTerms } from "@/app/landlord/actions";
 import { FileText } from "lucide-react";
 import { FileButton } from "./FileButton";
 import { Field } from "./ui";
@@ -77,11 +78,11 @@ export function LeaseFacts({ l, manage = true }: { l: Lease; manage?: boolean })
                   : "Fully settled"} />
           )}
           {manage && l.settlement != null && l.settlement > 0 && (
-            <form action={markRefundPaid} className="flex flex-wrap gap-2 border-t border-stone-100 pt-3">
+            <form action={requestRefund} className="flex flex-wrap gap-2 border-t border-stone-100 pt-3">
               <input type="hidden" name="id" value={l.id} />
               <select name="method" className="input py-2"><option value="cash">Cash</option><option value="bank">Bank</option><option value="mobile money">Mobile money</option></select>
               <Signature reasonHint="e.g. paid to tenant's MTN, ref 12345" />
-              <ConfirmSubmit message="Mark the refund as paid to the tenant?" className="btn-primary btn-sm shrink-0">Refund paid</ConfirmSubmit>
+              <ConfirmSubmit message="Send this refund for a super admin to approve?" className="btn-primary btn-sm shrink-0">Refund paid: send for approval</ConfirmSubmit>
             </form>
           )}
         </>

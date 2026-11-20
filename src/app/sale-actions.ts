@@ -6,6 +6,7 @@ import { readVideoUrl } from "@/lib/video-form";
 import { getUser, requireUser } from "@/lib/auth";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
+import { requireChecklist } from "@/lib/checklist";
 import { notify, notifyManagers } from "@/lib/notify";
 import { saveUpload } from "@/lib/uploads";
 import { normalizePhone, kampalaToday } from "@/lib/format";
@@ -94,6 +95,7 @@ export async function reviewSale(fd: FormData) {
   if (!l) return fail("Listing not found");
   const d = fd.get("decision");
   if (d !== "approve" && d !== "reject") return fail("Choose publish or send back");
+  const checklist = d === "approve" ? await requireChecklist(fd, "sale") : null;
   if (d === "approve") {
     if (!l.photos.length) return fail("Add at least one photo before publishing");
     await db.saleListing.update({ where: { id: l.id }, data: { status: "active", reviewNote: null, publishedAt: l.publishedAt ?? new Date() } });
@@ -103,7 +105,7 @@ export async function reviewSale(fd: FormData) {
     await db.saleListing.update({ where: { id: l.id }, data: { status: "rejected", reviewNote: note } });
     await notify(l.ownerId, `Your listing "${l.title}" needs changes: ${note}`, `/sale/${l.id}`);
   }
-  await audit(u.id, `sale.review.${d}`, "sale", l.id, l.title);
+  await audit(u.id, `sale.review.${d}`, "sale", l.id, l.title, db, checklist ? { after: { checklist } } : {});
   refresh();
 }
 

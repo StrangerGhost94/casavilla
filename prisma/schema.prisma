@@ -38,70 +38,79 @@ model User {
   locationId   String?    @map("location_id")
   location     Location?  @relation(fields: [locationId], references: [id])
 
-  files            File[]
-  properties       Property[]
-  applications     Application[]
-  tenantLeases     Lease[]               @relation("LeaseTenant")
-  landlordLeases   Lease[]               @relation("LeaseLandlord")
-  payments         Payment[]             @relation("PaymentTenant")
-  recordedPayments Payment[]             @relation("PaymentRecorder")
-  services         Service[]
-  products         Product[]
-  orders           Order[]               @relation("OrderBuyer")
-  sales            Order[]               @relation("OrderSeller")
-  requestedJobs    Job[]                 @relation("JobRequester")
-  landlordJobs     Job[]                 @relation("JobLandlord")
-  providerJobs     Job[]                 @relation("JobProvider")
-  jobNotes         JobNote[]
-  documents        Document[]
-  notifications    Notification[]
-  pushSubs         PushSubscription[]
-  saved            SavedListing[]
-  searchAlerts     SearchAlert[]
-  viewingsAsked    Viewing[]             @relation("ViewingRequester")
-  viewingsHosted   Viewing[]             @relation("ViewingHost")
-  audits           AuditLog[]
-  linkRequests     TenantLink[]          @relation("LinkTenant")
-  linkInvites      TenantLink[]          @relation("LinkLandlord")
-  serviceAreas     ProviderArea[]
-  brand            BrandProfile?
-  bookings         Booking[]             @relation("BookingGuest")
+  files              File[]
+  properties         Property[]
+  applications       Application[]
+  tenantLeases       Lease[]               @relation("LeaseTenant")
+  landlordLeases     Lease[]               @relation("LeaseLandlord")
+  payments           Payment[]             @relation("PaymentTenant")
+  recordedPayments   Payment[]             @relation("PaymentRecorder")
+  services           Service[]
+  products           Product[]
+  orders             Order[]               @relation("OrderBuyer")
+  sales              Order[]               @relation("OrderSeller")
+  requestedJobs      Job[]                 @relation("JobRequester")
+  landlordJobs       Job[]                 @relation("JobLandlord")
+  providerJobs       Job[]                 @relation("JobProvider")
+  jobNotes           JobNote[]
+  documents          Document[]
+  notifications      Notification[]
+  pushSubs           PushSubscription[]
+  saved              SavedListing[]
+  searchAlerts       SearchAlert[]
+  viewingsAsked      Viewing[]             @relation("ViewingRequester")
+  viewingsHosted     Viewing[]             @relation("ViewingHost")
+  audits             AuditLog[]
+  linkRequests       TenantLink[]          @relation("LinkTenant")
+  linkInvites        TenantLink[]          @relation("LinkLandlord")
+  serviceAreas       ProviderArea[]
+  brand              BrandProfile?
+  bookings           Booking[]             @relation("BookingGuest")
   /// Send receipts and booking confirmations by email (once an email provider is configured).
-  emailReceipts    Boolean               @default(true) @map("email_receipts")
+  emailReceipts      Boolean               @default(true) @map("email_receipts")
   /// When the phone number was confirmed with a WhatsApp/SMS code.
-  phoneVerifiedAt  DateTime?             @map("phone_verified_at")
+  phoneVerifiedAt    DateTime?             @map("phone_verified_at")
   /// Rent reminders and notices on WhatsApp / SMS.
-  messageOptIn     Boolean               @default(true) @map("message_opt_in")
+  messageOptIn       Boolean               @default(true) @map("message_opt_in")
   /// Landlords: send tenants automatic rent reminders.
-  remindTenants    Boolean               @default(true) @map("remind_tenants")
+  remindTenants      Boolean               @default(true) @map("remind_tenants")
   /// Landlords: management commission (% of rent collected) shown on monthly statements. 0 = self-managed.
-  commissionPct    Float                 @default(0) @map("commission_pct")
+  commissionPct      Float                 @default(0) @map("commission_pct")
   /// Landlords: the code existing tenants enter to join (instead of the landlord's phone, which stays private).
-  landlordCode     String?               @unique @map("landlord_code")
+  landlordCode       String?               @unique @map("landlord_code")
   /// Office accounts only: a super admin manages staff accounts, approves landlords, changes commission, waives charges and uses the system tools.
-  superAdmin       Boolean               @default(false) @map("super_admin")
-  messages         MessageOutbox[]
-  caretakerOf      CaretakerAssignment[] @relation("Caretaker")
-  caretakers       CaretakerAssignment[] @relation("CaretakerLandlord")
-  inspections      Inspection[]          @relation("InspectionBy")
-  expenses         Expense[]             @relation("ExpenseLandlord")
-  expensesAdded    Expense[]             @relation("ExpenseBy")
-  meterReadings    MeterReading[]
-  utilityBills     UtilityBill[]
-  saleListings     SaleListing[]
-  saleEnquiries    SaleEnquiry[]
-  buildRequests    BuildRequest[]
-  buildSites       BuildSite[]           @relation("BuildClient")
-  buildUpdates     BuildUpdate[]
-  buildPayments    BuildPayment[]        @relation("BuildPayer")
-  buildRecorded    BuildPayment[]        @relation("BuildRecorder")
-  efrisProfile     EfrisProfile?
-  efrisRecorded    EfrisReceipt[]        @relation("EfrisRecordedBy")
-  efrisCredits     EfrisCreditNote[]     @relation("EfrisCreditBy")
-  payoutAccount    PayoutAccount?
-  payouts          Payout[]              @relation("PayoutLandlord")
-  taxRemittances   TaxRemittance[]       @relation("TaxLandlord")
-  taxRecorded      TaxRemittance[]       @relation("TaxRecordedBy")
+  superAdmin         Boolean               @default(false) @map("super_admin")
+  /// For the monthly access review.
+  lastLoginAt        DateTime?             @map("last_login_at")
+  /// New office accounts must replace the temporary password on first sign-in.
+  mustChangePassword Boolean               @default(false) @map("must_change_password")
+  /// Office accounts: when they accepted the office rules (asked once, on first sign-in).
+  rulesAcceptedAt    DateTime?             @map("rules_accepted_at")
+  approvalsAsked     ApprovalRequest[]     @relation("ApprovalRequester")
+  approvalsDecided   ApprovalRequest[]     @relation("ApprovalDecider")
+  cashCloses         CashClose[]
+  messages           MessageOutbox[]
+  caretakerOf        CaretakerAssignment[] @relation("Caretaker")
+  caretakers         CaretakerAssignment[] @relation("CaretakerLandlord")
+  inspections        Inspection[]          @relation("InspectionBy")
+  expenses           Expense[]             @relation("ExpenseLandlord")
+  expensesAdded      Expense[]             @relation("ExpenseBy")
+  meterReadings      MeterReading[]
+  utilityBills       UtilityBill[]
+  saleListings       SaleListing[]
+  saleEnquiries      SaleEnquiry[]
+  buildRequests      BuildRequest[]
+  buildSites         BuildSite[]           @relation("BuildClient")
+  buildUpdates       BuildUpdate[]
+  buildPayments      BuildPayment[]        @relation("BuildPayer")
+  buildRecorded      BuildPayment[]        @relation("BuildRecorder")
+  efrisProfile       EfrisProfile?
+  efrisRecorded      EfrisReceipt[]        @relation("EfrisRecordedBy")
+  efrisCredits       EfrisCreditNote[]     @relation("EfrisCreditBy")
+  payoutAccount      PayoutAccount?
+  payouts            Payout[]              @relation("PayoutLandlord")
+  taxRemittances     TaxRemittance[]       @relation("TaxLandlord")
+  taxRecorded        TaxRemittance[]       @relation("TaxRecordedBy")
 
   @@index([role, status])
   @@index([phone])
@@ -1523,4 +1532,43 @@ model BuildPayment {
   @@index([siteId, status])
   @@index([status, createdAt])
   @@map("build_payments")
+}
+
+/// Something one person asks for and a different super admin must approve before it happens (waiver, refund, reversal).
+model ApprovalRequest {
+  id            Int       @id @default(autoincrement())
+  /// waive | refund | reverse
+  kind          String
+  /// pending | approved | rejected | cancelled | failed
+  status        String    @default("pending")
+  summary       String
+  payload       Json
+  entity        String
+  entityId      Int       @map("entity_id")
+  requestedById Int       @map("requested_by_id")
+  requestedBy   User      @relation("ApprovalRequester", fields: [requestedById], references: [id])
+  reason        String
+  decidedById   Int?      @map("decided_by_id")
+  decidedBy     User?     @relation("ApprovalDecider", fields: [decidedById], references: [id])
+  decisionNote  String?   @map("decision_note")
+  decidedAt     DateTime? @map("decided_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([status, createdAt])
+  @@index([entity, entityId])
+  @@map("approval_requests")
+}
+
+/// A super admin's sign-off that a day's cash and bank receipts were counted and match what was recorded.
+model CashClose {
+  day        DateTime @id @db.Date
+  closedById Int      @map("closed_by_id")
+  closedBy   User     @relation(fields: [closedById], references: [id])
+  count      Int
+  total      Int
+  byStaff    Json     @map("by_staff")
+  note       String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("cash_closes")
 }

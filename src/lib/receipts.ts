@@ -12,7 +12,8 @@ const METHODS: Record<string, string> = { mtn: "MTN Mobile Money", airtel: "Airt
  * Everything a rent receipt shows, from the ledger itself: each charge the payment settled (with the period it
  * covers, as the Landlord and Tenant Act s.25 requires), any amount kept as credit, and the balance left.
  */
-export async function receiptData(paymentId: number, viewer?: User) {
+/** `allowReversed` lets the receipt page show a reversed payment (marked as such); downloads and emails never use one. */
+export async function receiptData(paymentId: number, viewer?: User, allowReversed = false) {
   const p = await db.payment.findUnique({
     where: { id: paymentId },
     include: {
@@ -22,7 +23,7 @@ export async function receiptData(paymentId: number, viewer?: User) {
       lease: { include: { tenant: true, landlord: true, unit: { include: { property: true } } } },
     },
   });
-  if (!p || p.status !== "success") return null;
+  if (!p || !(p.status === "success" || (allowReversed && p.status === "reversed"))) return null;
   // The tenant, the landlord, CasaVilla — and a caretaker for the cash they recorded themselves.
   if (viewer && viewer.role !== "manager" && viewer.id !== p.lease.tenantId && viewer.id !== p.lease.landlordId && viewer.id !== p.recordedById) return null;
   const lines = p.allocations.map((a) => ({

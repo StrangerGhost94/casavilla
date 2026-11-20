@@ -253,8 +253,41 @@ export async function waiveCharge(chargeId: number, amount: number, actorId: num
     // After move-out, writing off a debt also improves the final settlement.
     const l = await tx.lease.findUniqueOrThrow({ where: { id: c.leaseId }, select: { status: true, settlement: true } });
     if (l.status === "ended" && c.kind !== "deposit") await tx.lease.update({ where: { id: c.leaseId }, data: { settlement: (l.settlement ?? 0) + w } });
-    await audit(actorId, "charge.waived", "charge", c.id, `${ugx(w)} waived on ${c.description}`, tx, { reason, signed, before: { open: c.amount - c.paid - c.waived }, after: { open: c.amount - c.paid - c.waived - w } });
+    await audit(actorId, "charge.waived", "charge", c.id, `${ugx(w)} waived on ${c.description}`, tx, { reason, signed, before: { stillOwed: c.amount - c.paid }, after: { stillOwed: c.amount - w - c.paid } });
     return w;
+  });
+}
+
+/**
+ * Undoes a cash or bank payment that was recorded by mistake (only after a second person approved it): the charges
+ * it paid are owed again, any part kept as credit is taken back, its split is removed and the receipt is marked
+ * reversed. Mobile Money is refunded through Flutterwave instead. Throws a plain-language reason when it can't.
+ */
+export async function reversePayment(paymentId: number, actorId: number, reason: string) {
+  return db.$transaction(async (tx) => {
+    const p0 = await tx.payment.findUniqueOrThrow({ where: { id: paymentId } });
+    await lockLease(tx, p0.leaseId);
+    const p = await tx.payment.findUniqueOrThrow({ where: { id: paymentId }, include: { allocations: true, efris: { select: { id: true } } } });
+    if (p.status !== "success") throw new Error("Only a completed payment can be reversed");
+    if (!["cash", "bank"].includes(p.method)) throw new Error("Mobile Money payments are refunded through Flutterwave, not reversed here");
+    if (p.efris) throw new Error("This payment has an EFRIS receipt. Issue a credit note first");
+    const toCredit = p.amount - p.allocations.reduce((n, a) => n + a.amount, 0);
+    const lease = await tx.lease.findUniqueOrThrow({ where: { id: p.leaseId }, select: { credit: true, status: true, settlement: true } });
+    if (toCredit > lease.credit) throw new Error("Part of this payment has already been used on later rent, so it can't be reversed automatically. Ask Eliherd Engineers");
+    for (const a of p.allocations) {
+      const c = await tx.charge.findUniqueOrThrow({ where: { id: a.chargeId } });
+      const paid = c.paid - a.amount;
+      await tx.charge.update({ where: { id: c.id }, data: { paid, status: statusFor(c.amount, paid) } });
+    }
+    await tx.allocation.deleteMany({ where: { paymentId: p.id } });
+    await tx.lease.update({ where: { id: p.leaseId }, data: {
+      ...(toCredit > 0 ? { credit: { decrement: toCredit } } : {}),
+      ...(lease.status === "ended" ? { settlement: (lease.settlement ?? 0) - p.amount } : {}),
+    } });
+    await tx.payout.deleteMany({ where: { paymentId: p.id } });
+    await tx.payment.update({ where: { id: p.id }, data: { status: "reversed" } });
+    await audit(actorId, "payment.reversed", "payment", p.id, `${ugx(p.amount)} ${p.method} reversed · receipt ${p.receiptNo}`, tx, { reason, signed: true, before: { status: "success" }, after: { status: "reversed" } });
+    return p;
   });
 }
 

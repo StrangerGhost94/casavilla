@@ -12,6 +12,7 @@ import { PlaceFields } from "./PlaceFields";
 import { SaleBasics, SaleDetails } from "./SaleFields";
 import { SalePhotos, ScrollTop } from "./SalePhotos";
 import { AddChoice } from "./AddChoice";
+import { Checklist } from "./Checklist";
 import { deleteSaleListing, markEnquiry, reviewSale, saveSaleListing, setSaleStatus, verifySaleTitle } from "@/app/sale-actions";
 
 const pill = (s: string) => <Badge color={STATUS[s]?.tone ?? "gray"}>{STATUS[s]?.label ?? s}</Badge>;
@@ -132,7 +133,9 @@ export async function SaleManage({ viewer, id, fresh }: { viewer: User; id: numb
           <div className="font-semibold text-brand-950">CasaVilla review</div>
           {l.status === "pending" && (
             <div className="space-y-2">
-              <form action={reviewSale}><input type="hidden" name="id" value={l.id} /><input type="hidden" name="decision" value="approve" /><Submit className="btn-primary btn-sm">Approve & publish</Submit></form>
+              <form action={reviewSale} className="space-y-2"><input type="hidden" name="id" value={l.id} /><input type="hidden" name="decision" value="approve" />
+                <Checklist name="sale" title="Before you publish" />
+                <Submit className="btn-primary btn-sm">Approve & publish</Submit></form>
               <form action={reviewSale} className="flex gap-2"><input type="hidden" name="id" value={l.id} /><input type="hidden" name="decision" value="reject" />
                 <input name="note" required maxLength={500} className="input py-2" placeholder="What needs changing? e.g. clearer photos, the plot size" />
                 <Submit className="btn-outline btn-sm shrink-0">Send back</Submit></form>
