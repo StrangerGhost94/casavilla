@@ -5,6 +5,7 @@ import { LogOut } from "lucide-react";
 import { db, type User } from "@/db";
 import { logout } from "@/app/actions";
 import { menuFor, roleLabel, tabs } from "@/lib/nav";
+import { CommandPalette, SearchButton } from "./CommandPalette";
 import { homeFor } from "@/lib/auth";
 import { Avatar, Logo } from "./ui";
 import { BottomNav, MobileTitle, NavLinks } from "./NavLinks";
@@ -41,6 +42,7 @@ export async function PortalShell({ user, children }: { user: User; children: Re
   // Runs after the page is sent, at most once an hour across all users.
   after(() => runHousekeeping().catch((e) => console.error("housekeeping", e)));
   const display = user.businessName || user.name;
+  const office = user.role === "manager";
   const first = user.name.split(" ")[0];
   return (
     <div className="portal-shell min-h-screen lg:flex">
@@ -73,11 +75,15 @@ export async function PortalShell({ user, children }: { user: User; children: Re
           <div className="flex items-center justify-between gap-3">
             <MobileTitle root={homeFor(user.role)} items={[...items, { href: "/profile", label: "Profile", icon: "user" }]} greeting={greetingNow()} name={first}
               avatar={<Avatar name={user.name} tone="bg-gold-400 text-brand-950" className="h-11 w-11 text-sm" />} />
-            <NotificationBell user={user} tone="light" />
+            <div className="flex items-center gap-2">
+              {office && <SearchButton variant="phone" />}
+              <NotificationBell user={user} tone="light" />
+            </div>
           </div>
         </header>
         {/* Desktop top bar */}
         <header className="no-print hidden items-center justify-end gap-3 px-8 pt-5 lg:flex">
+          {office && <SearchButton variant="desktop" />}
           <span className="text-sm text-stone-500">{greetingNow()}, <span className="font-semibold text-brand-900">{first}</span></span>
           <NotificationBell user={user} tone="dark" />
         </header>
@@ -86,6 +92,7 @@ export async function PortalShell({ user, children }: { user: User; children: Re
         </main>
       </div>
       <BottomNav tabs={tabs[user.role]} />
+      {office && <CommandPalette superAdmin={user.superAdmin} />}
       <InstallPrompt />
     </div>
   );

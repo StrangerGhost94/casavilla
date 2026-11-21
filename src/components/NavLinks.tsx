@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
   ArrowLeft, Briefcase, Building2, ClipboardList, FileText, Home, Package, Plus, Search, ShoppingBag, Sparkles,
-  CalendarDays, MapPinned, ShieldCheck, Store, User, Users, Wallet, Wrench, BarChart3, ClipboardCheck, Zap, UserCog, Receipt, ReceiptText, MessageCircle, Tag, KeyRound, Banknote, Landmark, Heart, CalendarCheck, HardHat, History, type LucideIcon } from "lucide-react";
+  CalendarDays, MapPinned, ShieldCheck, Store, User, Users, Wallet, Wrench, BarChart3, ClipboardCheck, Zap, UserCog, Receipt, ReceiptText, MessageCircle, Tag, KeyRound, Banknote, Landmark, Heart, CalendarCheck, HardHat, History, MoreHorizontal, ChevronDown, type LucideIcon } from "lucide-react";
 import type { NavItem, Tabs } from "@/lib/nav";
 import { grouped } from "@/lib/nav";
 
@@ -30,11 +30,10 @@ export function NavLinks({ items, counts = {} }: { items: NavItem[]; counts?: Re
   const path = usePathname();
   const hrefs = items.map((i) => i.href);
   return (
+    <>
     <nav className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-3 pb-3 [scrollbar-width:none]">
-      {grouped(items).map((g, gi) => (
-        <div key={g.title ?? gi} className={g.title ? "pt-3" : ""}>
-          {g.title && <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">{g.title}</div>}
-          {g.items.map((i) => {
+      {grouped(items).filter((g) => g.title !== "System").map((g, gi) => {
+        const links = g.items.map((i) => {
             const active = isActive(path, i.href, hrefs);
             return (
               <Link key={i.href} href={i.href}
@@ -44,10 +43,45 @@ export function NavLinks({ items, counts = {} }: { items: NavItem[]; counts?: Re
                 {counts[i.href] ? <span className="rounded-full bg-gold-400 px-1.5 py-0.5 text-[10px] font-bold leading-none text-brand-950">{counts[i.href] > 99 ? "99+" : counts[i.href]}</span> : null}
               </Link>
             );
-          })}
-        </div>
-      ))}
+          });
+        // "More": pages used now and then, folded away unless one of them is open or needs doing.
+        if (g.title === "More") {
+          const waiting = g.items.reduce((n, i) => n + (counts[i.href] ?? 0), 0);
+          const here = g.items.some((i) => isActive(path, i.href, hrefs));
+          return (
+            <details key="more" open={here} className="group/more pt-3">
+              <summary className="flex cursor-pointer list-none items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium text-white/65 hover:bg-white/5 hover:text-white">
+                <MoreHorizontal className="h-[18px] w-[18px]" /><span className="flex-1">More</span>
+                {waiting > 0 && <span className="rounded-full bg-gold-400 px-1.5 py-0.5 text-[10px] font-bold leading-none text-brand-950">{waiting > 99 ? "99+" : waiting}</span>}
+                <ChevronDown className="h-4 w-4 transition group-open/more:rotate-180" />
+              </summary>
+              <div className="space-y-0.5 pt-0.5">{links}</div>
+            </details>
+          );
+        }
+        return (
+          <div key={g.title ?? gi} className={g.title ? "pt-3" : ""}>
+            {g.title && <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-white/35">{g.title}</div>}
+            {links}
+          </div>
+        );
+      })}
     </nav>
+    {/* System pages stay pinned at the bottom, above the account, so they never scroll out of reach. */}
+    {grouped(items).filter((g) => g.title === "System").map((g) => (
+      <div key="system" className="shrink-0 space-y-0.5 border-t border-white/10 px-3 py-2">
+        {g.items.map((i) => {
+          const active = isActive(path, i.href, hrefs);
+          return (
+            <Link key={i.href} href={i.href} className={`flex items-center gap-3 rounded-xl px-3 py-1.5 text-[13px] font-medium transition ${active ? "bg-white/10 text-white" : "text-white/55 hover:bg-white/5 hover:text-white"}`}>
+              <NavIcon name={i.icon} className={`h-4 w-4 ${active ? "text-gold-300" : ""}`} />
+              <span className="min-w-0 flex-1 truncate">{i.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    ))}
+    </>
   );
 }
 

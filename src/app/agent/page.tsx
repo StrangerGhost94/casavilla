@@ -30,7 +30,11 @@ export default async function AgentHome() {
   ];
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <PageHeader title={`Hello ${u.name.split(" ")[0]}`} subtitle="Your listings for sale and short stays. Buyers and guests deal with the CasaVilla office." />
+      {/* One main action, named by what's waiting: fix what was sent back, then renew, otherwise list something new. */}
+      <PageHeader title={`Hello ${u.name.split(" ")[0]}`} subtitle="Your listings for sale and short stays. Buyers and guests deal with the CasaVilla office."
+        actions={n("rejected") ? <Link href="/agent/sale" className="btn-primary btn-sm">Fix {n("rejected")} listing{n("rejected") === 1 ? "" : "s"}</Link>
+          : expiring + n("expired") ? <Link href="/agent/sale" className="btn-primary btn-sm">Renew {expiring + n("expired")} listing{expiring + n("expired") === 1 ? "" : "s"}</Link>
+          : <Link href="/agent/sale/new" className="btn-primary btn-sm"><Plus className="h-4 w-4" /> New listing for sale</Link>} />
 
       {u.status === "pending" && (
         <div className="card space-y-3">

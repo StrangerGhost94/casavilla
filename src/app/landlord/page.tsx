@@ -35,8 +35,7 @@ export default async function LandlordHome() {
   return (
     <div className="mx-auto max-w-5xl">
       <DashHeader title="My portfolio">
-        <Link href="/landlord/statements" className="btn-primary btn-sm"><Receipt className="h-4 w-4" /> Statements</Link>
-        <Link href="/landlord/reports" className="btn-outline btn-sm"><PieChart className="h-4 w-4" /> Reports</Link>
+        <Link href="/landlord/statements" className="btn-primary btn-sm"><Receipt className="h-4 w-4" /> {new Date().toLocaleDateString("en-GB", { month: "long", timeZone: "Africa/Kampala" })} statement</Link>
         <a href={waLink(`Hello CasaVilla, this is ${u.name}.`)} className="btn-outline btn-sm"><MessageCircle className="h-4 w-4" /> Talk to CasaVilla</a>
       </DashHeader>
 

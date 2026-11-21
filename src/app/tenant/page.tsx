@@ -101,7 +101,7 @@ export default async function TenantHome() {
               : "Nothing to pay right now. Thank you!"}
           </div>
           <div className="mt-4 grid grid-cols-2 gap-2">
-            {next ? <Link href={`/tenant/pay/${next.id}`} className="btn-gold"><Wallet className="h-4 w-4" /> {payLabel(next.kind)}</Link> : <Link href="/tenant/rent" className="btn-gold"><Wallet className="h-4 w-4" /> Receipts</Link>}
+            {next ? <Link href={`/tenant/pay/${next.id}`} className="btn-gold" aria-label={payLabel(next.kind)}><Wallet className="h-4 w-4" /> Pay {ugx(next.amount - next.paid)}</Link> : <Link href="/tenant/rent" className="btn-gold"><Wallet className="h-4 w-4" /> Receipts</Link>}
             <Link href="/tenant/requests/new" className="btn border border-white/20 text-white hover:bg-white/10"><Wrench className="h-4 w-4" /> Report issue</Link>
           </div>
         </div>

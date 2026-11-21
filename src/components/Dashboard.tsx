@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2 } from "lucide-react";
+import { CheckCircle2, ChevronRight } from "lucide-react";
 import { ugx } from "@/lib/format";
 import { AttentionList, SectionTitle } from "./ui";
 
@@ -58,5 +58,20 @@ export function TodoList({ rows }: { rows: { href: string; count: number; label:
         </div>
       )}
     </div>
+  );
+}
+
+/** A secondary section folded into one row ("Recent payments · 6 ▸"), so the screen leads with what needs doing. */
+export function Fold({ title, hint, href, open = false, children }: { title: string; hint?: string; href?: string; open?: boolean; children: React.ReactNode }) {
+  return (
+    <details open={open} className="card group/fold mt-3 p-0">
+      <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 text-sm">
+        <ChevronRight className="h-4 w-4 shrink-0 text-stone-400 transition group-open/fold:rotate-90" />
+        <span className="font-semibold text-brand-950">{title}</span>
+        {hint && <span className="min-w-0 flex-1 truncate text-xs text-stone-500">{hint}</span>}
+        {href && <a href={href} className="link ml-auto shrink-0 text-xs">Open</a>}
+      </summary>
+      <div className="border-t border-stone-100 p-3">{children}</div>
+    </details>
   );
 }
