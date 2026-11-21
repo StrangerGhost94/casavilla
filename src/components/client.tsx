@@ -1,9 +1,10 @@
 "use client";
 import { useFormStatus } from "react-dom";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, Camera, Check } from "lucide-react";
+import { ArrowLeft, Camera } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { FullScreenLoader, Spinner } from "./Loaders";
+import { SuccessTick } from "./Motion";
 
 /**
  * Submit button: a spinner while sending (the button keeps its size, so nothing jumps) and a brief "✓ Saved" when
@@ -28,7 +29,7 @@ export function Submit({ children, className = "btn-primary", pendingText, doneT
   return (
     <>
       <button type="submit" className={className} disabled={pending} aria-busy={pending} aria-live="polite">
-        {pending ? <Spinner label={pendingText ?? "Working…"} /> : done ? <><Check className="h-4 w-4" /> {doneText}</> : children}
+        {pending ? <Spinner label={pendingText ?? "Working…"} /> : done ? <><SuccessTick className="h-4 w-4" /> {doneText}</> : children}
       </button>
       {fullScreen && <FullScreenLoader show={pending} {...fullScreen} />}
     </>

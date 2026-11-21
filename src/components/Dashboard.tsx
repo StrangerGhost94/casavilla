@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RollingNumber } from "./Motion";
 import { CheckCircle2, ChevronRight } from "lucide-react";
 import { ugx } from "@/lib/format";
 import { AttentionList, SectionTitle } from "./ui";
@@ -25,7 +26,7 @@ export function CollectedCard({ href, collected, due, left }: { href: string; co
   return (
     <Link href={href} className="col-span-2 overflow-hidden rounded-2xl bg-brand-900 p-5 text-white shadow-card transition hover:bg-brand-950">
       <div className="flex items-center justify-between text-xs text-white/70"><span>Collected this month</span>{due > 0 && <span className="font-semibold text-gold-300">{pct}%</span>}</div>
-      <div className="mt-1 text-2xl font-bold sm:text-3xl">{ugx(collected)}</div>
+      <div className="mt-1 text-2xl font-bold sm:text-3xl"><RollingNumber text={ugx(collected)} /></div>
       <div className="mt-4 h-2 rounded-full bg-white/15"><div className="h-2 rounded-full bg-gold-400" style={{ width: `${pct}%` }} /></div>
       <div className="mt-2 flex justify-between gap-3 text-xs text-white/70"><span>of {ugx(due)} due</span><span>{ugx(Math.max(0, left))} still to come</span></div>
     </Link>
@@ -38,7 +39,7 @@ export function MiniStat({ href, icon, tone = "green", value, label, hint }: { h
   return (
     <Link href={href} className="card min-w-0 p-4 transition hover:-translate-y-0.5">
       <div className={`flex h-9 w-9 items-center justify-center rounded-xl ${t}`}>{icon}</div>
-      <div className="mt-3 truncate text-base font-bold leading-tight text-brand-950 sm:text-xl">{value}</div>
+      <div className="mt-3 truncate text-base font-bold leading-tight text-brand-950 sm:text-xl">{typeof value === "string" ? <RollingNumber text={value} /> : value}</div>
       <div className="mt-1 text-xs font-medium text-stone-500">{label}</div>
       {hint && <div className="mt-0.5 text-[11px] text-stone-400">{hint}</div>}
     </Link>

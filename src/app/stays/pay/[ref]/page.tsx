@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SuccessTick } from "@/components/Motion";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
@@ -33,7 +34,7 @@ export default async function StayPay({ params }: { params: Promise<{ ref: strin
         {b.status === "pending" && <PayPending reference={ref} sandbox={sandboxStay} note="Your dates are held for 30 minutes." who="guest" />}
         {b.status === "confirmed" && (
           <div className="mt-6">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-500 text-2xl text-white">✓</div>
+            <SuccessTick className="mx-auto h-14 w-14 text-brand-600" />
             <div className="mt-3 font-semibold text-brand-700">You&apos;re booked!</div>
             <div className="muted">Receipt {b.receiptNo}</div>
             <Link href={`/stays/bookings/${b.id}`} className="btn-primary mt-4">View booking</Link>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { SuccessTick } from "@/components/Motion";
 import { notFound } from "next/navigation";
 import { db } from "@/db";
 import { homeFor, requireUser } from "@/lib/auth";
@@ -35,7 +36,7 @@ export default async function PayStatus({ params }: { params: Promise<{ ref: str
         {p.status === "pending" && <PayPending reference={ref} sandbox={sandboxResolve} title="Waiting for you to approve on your phone…" />}
         {p.status === "success" && (
           <div className="mt-6">
-            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-brand-500 text-2xl text-white">✓</div>
+            <SuccessTick className="mx-auto h-14 w-14 text-brand-600" />
             <div className="mt-3 font-semibold text-brand-700">Payment received</div>
             <div className="muted">Receipt {p.receiptNo}</div>
             <Link href={`/receipts/${p.id}`} className="btn-primary mt-4">View receipt</Link>

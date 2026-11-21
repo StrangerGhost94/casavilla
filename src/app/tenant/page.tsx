@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { RollingNumber } from "@/components/Motion";
 import { AlertCircle, CalendarClock, CalendarDays, CheckCircle2, ClipboardList, FileText, MessageCircle, Phone, Search, ShoppingBag, Wallet, Wrench } from "lucide-react";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
@@ -94,7 +95,7 @@ export default async function TenantHome() {
         </div>
         <div className="p-4">
           <div className="text-xs text-white/60">{owed > 0 ? "Balance due" : "Monthly rent"}</div>
-          <div className="text-3xl font-bold tracking-tight">{ugx(owed > 0 ? owed : lease.l.rent)}</div>
+          <div className="text-3xl font-bold tracking-tight"><RollingNumber text={ugx(owed > 0 ? owed : lease.l.rent)} /></div>
           <div className={`mt-1 text-xs ${late ? "font-semibold text-maroon-100" : "text-white/70"}`}>
             {next && days !== null
               ? `${chargeLabel(next.kind, next.period)} · ${days < 0 ? `overdue by ${-days} day${days === -1 ? "" : "s"}` : days === 0 ? "due today" : `due in ${days} day${days === 1 ? "" : "s"}`} (${fmtDate(next.dueDate)})`

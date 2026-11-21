@@ -58,15 +58,20 @@ export function PullToRefresh() {
     const move = (e: TouchEvent) => {
       if (startY.current == null) return;
       const d = e.touches[0].clientY - startY.current;
-      pulled.current = d > 0 ? Math.min(110, d * 0.5) : 0;
+      // Resist the pull: the page moves about a third of the finger's distance, less the further it goes.
+      pulled.current = d > 0 ? Math.min(110, 110 * (1 - Math.exp(-d * 0.35 / 110))) : 0;
       setPull(pulled.current);
+      const main = document.querySelector("main");
+      if (main) { main.style.transition = "none"; main.style.transform = `translateY(${pulled.current}px)`; }
     };
     const up = () => {
       if (startY.current == null) return;
       startY.current = null;
-      if (pulled.current >= TRIGGER) start(() => router.refresh());
+      if (pulled.current >= TRIGGER * 0.7) start(() => router.refresh());
       pulled.current = 0;
       setPull(0);
+      const main = document.querySelector("main");
+      if (main) { main.style.transition = "transform .45s cubic-bezier(.34, 1.3, .64, 1)"; main.style.transform = ""; }
     };
     window.addEventListener("touchstart", down, { passive: true });
     window.addEventListener("touchmove", move, { passive: true });
@@ -79,7 +84,7 @@ export function PullToRefresh() {
   return (
     <div aria-live="polite" className="pointer-events-none fixed inset-x-0 top-0 z-[60] flex justify-center" style={{ transform: `translateY(calc(env(safe-area-inset-top) + ${shown - 30}px))` }}>
       <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white text-brand-700 shadow-float">
-        {refreshing ? <Spinner className="h-5 w-5" label="" /> : <ArrowDown className="h-5 w-5 transition" style={{ transform: `rotate(${pull >= TRIGGER ? 180 : 0}deg)` }} />}
+        {refreshing ? <Spinner className="h-5 w-5" label="" /> : <ArrowDown className="h-5 w-5 transition" style={{ transform: `rotate(${pull >= TRIGGER * 0.7 ? 180 : 0}deg)` }} />}
       </span>
       {refreshing && <span className="sr-only">Refreshing</span>}
     </div>
