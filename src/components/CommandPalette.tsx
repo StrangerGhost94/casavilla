@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CornerDownLeft, Search, X } from "lucide-react";
 import { NavIcon } from "./NavLinks";
+import { Spinner } from "./Loaders";
 
 type Item = { group: string; label: string; sub?: string; href: string; icon?: string };
 
@@ -101,7 +102,7 @@ export function CommandPalette({ superAdmin }: { superAdmin: boolean }) {
           <button type="button" onClick={() => setOpen(false)} aria-label="Close" className="rounded-full p-1 text-stone-400 hover:text-stone-700"><X className="h-5 w-5" /></button>
         </div>
         <div className="max-h-[60vh] overflow-y-auto py-2">
-          {items.length === 0 && <div className="px-4 py-6 text-center text-sm text-stone-500">{loading ? "Searching…" : "Nothing found. Try a first name, a phone number or a receipt number."}</div>}
+          {items.length === 0 && <div className="px-4 py-6 text-center text-sm text-stone-500">{loading ? <Spinner label="Searching…" /> : "Nothing found. Try a first name, a phone number or a receipt number."}</div>}
           {items.map((it, i) => {
             const head = it.group !== lastGroup ? it.group : null;
             lastGroup = it.group;

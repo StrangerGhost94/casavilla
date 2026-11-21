@@ -80,7 +80,7 @@ export default async function SystemHealth() {
               <label className="flex items-center gap-2 text-stone-700"><input type="checkbox" name="officeToo" className="h-4 w-4" /> Also delete every other office account (only mine stays)</label>
               <input name="confirm" className="input w-60 py-2" placeholder="Type DELETE EVERYTHING" aria-label="Type DELETE EVERYTHING to confirm" autoComplete="off" required />
               <Signature reasonHint="e.g. testing finished, starting real data" />
-              <ConfirmSubmit message="Delete all test accounts and records? This cannot be undone." className="btn-outline btn-sm text-maroon-600">Clear test data</ConfirmSubmit>
+              <ConfirmSubmit message="Delete all test accounts and records? This cannot be undone." className="btn-outline btn-sm text-maroon-600" fullScreen={{ title: "Clearing test data…", note: "This takes a few seconds. Don't close the page." }}>Clear test data</ConfirmSubmit>
             </form>
           </div>
         </>

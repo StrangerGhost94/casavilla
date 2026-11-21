@@ -48,15 +48,16 @@ export async function unitsAsListings(ids: number[]) {
     .map((u) => ({ ...toListing(u), available: u.listed && u.status === "vacant" && !u.property.archivedAt }));
 }
 
-export async function listedUnits(f: { q?: string; max?: number; beds?: number; limit?: number; in?: string; near?: { lat: number; lng: number; km: number }; furnished?: boolean; selfContained?: boolean; sort?: ListingSort; exclude?: number } = {}) {
+export type HomesFilter = { q?: string; max?: number; beds?: number; limit?: number; skip?: number; in?: string; near?: { lat: number; lng: number; km: number }; furnished?: boolean; selfContained?: boolean; sort?: ListingSort; exclude?: number };
+
+async function homesWhere(f: HomesFilter): Promise<Prisma.UnitWhereInput> {
   const or: Prisma.PropertyWhereInput[] = [];
   if (f.q) {
     or.push({ name: { contains: f.q, mode: "insensitive" } }, { street: { contains: f.q, mode: "insensitive" } });
     or.push(...(await areaMatch(f.q)));
   }
   const inside = await insideFilter(f.in);
-  const rows = await db.unit.findMany({
-    where: {
+  return {
       listed: true, status: "vacant", mode: "long",
       rent: f.max ? { lte: f.max } : undefined,
       bedrooms: f.beds ? { gte: f.beds } : undefined,
@@ -69,15 +70,28 @@ export async function listedUnits(f: { q?: string; max?: number; beds?: number; 
         ...(inside ? { place: inside } : {}),
         ...(f.near ? { lat: { not: null }, lng: { not: null } } : {}),
       },
-    },
+  };
+}
+
+/** How many homes match (for "N homes available" while the list itself loads page by page). */
+export async function countListedUnits(f: HomesFilter) {
+  if (f.near) return (await listedUnits({ ...f, skip: 0, limit: 500 })).length;
+  return db.unit.count({ where: await homesWhere(f) });
+}
+
+export async function listedUnits(f: HomesFilter = {}) {
+  const rows = await db.unit.findMany({
+    where: await homesWhere(f),
     include: listingInclude,
-    orderBy: f.sort === "price_asc" ? { rent: "asc" } : f.sort === "price_desc" ? { rent: "desc" } : { id: "desc" }, take: f.near ? 500 : f.limit ?? 60,
+    orderBy: f.sort === "price_asc" ? [{ rent: "asc" }, { id: "desc" }] : f.sort === "price_desc" ? [{ rent: "desc" }, { id: "desc" }] : { id: "desc" },
+    take: f.near ? 500 : f.limit ?? 60,
+    skip: f.near ? 0 : f.skip ?? 0,
   });
   let list = rows.map((u) => ({
     ...toListing(u),
     distance: f.near && u.property.lat != null && u.property.lng != null ? distanceKm(f.near, { lat: u.property.lat, lng: u.property.lng }) : undefined,
   }));
-  if (f.near) list = list.filter((h) => h.distance! <= f.near!.km).sort((a, b) => a.distance! - b.distance!).slice(0, f.limit ?? 60);
+  if (f.near) list = list.filter((h) => h.distance! <= f.near!.km).sort((a, b) => a.distance! - b.distance!).slice(f.skip ?? 0, (f.skip ?? 0) + (f.limit ?? 60));
   return list;
 }
 

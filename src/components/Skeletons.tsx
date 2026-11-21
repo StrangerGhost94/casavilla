@@ -34,6 +34,11 @@ export function MarketSkeleton() {
   );
 }
 
+/** Just the card shapes (no heading), for the gap while infinite scroll fetches the next page. */
+export function CardBones({ count = 3 }: { count?: number }) {
+  return <>{Array.from({ length: count }, (_, i) => <div key={i} aria-hidden><Card /></div>)}</>;
+}
+
 /** The cards still loading on a page whose top is already shown. */
 export function CardsSkeleton({ count = 3 }: { count?: number }) {
   return (

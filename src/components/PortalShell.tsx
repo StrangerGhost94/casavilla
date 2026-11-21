@@ -6,6 +6,7 @@ import { db, type User } from "@/db";
 import { logout } from "@/app/actions";
 import { menuFor, roleLabel, tabs } from "@/lib/nav";
 import { CommandPalette, SearchButton } from "./CommandPalette";
+import { PullToRefresh } from "./Loaders";
 import { homeFor } from "@/lib/auth";
 import { Avatar, Logo } from "./ui";
 import { BottomNav, MobileTitle, NavLinks } from "./NavLinks";
@@ -94,6 +95,7 @@ export async function PortalShell({ user, children }: { user: User; children: Re
       <BottomNav tabs={tabs[user.role]} />
       {office && <CommandPalette superAdmin={user.superAdmin} />}
       <InstallPrompt />
+      <PullToRefresh />
     </div>
   );
 }

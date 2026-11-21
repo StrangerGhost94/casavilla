@@ -1,4 +1,5 @@
 import { provider } from "@/lib/momo";
+import { PulseWait } from "./Loaders";
 import { AutoRefresh, Submit } from "./client";
 
 /**
@@ -10,7 +11,7 @@ export function PayPending({ reference, sandbox, title = "Approve the payment on
 }) {
   return (
     <div className="mt-6">
-      <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-brand-100 border-t-brand-500" />
+      <PulseWait />
       <div className="mt-3 font-semibold">{title}</div>
       <div className="muted">{note}</div>
       {provider !== "sandbox" && <AutoRefresh seconds={5} />}

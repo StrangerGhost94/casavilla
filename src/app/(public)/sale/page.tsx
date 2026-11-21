@@ -1,13 +1,16 @@
 import Link from "next/link";
 import { AlertButton } from "@/components/AlertButton";
-import type { Prisma } from "@prisma/client";
 import { ArrowDownUp, Check, FileCheck2, MapPin, MessageCircle, Search, ShieldCheck, X } from "lucide-react";
 import { db } from "@/db";
 import { DiscoverTabs } from "@/components/DiscoverTabs";
 import { SaleCard } from "@/components/SaleCard";
+import { PAGE, saleQuery } from "@/lib/browse";
+import { moreSale } from "@/app/browse-actions";
+import { InfiniteList } from "@/components/Loaders";
+import { CardBones } from "@/components/Skeletons";
 import { LocationPicker } from "@/components/LocationPicker";
 import { SearchBand } from "@/components/ListingParts";
-import { crumbText, insideFilter, trailFor } from "@/lib/geo";
+import { crumbText, trailFor } from "@/lib/geo";
 import { KIND, PRICE_STEPS, SALE_KINDS, shortUgx } from "@/lib/sales";
 import { waLink } from "@/lib/social";
 
@@ -22,23 +25,11 @@ const sorts = [["", "Newest"], ["low", "Lowest price"], ["high", "Highest price"
 
 export default async function ForSale({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const kind = (SALE_KINDS as readonly string[]).includes(sp.kind ?? "") ? sp.kind : undefined;
   const area = await trailFor(sp.in);
-  const inside = area.length > 1 ? await insideFilter(sp.in) : null;
-  const max = Number(sp.max) || undefined;
-  const q = sp.q?.trim();
-  const where: Prisma.SaleListingWhereInput = {
-    status: { in: ["active", "under_offer"] },
-    ...(kind ? { kind } : {}),
-    ...(max ? { price: { lte: max } } : {}),
-    ...(sp.titled ? { titleStatus: "titled" } : {}),
-    ...(inside ? { place: inside } : {}),
-    ...(q ? { OR: [{ title: { contains: q, mode: "insensitive" } }, { location: { contains: q, mode: "insensitive" } }, { estate: { contains: q, mode: "insensitive" } }] } : {}),
-  };
-  const orderBy: Prisma.SaleListingOrderByWithRelationInput[] =
-    sp.sort === "low" ? [{ price: "asc" }] : sp.sort === "high" ? [{ price: "desc" }] : [{ status: "asc" }, { publishedAt: "desc" }];
-  const [rows, counts] = await Promise.all([
-    db.saleListing.findMany({ where, orderBy, take: 60, include: { _count: { select: { photos: true } } } }),
+  const { where, orderBy, kind, max, q } = await saleQuery(area.length > 1 ? sp : { ...sp, in: undefined });
+  const [rows, found, counts] = await Promise.all([
+    db.saleListing.findMany({ where, orderBy, take: PAGE, include: { _count: { select: { photos: true } } } }),
+    db.saleListing.count({ where }),
     db.saleListing.groupBy({ by: ["kind"], _count: true, where: { status: { in: ["active", "under_offer"] } } }),
   ]);
   const keep = { kind, q, max: sp.max, in: sp.in, titled: sp.titled, sort: sp.sort };
@@ -103,7 +94,7 @@ export default async function ForSale({ searchParams }: { searchParams: Promise<
         <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-brand-950">{kind ? KIND[kind as keyof typeof KIND].plural : "Everything for sale"}{area.length > 1 ? ` in ${area[area.length - 1].name}` : ""}</h2>
-            <p className="text-xs text-stone-500">{rows.length} listing{rows.length === 1 ? "" : "s"}</p>
+            <p className="text-xs text-stone-500">{found} listing{found === 1 ? "" : "s"}</p>
           </div>
           <div className="flex items-center gap-2"><AlertButton kind="sale" params={{ q, in: sp.in, kind, max: sp.max, titled: sp.titled }} next={href({})} /><details className="relative">
             <summary className="chip cursor-pointer list-none"><ArrowDownUp className="h-3.5 w-3.5" /> {sortLabel}</summary>
@@ -122,8 +113,9 @@ export default async function ForSale({ searchParams }: { searchParams: Promise<
         )}
 
         {rows.length > 0 ? (
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {rows.map((l) => <SaleCard key={l.id} l={l} />)}
+          <div className="mt-4">
+            <InfiniteList key={JSON.stringify(keep)} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" first={rows.map((l) => <SaleCard key={l.id} l={l} />)}
+              firstDone={rows.length < PAGE || found <= PAGE} loadMore={moreSale.bind(null, keep)} skeleton={<CardBones count={3} />} endText={found > PAGE ? `All ${found} listings shown.` : ""} />
           </div>
         ) : (
           <div className="mt-4 rounded-3xl border border-dashed border-stone-300 bg-white/70 px-6 py-10 text-center">

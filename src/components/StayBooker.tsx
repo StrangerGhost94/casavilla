@@ -1,5 +1,6 @@
 "use client";
 import { useActionState, useMemo, useState } from "react";
+import { FullScreenLoader, Spinner } from "./Loaders";
 import { bookStay } from "@/app/stay-actions";
 
 const ugx = (n: number) => `UGX ${n.toLocaleString("en-UG")}`;
@@ -43,7 +44,8 @@ export function StayBooker({ unitId, nightly, cleaningFee, minNights, maxGuests,
       </div>
       <label className="flex items-start gap-2 text-xs text-stone-600"><input type="checkbox" name="agree" required className="mt-0.5 accent-brand-700" /> I agree to the house rules and to pay for the whole stay now. Free cancellation up to 2 days before check-in.</label>
       {state?.error && <div className="rounded-xl bg-maroon-50 p-3 text-sm text-maroon-600">{state.error}</div>}
-      <button className="btn-primary btn-lg w-full" disabled={pending || !!problem || n < 1}>{pending ? "Sending payment request…" : n > 0 && !problem ? `Book & pay ${ugx(nightly * n + cleaningFee)}` : "Choose your dates"}</button>
+      <FullScreenLoader show={pending} title="Holding your nights and sending the payment request…" note="Keep this page open. Your phone will ask for your Mobile Money PIN in a moment." />
+      <button className="btn-primary btn-lg w-full" disabled={pending || !!problem || n < 1} aria-busy={pending}>{pending ? <Spinner label="Sending payment request…" /> : n > 0 && !problem ? `Book & pay ${ugx(nightly * n + cleaningFee)}` : "Choose your dates"}</button>
     </form>
   );
 }

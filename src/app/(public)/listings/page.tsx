@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { AlertButton } from "@/components/AlertButton";
 import { ArrowDownUp, Check, MapPin, MessageCircle, Search, X } from "lucide-react";
-import { listedUnits, type ListingSort } from "@/lib/queries";
+import { countListedUnits, listedUnits, type ListingSort } from "@/lib/queries";
+import { homesFilter, PAGE } from "@/lib/browse";
+import { moreHomes } from "@/app/browse-actions";
+import { InfiniteList } from "@/components/Loaders";
+import { CardBones } from "@/components/Skeletons";
 import { ugx } from "@/lib/format";
 import { PropertyCard } from "@/components/PropertyCard";
 import { LocationPicker } from "@/components/LocationPicker";
 import { NearMe } from "@/components/NearMe";
 import { DiscoverTabs } from "@/components/DiscoverTabs";
 import { crumbText, trailFor } from "@/lib/geo";
-import { fmtKm, inUganda } from "@/lib/geo-core";
+import { fmtKm } from "@/lib/geo-core";
 import { waLink } from "@/lib/social";
 
 export const dynamic = "force-dynamic";
@@ -24,14 +28,10 @@ const sorts: [ListingSort, string][] = [["new", "Newest"], ["price_asc", "Lowest
 
 export default async function Listings({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const sp = await searchParams;
-  const lat = Number(sp.lat), lng = Number(sp.lng), km = Math.min(50, Math.max(1, Number(sp.km) || 5));
-  const near = Number.isFinite(lat) && Number.isFinite(lng) && sp.lat && sp.lng && inUganda(lat, lng) ? { lat, lng, km } : undefined;
   const area = await trailFor(sp.in);
-  const sort = (sorts.find(([k]) => k === sp.sort)?.[0] ?? "new") as ListingSort;
-  const homes = await listedUnits({
-    q: sp.q, max: Number(sp.max) || undefined, beds: Number(sp.beds) || undefined, in: area.length ? sp.in : undefined, near,
-    furnished: sp.furnished === "1", selfContained: sp.sc === "1", sort,
-  });
+  const f = await homesFilter(sp);
+  const { near, km, sort } = { near: f.near, km: f.km, sort: f.sort ?? "new" };
+  const [homes, total] = await Promise.all([listedUnits({ ...f, limit: PAGE }), countListedUnits(f)]);
   const keep = { q: sp.q, beds: sp.beds, max: sp.max, in: sp.in, lat: sp.lat, lng: sp.lng, km: sp.km, furnished: sp.furnished, sc: sp.sc, sort: sp.sort };
   const href = (patch: Record<string, string | undefined>) => {
     const p = new URLSearchParams(Object.entries({ ...keep, ...patch }).filter(([, v]) => v) as [string, string][]);
@@ -106,7 +106,7 @@ export default async function Listings({ searchParams }: { searchParams: Promise
         <div className="mt-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 className="text-lg font-bold text-brand-950">{heading}</h2>
-            <p className="text-xs text-stone-500">{homes.length} home{homes.length === 1 ? "" : "s"} available{near ? " · only homes with an exact map pin" : ""}</p>
+            <p className="text-xs text-stone-500">{total} home{total === 1 ? "" : "s"} available{near ? " · only homes with an exact map pin" : ""}</p>
           </div>
           <div className="flex items-center gap-2"><AlertButton kind="rent" params={{ q: sp.q, in: sp.in, beds: sp.beds, max: sp.max, furnished: sp.furnished, sc: sp.sc }} next={href({})} /><details className="group relative">
             <summary className="chip cursor-pointer list-none"><ArrowDownUp className="h-3.5 w-3.5" /> {sorts.find(([k]) => k === sort)![1]}</summary>
@@ -127,8 +127,9 @@ export default async function Listings({ searchParams }: { searchParams: Promise
         )}
 
         {homes.length > 0 ? (
-          <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {homes.map((h) => <PropertyCard key={h.id} h={h} />)}
+          <div className="mt-4">
+            <InfiniteList key={JSON.stringify(keep)} className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3" first={homes.map((h) => <PropertyCard key={h.id} h={h} />)}
+              firstDone={homes.length < PAGE || total <= PAGE} loadMore={moreHomes.bind(null, keep)} skeleton={<CardBones count={3} />} endText={total > PAGE ? `All ${total} homes shown.` : ""} />
           </div>
         ) : (
           <div className="mt-4 rounded-3xl border border-dashed border-stone-300 bg-white/70 px-6 py-10 text-center">

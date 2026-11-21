@@ -3,9 +3,13 @@ import { useFormStatus } from "react-dom";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Camera, Check } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
+import { FullScreenLoader, Spinner } from "./Loaders";
 
-/** Submit button: shows "Working…" while sending and a brief "✓ Saved" when the page stays put. */
-export function Submit({ children, className = "btn-primary", pendingText, doneText = "Saved" }: { children: React.ReactNode; className?: string; pendingText?: string; doneText?: string }) {
+/**
+ * Submit button: a spinner while sending (the button keeps its size, so nothing jumps) and a brief "✓ Saved" when
+ * the page stays put. `fullScreen` covers the screen instead, for slow steps that mustn't be interrupted.
+ */
+export function Submit({ children, className = "btn-primary", pendingText, doneText = "Saved", fullScreen }: { children: React.ReactNode; className?: string; pendingText?: string; doneText?: string; fullScreen?: { title: string; note?: string } }) {
   const { pending } = useFormStatus();
   const was = useRef(false);
   const [done, setDone] = useState(false);
@@ -22,18 +26,24 @@ export function Submit({ children, className = "btn-primary", pendingText, doneT
     return () => window.removeEventListener("cv-error", off);
   }, []);
   return (
-    <button type="submit" className={className} disabled={pending} aria-live="polite">
-      {pending ? pendingText ?? "Working…" : done ? <><Check className="h-4 w-4" /> {doneText}</> : children}
-    </button>
+    <>
+      <button type="submit" className={className} disabled={pending} aria-busy={pending} aria-live="polite">
+        {pending ? <Spinner label={pendingText ?? "Working…"} /> : done ? <><Check className="h-4 w-4" /> {doneText}</> : children}
+      </button>
+      {fullScreen && <FullScreenLoader show={pending} {...fullScreen} />}
+    </>
   );
 }
 
-export function ConfirmSubmit({ children, className = "btn-outline btn-sm", message }: { children: React.ReactNode; className?: string; message: string }) {
+export function ConfirmSubmit({ children, className = "btn-outline btn-sm", message, fullScreen }: { children: React.ReactNode; className?: string; message: string; fullScreen?: { title: string; note?: string } }) {
   const { pending } = useFormStatus();
   return (
-    <button type="submit" className={className} disabled={pending} onClick={(e) => { if (!confirm(message)) e.preventDefault(); }}>
-      {children}
-    </button>
+    <>
+      <button type="submit" className={className} disabled={pending} aria-busy={pending} onClick={(e) => { if (!confirm(message)) e.preventDefault(); }}>
+        {pending ? <Spinner label="Working…" /> : children}
+      </button>
+      {fullScreen && <FullScreenLoader show={pending} {...fullScreen} />}
+    </>
   );
 }
 

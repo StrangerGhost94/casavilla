@@ -1,6 +1,7 @@
 "use client";
 import { startTransition, useActionState, useState } from "react";
-import { Loader2, Smartphone } from "lucide-react";
+import { FullScreenLoader, Spinner } from "./Loaders";
+import { Smartphone } from "lucide-react";
 import { payBuildStage } from "@/app/build-site-actions";
 import { networkFor } from "@/lib/format";
 
@@ -35,7 +36,8 @@ export function BuildPayForm({ siteId, stages, defaultStageId, phone, max }: {
       <label className="block"><span className="label">Mobile Money number</span>
         <input name="phone" inputMode="tel" defaultValue={phone.replace("+256", "0")} className="input" autoComplete="tel" /></label>
       {state?.error && <div role="alert" className="rounded-xl bg-maroon-50 p-2.5 text-sm text-maroon-600">{state.error}</div>}
-      <button className="btn-primary w-full" disabled={pending}>{pending ? <><Loader2 className="h-4 w-4 animate-spin" /> Sending the prompt…</> : <><Smartphone className="h-4 w-4" /> Pay {amount ? `UGX ${amount}` : ""}</>}</button>
+      <FullScreenLoader show={pending} title="Sending the payment request to your phone…" note="Keep this page open. Your phone will ask for your Mobile Money PIN in a moment." />
+      <button className="btn-primary w-full" disabled={pending} aria-busy={pending}>{pending ? <Spinner label="Sending the prompt…" /> : <><Smartphone className="h-4 w-4" /> Pay {amount ? `UGX ${amount}` : ""}</>}</button>
       <p className="text-center text-[11px] text-stone-500">You&apos;ll get a prompt on your phone — enter your PIN to approve.</p>
     </form>
   );

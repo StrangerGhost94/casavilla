@@ -1,5 +1,6 @@
 "use client";
 import { useActionState, useState } from "react";
+import { FullScreenLoader, Spinner } from "@/components/Loaders";
 import { Check } from "lucide-react";
 import { startPayment } from "@/app/tenant/actions";
 
@@ -64,7 +65,8 @@ export function PayForm({ chargeId, balance, rent, max, momoMax, phone }: { char
         </div>
       )}
       {state?.error && <div className="rounded-xl bg-maroon-50 p-3 text-sm text-maroon-600">{state.error}</div>}
-      <button className="btn-primary btn-lg w-full" disabled={pending}>{pending ? "Sending request to your phone…" : amount > balance && balance > 0 ? "Pay rent and months ahead" : balance > 0 ? "Pay rent" : "Pay rent in advance"}</button>
+      <FullScreenLoader show={pending} title="Sending the payment request to your phone…" note="Keep this page open. Your phone will ask for your Mobile Money PIN in a moment." />
+      <button className="btn-primary btn-lg w-full" disabled={pending} aria-busy={pending}>{pending ? <Spinner label="Sending request to your phone…" /> : amount > balance && balance > 0 ? "Pay rent and months ahead" : balance > 0 ? "Pay rent" : "Pay rent in advance"}</button>
       <p className="text-center text-xs text-stone-500">You&apos;ll get a prompt on your phone to enter your Mobile Money PIN.</p>
     </form>
   );
