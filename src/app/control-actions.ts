@@ -69,3 +69,25 @@ export async function completeOnboarding(fd: FormData) {
   await audit(me.id, "user.onboarded", "user", me.id, data.passwordHash ? "Changed the temporary password and accepted the office rules" : "Accepted the office rules", db, { after: { rules: [...OFFICE_RULES] } });
   redirect("/manager");
 }
+
+/**
+ * While CasaVilla is still testing (payments in test mode): deletes all test accounts and records in one go.
+ * Super admins only, typed confirmation and a password signature. Office accounts stay unless ticked.
+ */
+export async function clearTestDataNow(fd: FormData) {
+  const me = await requireSuperAdmin();
+  const { provider } = await import("@/lib/momo");
+  if (provider !== "sandbox") return fail("Real payments are switched on, so test data can no longer be cleared from here");
+  if (String(fd.get("confirm") || "").trim().toUpperCase() !== "DELETE EVERYTHING") return fail("Type DELETE EVERYTHING to confirm");
+  await requireSignature(fd, me);
+  const { clearTestData, keptAccounts } = await import("@/lib/handover");
+  const keep = await keptAccounts(me.id, fd.get("officeToo") === "on");
+  try {
+    await clearTestData(me.id, keep);
+  } catch (e) {
+    console.error("clear test data", e);
+    return fail("Nothing was deleted: the clean-up stopped and everything was put back.");
+  }
+  revalidatePath("/", "layout");
+  redirect(`/manager/health?ok=${encodeURIComponent(`Test data cleared. ${keep.length === 1 ? "Only your account remains." : `${keep.length} office accounts kept.`}`)}`);
+}

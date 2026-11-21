@@ -10,11 +10,16 @@ import { mailConfigured } from "@/lib/mail";
 import { PageHeader, SectionTitle } from "@/components/ui";
 import { ConfirmSubmit, Submit } from "@/components/client";
 import { repairCheck, runMaintenance } from "../actions";
+import { clearTestDataNow } from "@/app/control-actions";
+import { handoverPreview, keptAccounts } from "@/lib/handover";
+import { Signature } from "@/components/Signature";
 
 export const metadata = { title: "System health" };
 
 export default async function SystemHealth() {
-  await requireSuperAdmin();
+  const me = await requireSuperAdmin();
+  const testing = provider === "sandbox";
+  const wipe = testing ? await handoverPreview(await keptAccounts(me.id, false)) : null;
   const [checks, lastSweep] = await Promise.all([
     runChecks(),
     db.marker.findFirst({ where: { key: { startsWith: "sweep:" } }, orderBy: { createdAt: "desc" } }),
@@ -65,6 +70,21 @@ export default async function SystemHealth() {
           </div>
         ))}
       </div>
+
+      {wipe && (
+        <>
+          <SectionTitle title="Clear test data" />
+          <div className="card border-maroon-200 text-sm">
+            <p className="text-stone-700">While payments are in test mode you can wipe everything entered for testing: <b>{wipe.people.length ? wipe.people.map((p) => `${p.n} ${p.role}${p.n === 1 ? "" : "s"}`).join(", ") : "no other accounts"}</b>, {wipe.properties} propert{wipe.properties === 1 ? "y" : "ies"}, {wipe.leases} lease{wipe.leases === 1 ? "" : "s"}, {wipe.payments} payment{wipe.payments === 1 ? "" : "s"}, {wipe.listings} sale listing{wipe.listings === 1 ? "" : "s"}, {wipe.bookings} booking{wipe.bookings === 1 ? "" : "s"}, plus repairs, documents, approvals, cash closes, messages and the activity history. Office accounts stay. Places, house plans and finished projects stay. <b>This cannot be undone</b>, so take a database backup first. Once real payments are switched on, this disappears.</p>
+            <form action={clearTestDataNow} className="mt-3 space-y-2">
+              <label className="flex items-center gap-2 text-stone-700"><input type="checkbox" name="officeToo" className="h-4 w-4" /> Also delete every other office account (only mine stays)</label>
+              <input name="confirm" className="input w-60 py-2" placeholder="Type DELETE EVERYTHING" aria-label="Type DELETE EVERYTHING to confirm" autoComplete="off" required />
+              <Signature reasonHint="e.g. testing finished, starting real data" />
+              <ConfirmSubmit message="Delete all test accounts and records? This cannot be undone." className="btn-outline btn-sm text-maroon-600">Clear test data</ConfirmSubmit>
+            </form>
+          </div>
+        </>
+      )}
 
       <SectionTitle title="Real-user speed" />
       <RealUserSpeed />
