@@ -99,15 +99,7 @@ const CHECKS: { id: string; title: string; why: string; sql: string; fix?: strin
     fix: `UPDATE tenant_links t SET status = 'cancelled', decided_at = NOW() WHERE t.status = 'pending'
           AND EXISTS (SELECT 1 FROM leases l WHERE l.tenant_id = t.tenant_id AND l.status = 'active')`,
   },
-  {
-    id: "link-landlord-joined",
-    title: "Connect requests waiting for a landlord who has since joined",
-    why: "The landlord is on CasaVilla now but hasn't been shown the request.",
-    sql: `SELECT t.id, 'request ' || t.id || ' → ' || u.name AS label FROM tenant_links t JOIN users u ON u.phone = t.landlord_phone AND u.role = 'landlord'
-          WHERE t.status = 'pending' AND t.landlord_id IS NULL`,
-    fix: `UPDATE tenant_links t SET landlord_id = (SELECT MIN(u.id) FROM users u WHERE u.phone = t.landlord_phone AND u.role = 'landlord')
-          WHERE t.status = 'pending' AND t.landlord_id IS NULL AND EXISTS (SELECT 1 FROM users u WHERE u.phone = t.landlord_phone AND u.role = 'landlord')`,
-  },
+
   {
     id: "locations-loaded",
     title: "Uganda location list not loaded",
@@ -191,12 +183,6 @@ const CHECKS: { id: string; title: string; why: string; sql: string; fix?: strin
           FROM inspections i JOIN charges c ON c.id = i.charge_id WHERE c.amount + c.waived <> i.deductions`,
   },
   {
-    id: "expense-pending",
-    title: "Caretaker expenses waiting more than two weeks for approval",
-    why: "They're left off the landlord's statement until approved or rejected.",
-    sql: `SELECT id, description || ' — ' || amount AS label FROM expenses WHERE status = 'pending' AND created_at < now() - interval '14 days'`,
-  },
-  {
     id: "sale-review-waiting",
     title: "Listings for sale waiting more than 3 days for review",
     why: "Sellers are waiting. Open Manager → For sale → To review.",
@@ -207,13 +193,6 @@ const CHECKS: { id: string; title: string; why: string; sql: string; fix?: strin
     title: "Live listings for sale with no photos",
     why: "Listings without photos get very few enquiries — ask the seller to add some.",
     sql: `SELECT s.id, s.title AS label FROM sale_listings s WHERE s.status IN ('active', 'under_offer') AND NOT EXISTS (SELECT 1 FROM sale_photos p WHERE p.listing_id = s.id)`,
-  },
-  {
-    id: "caretaker-wrong-landlord",
-    title: "Caretaker assignments that don't match the property's landlord",
-    why: "A caretaker should only work for the landlord who owns the property (e.g. after a property changed hands).",
-    sql: `SELECT a.id, 'assignment ' || a.id || ' (property ' || a.property_id || ')' AS label FROM caretaker_assignments a JOIN properties p ON p.id = a.property_id WHERE p.landlord_id <> a.landlord_id`,
-    fix: `UPDATE caretaker_assignments a SET landlord_id = p.landlord_id FROM properties p WHERE p.id = a.property_id AND p.landlord_id <> a.landlord_id`,
   },
 ];
 

@@ -7,6 +7,7 @@ import { notify } from "@/lib/notify";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
 import { id, text } from "@/lib/validate";
+import { SITE } from "@/lib/seo";
 
 export async function uploadDocument(fd: FormData) {
   const u = await requireUser();
@@ -52,10 +53,9 @@ export async function emailMyReceipt(fd: FormData) {
   const { emailHtml, queueEmail, sendQueuedEmails } = await import("@/lib/mail");
   const r = await receiptData(id(fd), u);
   if (!r || r.tenant.id !== u.id) return fail("Receipt not found");
-  const app = process.env.APP_URL || "https://casavilla-production.up.railway.app";
   await queueEmail({
     to: u.email, subject: `Your receipt ${r.p.receiptNo}`, attachKind: "receipt", attachId: r.p.id,
-    html: emailHtml({ accent: r.brand.accentColor, title: `Receipt ${r.p.receiptNo}`, lines: [`Here is your receipt for ${r.property} · ${r.unit}.`], button: { label: "View online", href: `${app}/receipts/${r.p.id}` }, footer: r.brand.displayName }),
+    html: emailHtml({ accent: r.brand.accentColor, title: `Receipt ${r.p.receiptNo}`, lines: [`Here is your receipt for ${r.property} · ${r.unit}.`], button: { label: "View online", href: `${SITE}/receipts/${r.p.id}` }, footer: r.brand.displayName }),
   });
   await sendQueuedEmails(3).catch(() => 0);
 }

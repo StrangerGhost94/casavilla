@@ -40,7 +40,7 @@ export async function PublicHeader() {
           </div>
         </div>
       </header>
-      <BottomNav tabs={tabs[u?.role ?? "guest"]} />
+      <BottomNav tabs={tabs[u && u.role !== "caretaker" ? u.role : "guest"]} />
     </>
   );
 }

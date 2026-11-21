@@ -5,15 +5,14 @@ import { requireUser } from "@/lib/auth";
 import { saveUpload } from "@/lib/uploads";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
+import { workableProperty } from "@/lib/access";
 import { id, int, oneOf, reqText } from "@/lib/validate";
 
 const ROOMS = ["exterior", "compound", "living", "kitchen", "bedroom", "bathroom", "dining", "balcony", "view", "other"] as const;
 const MAX_PHOTOS = 40;
 
 async function ownedProperty(u: User, pid: number) {
-  const p = await db.property.findUnique({ where: { id: pid } });
-  if (!p || (u.role !== "manager" && p.landlordId !== u.id)) return fail("Property not found");
-  return p;
+  return (await workableProperty(u, pid)) ?? fail("Property not found");
 }
 
 /** One photo from the guided shot list. The first front photo becomes the listing cover automatically. */

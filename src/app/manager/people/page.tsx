@@ -5,7 +5,7 @@ import { requireUser } from "@/lib/auth";
 import { fmtDate } from "@/lib/format";
 import { PageHeader, Badge, Field } from "@/components/ui";
 import { Submit } from "@/components/client";
-import { setUserStatus, createStaff } from "../actions";
+import { createStaff } from "../actions";
 import { Signature } from "@/components/Signature";
 
 export default async function People({ searchParams }: { searchParams: Promise<{ role?: string; status?: string; q?: string }> }) {

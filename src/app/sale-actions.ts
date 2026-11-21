@@ -9,7 +9,7 @@ import { audit } from "@/lib/audit";
 import { requireChecklist } from "@/lib/checklist";
 import { notify, notifyManagers } from "@/lib/notify";
 import { saveUpload } from "@/lib/uploads";
-import { normalizePhone, kampalaToday } from "@/lib/format";
+import { normalizePhone, kampalaToday, isUgPhone } from "@/lib/format";
 import { placeLine, readPlace } from "@/lib/geo-form";
 import { id, num, oneOf, reqText, text } from "@/lib/validate";
 import { AGENT_LISTING_DAYS, REPORT_REASONS, SALE_FEATURES, SALE_KINDS, SIZE_UNITS, TENURES, TITLE_STATUSES } from "@/lib/sales";
@@ -264,7 +264,7 @@ export async function sendSaleEnquiry(_: EnquiryState, fd: FormData): Promise<En
   const name = String(fd.get("name") || me?.name || "").trim().slice(0, 80);
   const phone = normalizePhone(String(fd.get("phone") || me?.phone || ""));
   if (name.length < 2) return { error: "Enter your name." };
-  if (!/^\+256\d{9}$/.test(phone) && !/^\+\d{9,15}$/.test(phone)) return { error: "Enter a phone number we can call, e.g. 0772 123 456." };
+  if (!isUgPhone(phone) && !/^\+\d{9,15}$/.test(phone)) return { error: "Enter a phone number we can call, e.g. 0772 123 456." };
   const message = String(fd.get("message") || "").trim().slice(0, 1500) || null;
   const wantsViewing = fd.get("wantsViewing") === "on";
   const vd = String(fd.get("viewingDate") || "");

@@ -1,6 +1,6 @@
 import "server-only";
 import { db } from "@/db";
-import { kampalaToday } from "@/lib/format";
+import { kampalaToday, kampalaStart } from "@/lib/format";
 
 /** Cash and bank receipts by Kampala day (paid_at is stored in UTC). */
 const DAY = `(p.paid_at + interval '3 hours')::date`;
@@ -25,7 +25,7 @@ export async function unclosedCashDays() {
 
 /** The cash and bank payments of one Kampala day. */
 export function cashFor(day: string) {
-  const start = new Date(`${day}T00:00:00+03:00`);
+  const start = kampalaStart(day);
   return db.payment.findMany({
     where: { status: "success", method: { in: ["cash", "bank"] }, paidAt: { gte: start, lt: new Date(start.getTime() + 86400000) } },
     orderBy: { paidAt: "asc" },
@@ -36,5 +36,5 @@ export function cashFor(day: string) {
 /** This month's access review, if a super admin has done it. */
 export async function accessReviewThisMonth() {
   const month = kampalaToday().slice(0, 7);
-  return db.auditLog.findFirst({ where: { action: "access.reviewed", createdAt: { gte: new Date(`${month}-01T00:00:00+03:00`) } }, orderBy: { seq: "desc" } });
+  return db.auditLog.findFirst({ where: { action: "access.reviewed", createdAt: { gte: kampalaStart(month) } }, orderBy: { seq: "desc" } });
 }

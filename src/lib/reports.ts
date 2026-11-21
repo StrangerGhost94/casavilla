@@ -1,8 +1,8 @@
 import "server-only";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/db";
-import { kampalaToday } from "./format";
-import { daysBetween } from "./billing";
+import { kampalaToday, kampalaStart } from "./format";
+import { daysBetween } from "./format";
 
 /** A reporting period: [from, to) as YYYY-MM-DD dates in Kampala time. */
 export type Period = { from: string; to: string; label: string; preset: string };
@@ -55,7 +55,7 @@ type Scope = { landlordId?: number; propertyId?: number };
  * occupancy, deposits held — plus every payment and expense line for the spreadsheet.
  */
 export async function financialReport(period: Period, scope: Scope = {}) {
-  const start = new Date(`${period.from}T00:00:00+03:00`), end = new Date(`${period.to}T00:00:00+03:00`);
+  const start = kampalaStart(period.from), end = kampalaStart(period.to);
   const dFrom = new Date(`${period.from}T00:00:00Z`), dTo = new Date(`${period.to}T00:00:00Z`);
   const propWhere: Prisma.PropertyWhereInput = { ...(scope.landlordId ? { landlordId: scope.landlordId } : {}), ...(scope.propertyId ? { id: scope.propertyId } : {}) };
   const leaseWhere: Prisma.LeaseWhereInput = { unit: { property: propWhere } };

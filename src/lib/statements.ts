@@ -1,13 +1,13 @@
 import "server-only";
 import { db } from "@/db";
 import { RENTAL_TAX } from "./rules";
-import { fmtDate, kampalaToday, ugx } from "./format";
+import { fmtDate, kampalaToday, ugx, kampalaStart } from "./format";
 import { PdfWriter, embedLogo } from "./pdf";
 import { brandFor } from "./brand";
 
 const monthRange = (month: string) => {
   const [y, m] = month.split("-").map(Number);
-  const start = new Date(`${month}-01T00:00:00+03:00`);
+  const start = kampalaStart(month);
   const end = new Date(`${m === 12 ? y + 1 : y}-${String(m === 12 ? 1 : m + 1).padStart(2, "0")}-01T00:00:00+03:00`);
   return { start, end };
 };
@@ -85,7 +85,7 @@ export async function statement(landlordId: number, month: string, propertyId?: 
 
   // Rental tax estimate: gross rent received in the tax year up to the end of this month (individuals).
   const ty = taxYearOf(month);
-  const yearInc = await received(landlordId, new Date(`${ty.start}-01T00:00:00+03:00`), end, propertyId);
+  const yearInc = await received(landlordId, kampalaStart(ty.start), end, propertyId);
   const grossRentYear = (yearInc.byKind.rent ?? 0) + (yearInc.byKind.late_fee ?? 0) + (yearInc.byKind.short_stay ?? 0);
 
   return {

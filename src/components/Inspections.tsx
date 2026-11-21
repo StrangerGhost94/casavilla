@@ -24,13 +24,13 @@ async function baselineFor(leaseId: number | null, kind: string): Promise<Baseli
   return Object.fromEntries(await moveInBaseline(leaseId));
 }
 
-/** The report for landlords, managers and caretakers: fill it in, submit it, reopen it, download it. */
+/** The report: the office fills it in, submits it, reopens it and downloads it. */
 export async function InspectionPage({ id, viewer }: { id: number; viewer: User }) {
   const ins = await inspectionFull(id);
   if (!ins || !(await workableUnit(viewer, ins.unitId))) notFound();
   const editable = ins.status === "draft";
   const baseline = await baselineFor(ins.leaseId, ins.kind);
-  const back = ins.leaseId && viewer.role !== "caretaker" ? `/${viewer.role}/tenants/${ins.leaseId}` : `/${viewer.role}/inspections`;
+  const back = ins.leaseId ? `/${viewer.role}/tenants/${ins.leaseId}` : `/${viewer.role}/inspections`;
   const reading = new Map(ins.readings.map((r) => [r.meterId, r.reading]));
   const missingNotes = ins.items.filter((i) => ["poor", "damaged", "missing"].includes(i.condition) && !i.note).length;
   return (
@@ -100,9 +100,7 @@ export async function InspectionPage({ id, viewer }: { id: number; viewer: User 
         ) : (
           <div className="flex flex-wrap items-center gap-2">
             <FileButton href={`/inspections/${ins.id}/pdf`} name={`inspection-${ins.id}.pdf`}>Download PDF</FileButton>
-            {viewer.role !== "caretaker" && (
-              <form action={reopenInspectionAction}><input type="hidden" name="id" value={ins.id} /><Submit className="btn-ghost btn-sm">Reopen to correct</Submit></form>
-            )}
+            <form action={reopenInspectionAction}><input type="hidden" name="id" value={ins.id} /><Submit className="btn-ghost btn-sm">Reopen to correct</Submit></form>
             {ins.chargeId && <span className="text-xs text-stone-500">Deductions of {ugx(ins.deductions)} were charged to the lease.</span>}
           </div>
         )}
@@ -224,23 +222,8 @@ export async function InspectionList({ viewer }: { viewer: User }) {
         </select>
         <select name="kind" className="input" defaultValue="routine"><option value="routine">Routine check</option></select>
         <Submit className="btn-primary">Start</Submit>
-        <p className="text-[11px] text-stone-500 sm:col-span-3">Move-in and move-out reports are started from the tenant&apos;s tenancy page{viewer.role === "caretaker" ? " — ask the landlord, or start one from the unit list below" : ""}.</p>
+        <p className="text-[11px] text-stone-500 sm:col-span-3">Move-in and move-out reports are started from the tenant&apos;s tenancy page.</p>
       </form>
-      {viewer.role === "caretaker" && units.some((u) => u.leases[0]) && (
-        <div className="card mb-4 space-y-2">
-          <div className="text-sm font-semibold text-brand-950">Move-in / move-out for a tenancy</div>
-          {units.filter((u) => u.leases[0]).map((u) => (
-            <div key={u.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span>{u.property.name} · {u.label} — {u.leases[0].tenant.name}</span>
-              <span className="flex gap-1.5">
-                {(["move_in", "move_out"] as const).map((k) => (
-                  <form key={k} action={startInspectionAction}><input type="hidden" name="leaseId" value={u.leases[0].id} /><input type="hidden" name="kind" value={k} /><Submit className="btn-outline btn-sm">{KIND_LABEL[k]}</Submit></form>
-                ))}
-              </span>
-            </div>
-          ))}
-        </div>
-      )}
       {list.length ? (
         <div className="card divide-y divide-stone-100 p-0">
           {list.map((i) => (

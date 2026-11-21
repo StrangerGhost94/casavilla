@@ -1,7 +1,7 @@
 import "server-only";
 import { db, type Job } from "@/db";
 import { kampalaToday, ugx, ymd } from "./format";
-import { daysBetween } from "./billing";
+import { daysBetween } from "./format";
 import { trailFor, within } from "./geo";
 
 // ── Tenant payment reliability ────────────────────────────────────────────────

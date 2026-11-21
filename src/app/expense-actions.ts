@@ -5,7 +5,6 @@ import { requireSuperAdmin, requireUser } from "@/lib/auth";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
 import { requireSignature } from "@/lib/signature";
-import { notify } from "@/lib/notify";
 import { saveUpload } from "@/lib/uploads";
 import { workableProperty } from "@/lib/access";
 import { EXPENSE_CATEGORIES } from "@/lib/rules";
@@ -28,33 +27,18 @@ export async function addExpense(fd: FormData) {
   const spentOn = (await date(fd, "spentOn", "the date", true)) || kampalaToday();
   if (spentOn > kampalaToday()) return fail("The date can't be in the future");
   const receiptFileId = await saveUpload(fd.get("receipt"), u.id, false);
-  const pending = false; // expenses are entered by the CasaVilla office
+  // Entered by the CasaVilla office, so it counts on the statement straight away.
   const e = await db.expense.create({
-    data: { landlordId, propertyId: p?.id ?? null, category, description, amount, spentOn: new Date(`${spentOn}T00:00:00Z`), receiptFileId, createdById: u.id, status: pending ? "pending" : "approved" },
+    data: { landlordId, propertyId: p?.id ?? null, category, description, amount, spentOn: new Date(`${spentOn}T00:00:00Z`), receiptFileId, createdById: u.id, status: "approved" },
   });
-  await audit(u.id, "expense.added", "expense", e.id, `${category}: ${ugx(amount)}${pending ? " (awaiting approval)" : ""}`);
-  if (pending) await notify(landlordId, `${u.name} (caretaker) recorded an expense: ${description} — ${ugx(amount)}. Approve it to include it in your statement.`, "/landlord/statements");
-  refresh();
-}
-
-export async function decideExpense(fd: FormData) {
-  const u = await requireUser("manager");
-  const e = await db.expense.findUnique({ where: { id: id(fd) } });
-  if (!e || (u.role !== "manager" && e.landlordId !== u.id)) return fail("Expense not found");
-  const d = fd.get("decision");
-  if (d !== "approve" && d !== "reject") return fail("Choose approve or reject");
-  const status = d === "approve" ? "approved" : "rejected";
-  await db.expense.update({ where: { id: e.id }, data: { status } });
-  await audit(u.id, `expense.${status}`, "expense", e.id, `${e.description}: ${ugx(e.amount)}`);
-  if (e.createdById !== u.id) await notify(e.createdById, `Your expense "${e.description}" (${ugx(e.amount)}) was ${status}.`, "/caretaker/expenses");
+  await audit(u.id, "expense.added", "expense", e.id, `${category}: ${ugx(amount)}`);
   refresh();
 }
 
 export async function deleteExpense(fd: FormData) {
   const u = await requireUser("manager");
   const e = await db.expense.findUnique({ where: { id: id(fd) } });
-  const mine = !!e;
-  if (!e || !mine) return fail("Expense not found");
+  if (!e) return fail("Expense not found");
   await db.expense.delete({ where: { id: e.id } });
   await audit(u.id, "expense.deleted", "expense", e.id, `${e.description}: ${ugx(e.amount)}`);
   refresh();

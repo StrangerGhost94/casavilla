@@ -1,6 +1,6 @@
 import { MessageCircle, Phone } from "lucide-react";
 import { requireUser } from "@/lib/auth";
-import { fmtDate, kampalaToday, ymd } from "@/lib/format";
+import { fmtDate, kampalaToday, ymd, daysBetween } from "@/lib/format";
 import { Avatar, PageHeader, Empty } from "@/components/ui";
 import { Documents } from "@/components/Documents";
 import { AgreementCard, LeaseFacts } from "@/components/LeaseTools";
@@ -8,7 +8,6 @@ import { activeLease } from "../lib";
 import { InspectionsCard } from "@/components/Inspections";
 import { TenantMeters } from "@/components/Utilities";
 
-const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
 export default async function TenantLease() {
   const u = await requireUser("tenant");

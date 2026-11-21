@@ -10,7 +10,10 @@ export const roleName: Record<Role, string> = {
 export const roleLabel = (u: { role: Role; superAdmin?: boolean }) => u.role === "manager" ? (u.superAdmin ? "Super admin" : "Office staff") : roleName[u.role];
 
 // Long menus are split into labelled groups (`group` starts a new section; items after it stay in it).
-export const menus: Record<Role, NavItem[]> = {
+/** Roles that can sign in (caretaker accounts were retired; they stay in the data for history). */
+export type ActiveRole = Exclude<Role, "caretaker">;
+
+export const menus: Record<ActiveRole, NavItem[]> = {
   tenant: [
     { href: "/tenant", label: "My home", icon: "key" },
     { href: "/tenant/rent", label: "Rent & receipts", icon: "wallet" },
@@ -52,14 +55,6 @@ export const menus: Record<Role, NavItem[]> = {
     { href: "/agent/bookings", label: "Bookings", icon: "calendar" },
     { href: "/agent/statements", label: "Statements", icon: "receipt", group: "Money" },
   ],
-  caretaker: [
-    { href: "/caretaker", label: "Today", icon: "home" },
-    { href: "/caretaker/rent", label: "Rent & cash", icon: "wallet" },
-    { href: "/caretaker/repairs", label: "Repairs", icon: "wrench" },
-    { href: "/caretaker/inspections", label: "Inspections", icon: "clipboardCheck" },
-    { href: "/caretaker/meters", label: "Meter readings", icon: "zap" },
-    { href: "/caretaker/expenses", label: "Expenses", icon: "receipt" },
-  ],
   // Daily work first; pages used now and then sit under "More" (collapsed); system pages last.
   manager: [
     { href: "/manager", label: "Dashboard", icon: "home" },
@@ -96,7 +91,7 @@ const SUPER_ADMIN_ONLY = new Set(["/manager/health", "/manager/access-review"]);
 
 /** The menu for one person: ordinary office staff don't get the super-admin pages. */
 export function menuFor(u: { role: Role; superAdmin?: boolean }): NavItem[] {
-  const items = menus[u.role];
+  const items = u.role === "caretaker" ? [] : menus[u.role];
   if (u.role !== "manager" || u.superAdmin) return items;
   const out: NavItem[] = [];
   let heading: string | undefined;
@@ -121,7 +116,7 @@ export function grouped(items: NavItem[]) {
 /** Bottom tab bar: two tabs, the raised "+" action, two tabs, then Profile. */
 export type Tabs = { left: NavItem[]; action: NavItem; right: NavItem[] };
 
-export const tabs: Record<Role | "guest", Tabs> = {
+export const tabs: Record<ActiveRole | "guest", Tabs> = {
   guest: {
     left: [{ href: "/", label: "Home", icon: "home" }, { href: "/listings", label: "Explore", icon: "search" }],
     action: { href: "/list", label: "List", icon: "plus" },
@@ -147,11 +142,6 @@ export const tabs: Record<Role | "guest", Tabs> = {
     left: [{ href: "/agent", label: "Home", icon: "home" }, { href: "/agent/sale", label: "For sale", icon: "tag" }],
     action: { href: "/agent/sale/new", label: "New listing", icon: "plus" },
     right: [{ href: "/agent/bookings", label: "Bookings", icon: "calendar" }, { href: "/profile", label: "Profile", icon: "user" }],
-  },
-  caretaker: {
-    left: [{ href: "/caretaker", label: "Today", icon: "home" }, { href: "/caretaker/rent", label: "Rent", icon: "wallet" }],
-    action: { href: "/caretaker/repairs#new", label: "Report repair", icon: "plus" },
-    right: [{ href: "/caretaker/meters", label: "Meters", icon: "zap" }, { href: "/profile", label: "Profile", icon: "user" }],
   },
   manager: {
     left: [{ href: "/manager", label: "Home", icon: "home" }, { href: "/manager/people", label: "People", icon: "users" }],

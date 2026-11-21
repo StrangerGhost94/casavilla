@@ -44,5 +44,5 @@ export async function endSession() {
 }
 
 export function homeFor(role: Role) {
-  return { tenant: "/tenant", landlord: "/landlord", provider: "/provider", manager: "/manager", caretaker: "/caretaker", agent: "/agent" }[role];
+  return { tenant: "/tenant", landlord: "/landlord", provider: "/provider", manager: "/manager", caretaker: "/", agent: "/agent" }[role];
 }

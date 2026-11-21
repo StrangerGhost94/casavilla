@@ -7,7 +7,7 @@ import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
 import { notifyManagers } from "@/lib/notify";
 import { saveUpload } from "@/lib/uploads";
-import { normalizePhone } from "@/lib/format";
+import { normalizePhone, isUgPhone } from "@/lib/format";
 import { id, num, oneOf, reqText, text } from "@/lib/validate";
 import { BUILD_KIND_KEYS, BUILD_KINDS, PLAN_STYLE_KEYS, PLOT, PROJECT_KINDS, REQUEST_STATUS, REQUEST_STATUS_KEYS, TIMELINE } from "@/lib/build";
 import { shortUgx } from "@/lib/sales";
@@ -25,7 +25,7 @@ export async function sendBuildRequest(_: BuildRequestState, fd: FormData): Prom
   const name = String(fd.get("name") || me?.name || "").trim().slice(0, 80);
   const phone = normalizePhone(String(fd.get("phone") || me?.phone || ""));
   if (name.length < 2) return { error: "Enter your name." };
-  if (!/^\+256\d{9}$/.test(phone) && !/^\+\d{9,15}$/.test(phone)) return { error: "Enter a phone number we can call, e.g. 0772 123 456." };
+  if (!isUgPhone(phone) && !/^\+\d{9,15}$/.test(phone)) return { error: "Enter a phone number we can call, e.g. 0772 123 456." };
   const email = String(fd.get("email") || me?.email || "").trim().slice(0, 120) || null;
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Check the email address, or leave it blank." };
   const location = String(fd.get("location") ?? "").trim().slice(0, 160) || null;

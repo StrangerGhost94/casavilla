@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { requireSuperAdmin, requireUser } from "@/lib/auth";
 import { notify, notifyManagers } from "@/lib/notify";
-import { normalizePhone } from "@/lib/format";
+import { normalizePhone, isEmail, isUgPhone } from "@/lib/format";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
 import { requireSignature } from "@/lib/signature";
@@ -97,11 +97,11 @@ export async function newLandlordCode(fd: FormData) {
 export async function createStaff(fd: FormData) {
   const me = await requireSuperAdmin();
   const email = String(fd.get("email") || "").trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return fail("Enter a valid email");
+  if (!isEmail(email)) return fail("Enter a valid email");
   const password = String(fd.get("password") || "");
   if (password.length < 8) return fail("Password must be at least 8 characters");
   const phone = normalizePhone(String(fd.get("phone") || ""));
-  if (!/^\+256\d{9}$/.test(phone)) return fail("Enter a valid Ugandan phone number");
+  if (!isUgPhone(phone)) return fail("Enter a valid Ugandan phone number");
   if (await db.user.findUnique({ where: { email } })) return fail("Someone already uses that email");
   const reason = await requireSignature(fd, me);
   const u = await db.user.create({

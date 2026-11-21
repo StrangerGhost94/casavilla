@@ -12,8 +12,6 @@ export const CONDITIONS = ["good", "fair", "poor", "damaged", "missing", "na"] a
 export type Condition = (typeof CONDITIONS)[number];
 export const CONDITION_LABEL: Record<Condition, string> = { good: "Good", fair: "Fair", poor: "Poor", damaged: "Damaged", missing: "Missing", na: "N/A" };
 export const KIND_LABEL: Record<string, string> = { move_in: "Move-in", move_out: "Move-out", routine: "Routine check" };
-/** Worse = higher, for spotting what changed between move-in and move-out. */
-export const conditionRank: Record<string, number> = { na: -1, good: 0, fair: 1, poor: 2, damaged: 3, missing: 4 };
 
 const ITEMS: Record<string, string[]> = {
   outside: ["Gate & door", "Locks & keys", "Compound / parking", "Outside lights"],

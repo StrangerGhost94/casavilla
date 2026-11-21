@@ -12,6 +12,7 @@ import { emailHtml, queueEmail } from "./mail";
 import { appUrl, queueMessage } from "./messaging";
 import { autoIssueEfris, needsManualEfris } from "./efris";
 import { afterPayment } from "./payouts";
+import { SITE } from "./seo";
 
 type Tx = Prisma.TransactionClient;
 
@@ -29,7 +30,6 @@ function monthsBetween(start: string, end: string) {
 /** How many days before its due date a month's rent charge is raised (so reminders can go out a week ahead). */
 export const RAISE_AHEAD_DAYS = 7;
 const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86400000).toISOString().slice(0, 10);
-export const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
 /** Serialises all money movements on one lease, so two payments can never both fill the same charge. */
 async function lockLease(tx: Tx, leaseId: number) {
@@ -191,10 +191,9 @@ export async function completePayment(paymentId: number) {
   // Email the receipt (queued; delivered once an email provider is set up).
   if (lease.tenant.emailReceipts) {
     const brand = await brandFor(lease.landlordId);
-    const app = process.env.APP_URL || "https://casavilla-production.up.railway.app";
     await queueEmail({
       to: lease.tenant.email, subject: `Receipt ${receiptNo} — ${ugx(p.amount)} received`, attachKind: "receipt", attachId: p.id,
-      html: emailHtml({ accent: brand.accentColor, title: `Payment received — ${ugx(p.amount)}`, lines: [`Hello ${lease.tenant.name.split(" ")[0]},`, `We received ${ugx(p.amount)} for ${lease.unit.property.name} · ${lease.unit.label}. Your receipt ${receiptNo} is attached.`, extra.trim()], button: { label: "View receipt", href: `${app}/receipts/${p.id}` }, footer: brand.displayName }),
+      html: emailHtml({ accent: brand.accentColor, title: `Payment received — ${ugx(p.amount)}`, lines: [`Hello ${lease.tenant.name.split(" ")[0]},`, `We received ${ugx(p.amount)} for ${lease.unit.property.name} · ${lease.unit.label}. Your receipt ${receiptNo} is attached.`, extra.trim()], button: { label: "View receipt", href: `${SITE}/receipts/${p.id}` }, footer: brand.displayName }),
     });
   }
   // A WhatsApp / SMS receipt too (people check WhatsApp far more than email).

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CheckCircle2, Circle, MessageCircle, Plus } from "lucide-react";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
-import { ugx } from "@/lib/format";
+import { kampalaStart, kampalaToday, ugx } from "@/lib/format";
 import { waLink } from "@/lib/social";
 import { PageHeader, SectionTitle } from "@/components/ui";
 import { Submit } from "@/components/client";
@@ -13,7 +13,7 @@ export const metadata = { title: "Agent dashboard" };
 
 export default async function AgentHome() {
   const u = await requireUser("agent");
-  const monthStart = new Date(`${new Date().toISOString().slice(0, 7)}-01T00:00:00+03:00`);
+  const monthStart = kampalaStart(kampalaToday().slice(0, 7));
   const soon = new Date(Date.now() + 30 * 86400000);
   const [byStatus, expiring, noMandate, props, unverified, bookings] = await Promise.all([
     db.saleListing.groupBy({ by: ["status"], where: { ownerId: u.id }, _count: true }),

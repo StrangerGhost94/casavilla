@@ -1,4 +1,4 @@
-import { Clock, KeyRound, Link2, MessageCircle } from "lucide-react";
+import { Clock, KeyRound, Link2 } from "lucide-react";
 import type { Prisma } from "@prisma/client";
 import { db } from "@/db";
 import { fmtDate, kampalaToday } from "@/lib/format";
@@ -34,9 +34,7 @@ export async function ConnectLandlordCard({ tenantId }: { tenantId: number }) {
           <div className="min-w-0 flex-1">
             <div className="font-semibold text-brand-950">Waiting for CasaVilla</div>
             <p className="mt-0.5 text-sm text-stone-600">
-              {pending.landlord
-                ? <>CasaVilla is confirming your lease{pending.unitNote ? ` for ${pending.unitNote}` : ""}.</>
-                : <>Your landlord ({local(pending.landlordPhone)}) isn&apos;t on CasaVilla yet. CasaVilla will contact them and connect you.</>}
+              CasaVilla is confirming your lease{pending.unitNote ? ` for ${pending.unitNote}` : ""}.
             </p>
             <div className="mt-1 text-[11px] text-stone-400">Sent {fmtDate(pending.createdAt)}</div>
           </div>
@@ -100,18 +98,13 @@ export async function LinkRequests({ where, manager }: { where: Prisma.TenantLin
                 <div className="font-semibold text-brand-950">{r.tenant.name}</div>
                 <div className="break-words text-sm text-stone-500"><a href={`tel:${r.tenant.phone}`} className="hover:underline">{local(r.tenant.phone)}</a> · {r.tenant.email}</div>
                 <p className="mt-1 text-sm text-stone-700">
-                  Says they rent from {r.landlord ? (manager ? r.landlord.name : "you") : <b>a landlord not on CasaVilla ({local(r.landlordPhone)})</b>}{r.unitNote && <> — <b>“{r.unitNote}”</b></>}
+                  Says they rent from {r.landlord ? (manager ? r.landlord.name : "you") : "their landlord"}{r.unitNote && <> — <b>“{r.unitNote}”</b></>}
                 </p>
                 <div className="mt-1.5 flex flex-wrap gap-2"><ScorePill s={score} /><span className="text-[11px] text-stone-400">Asked {fmtDate(r.createdAt)}</span></div>
               </div>
             </div>
 
-            {!r.landlord ? (
-              <a className="btn-outline btn-sm mt-3" target="_blank" rel="noreferrer"
-                href={`https://wa.me/${r.landlordPhone.replace("+", "")}?text=${encodeURIComponent(`Hello, this is CasaVilla Property Management. Your tenant ${r.tenant.name} uses the CasaVilla app to pay rent and report repairs. Join free at https://casavilla-production.up.railway.app/register?role=landlord using this phone number and you'll be connected automatically.`)}`}>
-                <MessageCircle className="h-4 w-4" /> Invite landlord on WhatsApp
-              </a>
-            ) : mine.length === 0 ? (
+            {mine.length === 0 ? (
               <p className="mt-3 rounded-xl bg-stone-50 p-3 text-sm text-stone-600">Add the tenant&apos;s unit (as vacant) under Properties first, then come back to confirm.</p>
             ) : (
               <form action={confirmLink} className="mt-3 grid grid-cols-2 gap-2 border-t border-stone-100 pt-3 sm:grid-cols-4">

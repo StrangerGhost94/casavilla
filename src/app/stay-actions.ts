@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { initiateCharge, provider } from "@/lib/momo";
-import { networkFor, normalizePhone } from "@/lib/format";
+import { networkFor, normalizePhone, isUgPhone } from "@/lib/format";
 import { fail } from "@/lib/flash";
 import { blockDates, cancelBooking, confirmBooking, failBooking, holdBooking } from "@/lib/stays";
 import { id, text } from "@/lib/validate";
@@ -16,7 +16,7 @@ export async function bookStay(_: StayState, fd: FormData): Promise<StayState> {
   const u = await requireUser();
   if (fd.get("agree") !== "on") return { error: "Please accept the house rules and paying for the whole stay up front" };
   const phone = normalizePhone(String(fd.get("phone") || u.phone));
-  if (!/^\+256\d{9}$/.test(phone)) return { error: "Enter a valid Ugandan Mobile Money number" };
+  if (!isUgPhone(phone)) return { error: "Enter a valid Ugandan Mobile Money number" };
   const network = (String(fd.get("network")) || networkFor(phone)) as "mtn" | "airtel";
   if (!["mtn", "airtel"].includes(network)) return { error: "Choose MTN or Airtel" };
   const detected = networkFor(phone);

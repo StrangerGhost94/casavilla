@@ -3,6 +3,7 @@ import { ArrowLeft, Check, Map as MapIcon, MapPin, Navigation, Play, Share2 } fr
 import { MiniMap } from "./MiniMap";
 import { SaveButton } from "./SaveButton";
 import type { LucideIcon } from "lucide-react";
+import { SITE } from "@/lib/seo";
 
 /** Dark band under the header with a title, a line of context and (usually) a search box. */
 export function SearchBand({ title, text, children }: { title: string; text: string; children?: React.ReactNode }) {
@@ -31,7 +32,7 @@ export function PhotoButtons({ back, backLabel, share, video, save }: { back: st
 }
 
 /** WhatsApp "share with a friend" link for a listing. */
-export const shareLink = (text: string, path: string) => `https://wa.me/?text=${encodeURIComponent(`${text} ${process.env.APP_URL ?? ""}${path}`)}`;
+export const shareLink = (text: string, path: string) => `https://wa.me/?text=${encodeURIComponent(`${text} ${SITE}${path}`)}`;
 
 /** Row of icon tiles: the few facts people compare first. */
 export function FactTiles({ facts }: { facts: [LucideIcon, string, string][] }) {

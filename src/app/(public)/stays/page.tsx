@@ -3,7 +3,7 @@ import { AlertButton } from "@/components/AlertButton";
 import { ArrowDownUp, CalendarDays, Check, MapPin, MessageCircle, Moon, Search, Users } from "lucide-react";
 import { db } from "@/db";
 import { areaMatch } from "@/lib/queries";
-import { fmtDate, kampalaToday, ugx } from "@/lib/format";
+import { fmtDate, kampalaToday } from "@/lib/format";
 import { crumbText, insideFilter, trailFor } from "@/lib/geo";
 import { takenUnits, nightsBetween, checkStay } from "@/lib/stays";
 import { StayCard } from "@/components/PropertyCard";

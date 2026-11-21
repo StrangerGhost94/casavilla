@@ -7,16 +7,15 @@ import { requireUser } from "@/lib/auth";
 import { saveUpload } from "@/lib/uploads";
 import { notify, notifyManagers } from "@/lib/notify";
 import { addCharge, completePayment, ensureCharges, leaseBalance, settleLease } from "@/lib/billing";
-import { dateOnly, fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
+import { dateOnly, fmtDate, kampalaToday, ugx, ymd, daysBetween } from "@/lib/format";
 import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
 import { requireSignature } from "@/lib/signature";
+import { workableProperty } from "@/lib/access";
 import { requireChecklist } from "@/lib/checklist";
 
-const daysBetweenDates = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 import { date, id, int, isUniqueViolation, oneOf, reqText, text } from "@/lib/validate";
 import { AMENITIES, CHARGE_KINDS, CHARGE_KIND_LABEL, MAX_ADVANCE_MONTHS } from "@/lib/rules";
-import { triage } from "@/lib/insights";
 import { PROPERTY_TYPES } from "@/lib/property-types";
 import { placeLine, readPlace } from "@/lib/geo-form";
 import { readVideoUrl } from "@/lib/video-form";
@@ -37,9 +36,7 @@ const owns = (u: User, landlordId: number) => u.role === "manager" || u.id === l
 const MAX_RENT = 500_000_000;
 
 async function ownedProperty(u: User, pid: number) {
-  const p = await db.property.findUnique({ where: { id: pid } });
-  if (!p || !owns(u, p.landlordId)) return fail("Property not found");
-  return p;
+  return (await workableProperty(u, pid)) ?? fail("Property not found");
 }
 async function ownedLease(u: User, lid: number) {
   const l = await db.lease.findUnique({ where: { id: lid } });
@@ -356,29 +353,6 @@ export async function endLease(fd: FormData) {
   refresh();
 }
 
-export async function landlordJob(fd: FormData) {
-  const u = await requireUser("manager");
-  const p = await ownedProperty(u, id(fd, "propertyId"));
-  const unitId = id(fd, "unitId") || null;
-  if (unitId && !(await db.unit.findFirst({ where: { id: unitId, propertyId: p.id } }))) return fail("Choose a unit in this property");
-  const title = await reqText(fd, "title", "a short title", { max: 120 });
-  const description = await reqText(fd, "description", "a description", { max: 3000 });
-  let priority = await oneOf(fd, "priority", ["low", "normal", "urgent"] as const, "priority", "normal");
-  const t = triage(`${title} ${description}`);
-  if (t.urgent) priority = "urgent";
-  const photoId = await saveUpload(fd.get("photo"), u.id, false, true);
-  const job = await db.job.create({
-    data: {
-      requesterId: u.id, landlordId: u.id, propertyId: p.id, unitId, photoId, title, description, priority, locationId: p.locationId,
-      category: String(fd.get("category") || t.category || "Other"),
-    },
-  });
-  await audit(u.id, "job.created", "job", job.id, title);
-  await notifyManagers(`${priority === "urgent" ? "URGENT repair" : "Repair"} at ${p.name}: ${title}`, `/manager/jobs/${job.id}`);
-  redirect(`/landlord/maintenance/${job.id}`);
-}
-
-/** Closes a move-out refund once the landlord has paid the tenant back. */
 /** A CasaVilla manager confirms they visited the property and checked who owns it — this earns the public badge. */
 export async function verifyProperty(fd: FormData) {
   const u = await requireUser("manager");
@@ -390,7 +364,7 @@ export async function verifyProperty(fd: FormData) {
     const checklist = await requireChecklist(fd, "property");
     const visit = String(fd.get("visitDate") || "");
     if (!/^\d{4}-\d{2}-\d{2}$/.test(visit) || visit > kampalaToday()) return fail("Enter the date you visited (not in the future)");
-    if (daysBetweenDates(visit, kampalaToday()) > 90) return fail("That visit was more than 90 days ago. Visit again before verifying");
+    if (daysBetween(visit, kampalaToday()) > 90) return fail("That visit was more than 90 days ago. Visit again before verifying");
     if (!p.locationId) return fail("Confirm the property's location first");
     await db.property.update({ where: { id: p.id }, data: { verifiedAt: new Date(), verifiedBy: u.id } });
     await audit(u.id, "property.verified", "property", p.id, `${p.name} · visited ${visit}`, db, { after: { visitDate: visit, checklist } });

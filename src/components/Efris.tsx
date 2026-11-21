@@ -2,7 +2,7 @@ import QRCode from "qrcode";
 import Link from "next/link";
 import { AlertTriangle, BadgeCheck, Check, ChevronDown, ChevronRight, Clock, FileCheck2, Info, KeyRound, PlugZap, ReceiptText, Zap } from "lucide-react";
 import { db, type User } from "@/db";
-import { fmtDate, kampalaToday, ugx } from "@/lib/format";
+import { fmtDate, kampalaToday, ugx, kampalaStart } from "@/lib/format";
 import { chargeLabel } from "@/lib/rules";
 import { autoActive, creditableLeft, daysSince, docName, EFRIS_STATUS, efrisApplies, efrisMode, efrisProblems, efrisProfile, efrisSetup, missingPayments, type EfrisStep } from "@/lib/efris";
 import { canStoreKeys, CREDIT_REASONS, openKey, publicKeyPem, treatmentFor, treatmentLabel, type CommodityTax } from "@/lib/efris-crypto";
@@ -274,7 +274,7 @@ export async function EfrisPage({ viewer, tab: askedTab, show }: { viewer: User;
   const manager = viewer.role === "manager";
   const landlordId = manager ? undefined : viewer.id;
   const base = manager ? "/manager/efris" : "/landlord/efris";
-  const monthStart = new Date(`${kampalaToday().slice(0, 7)}-01T00:00:00+03:00`);
+  const monthStart = kampalaStart(kampalaToday().slice(0, 7));
   const scope = landlordId ? { payment: { lease: { landlordId } } } : {};
   const [missing, recorded, issuedMonth, landlords, problems] = await Promise.all([
     missingPayments(landlordId),

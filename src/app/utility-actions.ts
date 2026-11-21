@@ -12,7 +12,7 @@ import { kampalaToday } from "@/lib/format";
 
 const refresh = () => revalidatePath("/", "layout");
 
-async function meterFor(fd: FormData, roles: ("landlord" | "manager" | "caretaker")[]) {
+async function meterFor(fd: FormData, roles: ("landlord" | "manager")[]) {
   const u = await requireUser(...roles);
   const m = await db.meter.findUnique({ where: { id: id(fd, "meterId") } });
   if (!m || !(await workableProperty(u, m.propertyId))) return fail("Meter not found");

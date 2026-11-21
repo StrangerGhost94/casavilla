@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { kampalaToday, ugx } from "@/lib/format";
+import { kampalaToday, ugx, kampalaStart } from "@/lib/format";
 import { bookedNights } from "@/lib/stays";
 import { blockStayDates } from "@/app/stay-actions";
 import { PageHeader, SectionTitle, Empty, Stat } from "./ui";
@@ -16,7 +16,7 @@ export async function HostStays({ landlordId }: { landlordId?: number }) {
   const ids = units.map((u) => u.id);
   const monthStart = `${today.slice(0, 7)}-01`;
   const [earned, upcoming] = await Promise.all([
-    db.booking.aggregate({ _sum: { total: true }, _count: true, where: { unitId: { in: ids }, status: { in: ["confirmed", "completed"] }, paidAt: { gte: new Date(`${monthStart}T00:00:00+03:00`) } } }),
+    db.booking.aggregate({ _sum: { total: true }, _count: true, where: { unitId: { in: ids }, status: { in: ["confirmed", "completed"] }, paidAt: { gte: kampalaStart(monthStart) } } }),
     db.booking.count({ where: { unitId: { in: ids }, status: "confirmed", checkIn: { gte: new Date(`${today}T00:00:00Z`) } } }),
   ]);
   const cals = await Promise.all(units.map(async (u) => ({ u, booked: await bookedNights(u.id, today, addDays(today, 95)) })));

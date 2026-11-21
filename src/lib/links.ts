@@ -33,14 +33,3 @@ export async function requestLink(tenant: Pick<User, "id" | "name" | "phone">, r
   await notify(tenant.id, "Request sent to CasaVilla. You'll be notified as soon as your lease is confirmed.", "/tenant");
   return { ok: true, found: true };
 }
-
-/** A new landlord picks up every tenant who was waiting for them by phone number. */
-export async function attachWaitingTenants(landlord: Pick<User, "id" | "phone" | "role">) {
-  if (landlord.role !== "landlord") return 0;
-  const waiting = await db.tenantLink.findMany({ where: { landlordPhone: landlord.phone, landlordId: null, status: "pending" }, include: { tenant: { select: { name: true } } } });
-  if (!waiting.length) return 0;
-  await db.tenantLink.updateMany({ where: { id: { in: waiting.map((w) => w.id) } }, data: { landlordId: landlord.id } });
-  await notifyManagers(`${waiting.length} tenant${waiting.length > 1 ? "s are" : " is"} waiting to connect with a new landlord (${waiting.map((w) => w.tenant.name).join(", ")}). Confirm their leases.`, "/manager/applications");
-  for (const w of waiting) await notify(w.tenantId, "Your landlord just joined CasaVilla. CasaVilla will confirm your lease shortly.", "/tenant");
-  return waiting.length;
-}

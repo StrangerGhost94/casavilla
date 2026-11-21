@@ -3,7 +3,7 @@ import { RollingNumber } from "@/components/Motion";
 import { AlertCircle, CalendarClock, CalendarDays, CheckCircle2, ClipboardList, FileText, MessageCircle, Phone, Search, ShoppingBag, Wallet, Wrench } from "lucide-react";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
-import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
+import { fmtDate, kampalaToday, ugx, ymd, daysBetween } from "@/lib/format";
 import { Avatar, Badge, Photo, SectionTitle } from "@/components/ui";
 import { chargesSummary } from "@/components/Ledger";
 import { CategoryIcon } from "@/lib/icons";
@@ -14,7 +14,6 @@ import { EfrisBadge } from "@/components/Efris";
 import { PushToggle } from "@/components/PushToggle";
 import { pushPublicKey } from "@/lib/push";
 
-const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
 
 const shortcuts = [
   { href: "/tenant/rent", label: "Rent & receipts", icon: Wallet },

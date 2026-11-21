@@ -3,7 +3,7 @@ import type { Lease } from "@prisma/client";
 import { db } from "@/db";
 import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
 import { tenantScore, marketRent, type TenantScore } from "@/lib/insights";
-import { daysBetween } from "@/lib/billing";
+import { daysBetween } from "@/lib/format";
 import { CHARGE_KINDS, CHARGE_KIND_LABEL, MAX_ADVANCE_MONTHS } from "@/lib/rules";
 import { Signature } from "@/components/Signature";
 import { requestRefund } from "@/app/approval-actions";

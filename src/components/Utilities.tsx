@@ -16,7 +16,6 @@ import { fileUrl } from "@/lib/file-url";
  */
 export async function UtilitiesPage({ viewer }: { viewer: User }) {
   const scope = await propertyScope(viewer);
-  const manage = viewer.role !== "caretaker";
   const props = await db.property.findMany({
     where: { ...scope, archivedAt: null }, orderBy: { name: "asc" },
     select: {
@@ -28,7 +27,7 @@ export async function UtilitiesPage({ viewer }: { viewer: User }) {
   const months = lastMonths(3);
   return (
     <div className="mx-auto max-w-4xl space-y-5">
-      <PageHeader title={manage ? "Utilities & meters" : "Meter readings"} subtitle={manage ? "Yaka and NWSC meters for each unit or building. Sub-meters and shared bills become tenant charges automatically." : "Take a photo of the meter and type the number — the landlord bills the tenant from it."} />
+      <PageHeader title="Utilities & meters" subtitle="Yaka and NWSC meters for each unit or building. Sub-meters and shared bills become tenant charges automatically." />
       {!props.length && <Empty title="No properties yet" />}
       {props.map((p) => (
         <section key={p.id} className="space-y-3">
@@ -74,7 +73,7 @@ export async function UtilitiesPage({ viewer }: { viewer: User }) {
                                 <img src={fileUrl(r.photoFileId, 160)} alt="" loading="lazy" className="h-full w-full object-cover" />
                               </PhotoZoom>
                             )}
-                            {manage && i === 0 && <form action={removeReading}><input type="hidden" name="id" value={r.id} /><ConfirmSubmit message="Delete this reading? Its bill is withdrawn if unpaid." className="text-[11px] text-stone-400 hover:text-maroon-600">Undo</ConfirmSubmit></form>}
+                            {i === 0 && <form action={removeReading}><input type="hidden" name="id" value={r.id} /><ConfirmSubmit message="Delete this reading? Its bill is withdrawn if unpaid." className="text-[11px] text-stone-400 hover:text-maroon-600">Undo</ConfirmSubmit></form>}
                           </span>
                         </div>
                       );
@@ -82,7 +81,7 @@ export async function UtilitiesPage({ viewer }: { viewer: User }) {
                   </div>
                 )}
 
-                {m.billing === "shared" && manage && (
+                {m.billing === "shared" && (
                   <form action={addBill} className="grid grid-cols-2 gap-2 rounded-xl bg-stone-50 p-3 sm:grid-cols-[10rem_1fr_auto]">
                     <input type="hidden" name="meterId" value={m.id} />
                     <select name="period" className="input">{months.map((x) => <option key={x} value={x} disabled={m.bills.some((b) => b.period === x)}>{monthName(x)}</option>)}</select>
@@ -91,12 +90,11 @@ export async function UtilitiesPage({ viewer }: { viewer: User }) {
                     {m.bills.length > 0 && <div className="col-span-2 text-[11px] text-stone-500 sm:col-span-3">{m.bills.map((b) => `${monthName(b.period)}: ${ugx(b.amount)} ÷ ${b.splitCount}`).join(" · ")}</div>}
                   </form>
                 )}
-                {manage && <form action={retireMeter} className="text-right"><input type="hidden" name="meterId" value={m.id} /><ConfirmSubmit message="Stop using this meter? Its readings are kept." className="text-[11px] text-stone-400 hover:text-maroon-600">Remove meter</ConfirmSubmit></form>}
+                <form action={retireMeter} className="text-right"><input type="hidden" name="meterId" value={m.id} /><ConfirmSubmit message="Stop using this meter? Its readings are kept." className="text-[11px] text-stone-400 hover:text-maroon-600">Remove meter</ConfirmSubmit></form>
               </div>
             );
           })}
-          {!p.meters.length && <p className="text-sm text-stone-500">No meters yet{manage ? " — add one below" : ""}.</p>}
-          {manage && (
+          {!p.meters.length && <p className="text-sm text-stone-500">No meters yet — add one below.</p>}
             <details className="card">
               <summary className="cursor-pointer list-none text-sm font-semibold text-brand-700">+ Add a meter to {p.name}</summary>
               <form action={addMeter} className="mt-3 grid grid-cols-2 gap-2">
@@ -121,7 +119,6 @@ export async function UtilitiesPage({ viewer }: { viewer: User }) {
                 <div className="col-span-2"><Submit className="btn-primary btn-sm">Add meter</Submit></div>
               </form>
             </details>
-          )}
         </section>
       ))}
     </div>

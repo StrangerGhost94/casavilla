@@ -284,20 +284,6 @@ async function commodityInfo(c: Conn, s: Session, code: string): Promise<Commodi
   return readCommodity(r.data, code);
 }
 
-/** Re-reads URA's tax treatment for a landlord's commodity codes without a full connection test. */
-export async function refreshCommodityTax(landlordId: number) {
-  const prof = await db.efrisProfile.findUnique({ where: { landlordId } });
-  const c = prof && connFor(prof);
-  if (!prof || !c || typeof c === "string") return null;
-  const s = await openSession(c);
-  const tax: Record<string, CommodityTax> = {};
-  for (const [k, code] of [["residential", prof.commodityResidential], ["commercial", prof.commodityCommercial]] as const) {
-    if (code) { const info = await commodityInfo(c, s, code).catch(() => null); if (info) tax[k] = info; }
-  }
-  await db.efrisProfile.update({ where: { landlordId }, data: { commodityTax: tax as never } });
-  return tax;
-}
-
 // ---------------------------------------------------------------------------------------------------------------
 // Credit notes: apply (T110) → URA approves (T111) → it gets its own FDN. Withdraw a pending one (T120);
 // cancel an approved one (T114).

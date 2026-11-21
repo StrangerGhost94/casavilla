@@ -69,7 +69,7 @@ async function MyStrip({ u }: { u: User }) {
       </div>
     );
   }
-  const label = { landlord: "Your properties, tenants & rent", manager: "Manage CasaVilla", provider: "Your jobs & orders", caretaker: "Today's tasks", agent: "Your listings & bookings" }[u.role] ?? "Your dashboard";
+  const label = ({ landlord: "Your properties, tenants & rent", manager: "Manage CasaVilla", provider: "Your jobs & orders", agent: "Your listings & bookings" } as Record<string, string>)[u.role] ?? "Your dashboard";
   return (
     <Link href={homeFor(u.role)} className="card flex items-center gap-3 p-3.5">
       <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-brand-800 text-gold-300"><LayoutDashboard className="h-5 w-5" /></span>

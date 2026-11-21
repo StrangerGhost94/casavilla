@@ -1,5 +1,5 @@
 import { requireUser } from "@/lib/auth";
-import { TaxForUra } from "@/components/Payouts";
+import { TaxForUra } from "@/components/TaxForUra";
 
 export const metadata = { title: "Tax for URA" };
 

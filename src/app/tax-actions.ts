@@ -10,19 +10,6 @@ import { kampalaToday, ugx } from "@/lib/format";
 
 const refresh = () => revalidatePath("/", "layout");
 
-/** Landlords are paid by CasaVilla's finance department outside the app, so these payout actions are switched off. */
-export async function savePayoutAccount(_fd: FormData) {
-  return fail("Landlord payouts are handled by CasaVilla's finance department, outside the app");
-}
-
-export async function retryPayout(_fd: FormData) {
-  return fail("Landlord payouts are handled by CasaVilla's finance department, outside the app");
-}
-
-export async function markPayoutPaid(_fd: FormData) {
-  return fail("Landlord payouts are handled by CasaVilla's finance department, outside the app");
-}
-
 /** Tax paid to URA from the money set aside, with its PRN. */
 export async function recordTaxPayment(fd: FormData) {
   const u = await requireUser("manager");

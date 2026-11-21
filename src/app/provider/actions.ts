@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { ALL_SERVICE_CATEGORIES, db, PRODUCT_CATEGORIES } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { saveUpload } from "@/lib/uploads";
-import { normalizePhone } from "@/lib/format";
+import { normalizePhone, isUgPhone } from "@/lib/format";
 import { fail } from "@/lib/flash";
 import { advanceOrder } from "@/lib/orders";
 import { id, int, oneOf, optInt, reqText, text } from "@/lib/validate";
@@ -73,7 +73,7 @@ export async function updateOrder(fd: FormData) {
 export async function saveProfile(fd: FormData) {
   const u = await requireUser("provider");
   const phone = normalizePhone(String(fd.get("phone") || u.phone));
-  if (!/^\+256\d{9}$/.test(phone)) return fail("Enter a valid Ugandan phone number");
+  if (!isUgPhone(phone)) return fail("Enter a valid Ugandan phone number");
   await db.user.update({
     where: { id: u.id },
     data: {

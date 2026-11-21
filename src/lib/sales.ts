@@ -46,7 +46,6 @@ export const AGENT_LISTING_DAYS = 90;
 
 /** Why someone reports a listing. */
 export const REPORT_REASONS = ["Already sold or not for sale", "Looks fake or a scam", "Someone else's land or property", "Wrong price, size or location", "Other"] as const;
-export const PUBLIC_STATUSES = ["active", "under_offer"] as const;
 
 /** UGX 350,000,000 → "UGX 350M"; 1,250,000,000 → "UGX 1.25B" (cards); full figure on the listing page. */
 export function shortUgx(n: number) {

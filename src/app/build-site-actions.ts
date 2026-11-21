@@ -7,7 +7,7 @@ import { fail } from "@/lib/flash";
 import { audit } from "@/lib/audit";
 import { notify } from "@/lib/notify";
 import { saveUpload } from "@/lib/uploads";
-import { fmtDate, networkFor, normalizePhone, ugx } from "@/lib/format";
+import { fmtDate, networkFor, normalizePhone, ugx, isUgPhone } from "@/lib/format";
 import { initiateCharge, provider } from "@/lib/momo";
 import { id, num, oneOf, reqText, text } from "@/lib/validate";
 import { MOMO_MAX, canSeeSite, completeBuildPayment, failBuildPayment, newBuildRef, siteSummary } from "@/lib/build-sites";
@@ -35,7 +35,7 @@ export async function payBuildStage(_: BuildPayState, fd: FormData): Promise<Bui
   if (amount > stage.balance) return { error: `The balance on “${stage.name}” is ${ugx(stage.balance)}` };
   if (amount > MOMO_MAX) return { error: `Mobile Money payments are up to ${ugx(MOMO_MAX)} each. Pay in parts, or by bank transfer.` };
   const phone = normalizePhone(String(fd.get("phone") || u.phone));
-  if (!/^\+256\d{9}$/.test(phone)) return { error: "Enter a valid Ugandan Mobile Money number" };
+  if (!isUgPhone(phone)) return { error: "Enter a valid Ugandan Mobile Money number" };
   const network = (String(fd.get("network")) || networkFor(phone)) as "mtn" | "airtel";
   if (!["mtn", "airtel"].includes(network)) return { error: "Choose MTN or Airtel" };
   const detected = networkFor(phone);

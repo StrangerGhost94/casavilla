@@ -1,8 +1,8 @@
 // Search engines: the site's address, readable listing links, and the area pages ("Houses for rent in Ntinda").
 import { homeTitle } from "./listing-text";
 
-/** The live site's address (set APP_URL in Railway to the custom domain when there is one). */
-export const SITE = (process.env.APP_URL || "https://casavilla-production.up.railway.app").replace(/\/$/, "");
+/** The live site's address: APP_URL (set in Railway), else the custom domain. The one place it's worked out. */
+export const SITE = (process.env.APP_URL || "https://casavillaproperties.com").replace(/\/$/, "");
 export const abs = (path: string) => (/^https?:/.test(path) ? path : `${SITE}${path.startsWith("/") ? "" : "/"}${path}`);
 
 export const slugify = (s: string) => s.toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 70).replace(/-+$/, "");

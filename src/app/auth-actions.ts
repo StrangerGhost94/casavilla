@@ -5,9 +5,9 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { db } from "@/db";
 import { homeFor, startSession } from "@/lib/auth";
-import { normalizePhone } from "@/lib/format";
+import { normalizePhone, isEmail, isUgPhone } from "@/lib/format";
 import { notify } from "@/lib/notify";
-import { attachWaitingTenants, requestLink } from "@/lib/links";
+import { requestLink } from "@/lib/links";
 import { codeMode } from "@/lib/mail";
 import { checkCode, issueCode, maskEmail, maskPhone, phoneTicket, readTicket } from "@/lib/otp";
 import { clearFailures, lockedFor, noteFailure } from "@/lib/throttle";
@@ -27,7 +27,7 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
   const key = id.includes("@") ? id : normalizePhone(id);
   const wait = lockedFor(key);
   if (wait) return { error: `Too many wrong passwords. Try again in ${wait} minute${wait === 1 ? "" : "s"}, or use “Forgot password”.` };
-  // Email, or the phone number (caretakers often have no email). Several accounts can share a phone: the password picks.
+  // Email, or the phone number. Several accounts can share a phone: the password picks.
   let u = null;
   if (id.includes("@")) {
     const found = await db.user.findUnique({ where: { email: id } });
@@ -64,7 +64,7 @@ export async function register(prev: CodeState, fd: FormData): Promise<CodeState
   if (!parsed.success) return { ...keep, error: parsed.error.issues[0].message };
   const d = parsed.data;
   const phone = normalizePhone(d.phone);
-  if (!/^\+256\d{9}$/.test(phone)) return { error: "Enter a valid Ugandan phone number, e.g. 0772 123 456" };
+  if (!isUgPhone(phone)) return { error: "Enter a valid Ugandan phone number, e.g. 0772 123 456" };
   if (d.role === "provider" && !d.businessName) return { error: "Enter your business name" };
   const linking = d.role === "tenant" && fd.get("existing") === "on";
   if (linking) {
@@ -98,9 +98,8 @@ export async function register(prev: CodeState, fd: FormData): Promise<CodeState
     const managers = await db.user.findMany({ where: { role: "manager" }, select: { id: true } });
     for (const m of managers) await notify(m.id, `New ${d.role} sign-up awaiting approval: ${d.businessName || d.name}`, "/manager/people");
   }
-  // Existing tenants are connected to their landlord; new landlords pick up tenants already waiting for them.
+  // Existing tenants are connected to their landlord by the landlord's CasaVilla code.
   if (linking) await requestLink(u, d.landlordCode!, d.unitNote || null);
-  if (d.role === "landlord") await attachWaitingTenants(u);
   await startSession(u);
   redirect(safeNext(fd.get("next")) || (u.role === "tenant" ? "/" : homeFor(u.role)));
 }
@@ -111,7 +110,7 @@ export async function register(prev: CodeState, fd: FormData): Promise<CodeState
  */
 export async function resetPassword(prev: CodeState, fd: FormData): Promise<CodeState> {
   const email = String(fd.get("email") || "").trim().toLowerCase();
-  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: "Enter the email address on your account" };
+  if (!isEmail(email)) return { error: "Enter the email address on your account" };
   const intent = String(fd.get("intent") || "");
   const find = () => db.user.findFirst({ where: { email, status: { not: "suspended" }, role: { not: "caretaker" } } });
 

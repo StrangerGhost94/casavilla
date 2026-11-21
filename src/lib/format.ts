@@ -23,6 +23,14 @@ export const fmtDateTime = (d: Date | string | null | undefined) =>
 
 /** Today's date in Kampala as YYYY-MM-DD. */
 export const kampalaToday = () => new Date().toLocaleDateString("en-CA", { timeZone: TZ });
+/** Midnight in Kampala at the start of a day ("2026-11-20") or a month ("2026-11"). */
+export const kampalaStart = (dayOrMonth: string) => new Date(`${dayOrMonth.length === 7 ? `${dayOrMonth}-01` : dayOrMonth}T00:00:00+03:00`);
+/** Whole days from one "YYYY-MM-DD" to another (negative if b is earlier). */
+export const daysBetween = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+/** A plausible email address (the code sent to it is the real check). */
+export const isEmail = (s: string) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s);
+/** A normalised Ugandan number: +256 and nine digits. */
+export const isUgPhone = (p: string) => /^\+256\d{9}$/.test(p);
 
 export const periodLabel = (p: string) => {
   const [y, m] = p.split("-").map(Number);

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Check, Paperclip, Trash2, X } from "lucide-react";
+import { Paperclip, Trash2 } from "lucide-react";
 import { db, type User } from "@/db";
 import { fmtDate, kampalaToday, ugx } from "@/lib/format";
 import { EXPENSE_CATEGORIES } from "@/lib/rules";
@@ -7,7 +7,7 @@ import { KIND_NAMES, lastMonths, monthName, statement } from "@/lib/statements";
 import { FileButton } from "./FileButton";
 import { Empty, Field, PageHeader } from "./ui";
 import { ConfirmSubmit, Submit } from "./client";
-import { addExpense, decideExpense, deleteExpense, setCommission } from "@/app/expense-actions";
+import { addExpense, deleteExpense, setCommission } from "@/app/expense-actions";
 import { Signature } from "@/components/Signature";
 
 /**
@@ -18,7 +18,6 @@ export async function StatementPage({ viewer, landlordId, month, propertyId, bas
   viewer: User; landlordId: number; month: string; propertyId?: number; base: string; landlords?: { id: number; name: string }[];
 }) {
   const s = await statement(landlordId, month, propertyId);
-  const pending = await db.expense.findMany({ where: { landlordId, status: "pending" }, orderBy: { createdAt: "asc" }, include: { createdBy: { select: { name: true } }, property: { select: { name: true } } } });
   const q = (o: Record<string, string | number | undefined>) => {
     const p = new URLSearchParams();
     const v = { landlord: landlords ? landlordId : undefined, month, property: propertyId, ...o };
@@ -94,23 +93,6 @@ export async function StatementPage({ viewer, landlordId, month, propertyId, bas
         )}
       </div>
 
-      {pending.length > 0 && viewer.role === "manager" && (
-        <div className="card mt-6 border-gold-200 bg-gold-50/40">
-          <div className="mb-2 font-semibold text-brand-950">Waiting for your approval</div>
-          {pending.map((e) => (
-            <div key={e.id} className="flex flex-wrap items-center justify-between gap-2 border-t border-gold-100 py-2 text-sm first:border-0">
-              <div className="min-w-0">
-                <div className="font-medium">{e.description} · {ugx(e.amount)}</div>
-                <div className="text-xs text-stone-500">{e.category} · {e.property?.name ?? "—"} · {fmtDate(e.spentOn)} · by {e.createdBy.name}{e.receiptFileId ? " · " : ""}{e.receiptFileId && <FileButton href={`/api/files/${e.receiptFileId}`} name="receipt" className="link text-xs">receipt</FileButton>}</div>
-              </div>
-              <div className="flex gap-1.5">
-                <form action={decideExpense}><input type="hidden" name="id" value={e.id} /><input type="hidden" name="decision" value="approve" /><Submit className="btn-primary btn-sm"><Check className="h-3.5 w-3.5" /> Approve</Submit></form>
-                <form action={decideExpense}><input type="hidden" name="id" value={e.id} /><input type="hidden" name="decision" value="reject" /><Submit className="btn-ghost btn-sm"><X className="h-3.5 w-3.5" /> Reject</Submit></form>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
 
       <div className={`mt-6 grid grid-cols-1 gap-4 ${viewer.role === "manager" ? "lg:grid-cols-[1fr_20rem]" : ""}`}>
         <div className="card p-0">

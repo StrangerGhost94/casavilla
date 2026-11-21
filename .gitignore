@@ -7,4 +7,3 @@ next-env.d.ts
 
 # stray screenshots in the repo root
 /*.png
-.env.handover

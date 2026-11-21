@@ -1,14 +1,13 @@
 import "server-only";
 import { systemScope } from "@/db/track";
 import { db } from "@/db";
-import { ensureChargesFor, expireStalePayments, daysBetween } from "./billing";
+import { ensureChargesFor, expireStalePayments } from "./billing";
 import { managerIds, notifyOnce } from "./notify";
-import { fmtDate, kampalaToday, ugx, ymd } from "./format";
+import { fmtDate, kampalaToday, ugx, ymd, daysBetween } from "./format";
 import { sendQueuedEmails } from "./mail";
 import { appUrl, queueMessage, sendQueuedMessages } from "./messaging";
 import { expireStaleBookings } from "./stays";
 import { expireStaleBuildPayments } from "./build-sites";
-import { sendQueuedPayouts } from "./payouts";
 import { followCreditNotes, retryEfris } from "./efris";
 import { taxReminders } from "./tax";
 import { alertHref, matchesAfter, type AlertKind, type AlertParams } from "./saved";
@@ -39,7 +38,6 @@ async function sweep(force: boolean) {
     await expireStaleBuildPayments().catch((e) => console.error("build payments sweep", e));
     await sendQueuedEmails().catch((e) => console.error("email sweep", e));
     await sendQueuedMessages().catch((e) => console.error("message sweep", e));
-    await sendQueuedPayouts().catch((e) => console.error("payout sweep", e));
     await retryEfris().catch((e) => console.error("efris sweep", e));
     await followCreditNotes().catch((e) => console.error("credit note sweep", e));
     await searchAlerts().catch((e) => console.error("search alerts", e));

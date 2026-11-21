@@ -9,6 +9,7 @@ import { emailHtml, queueEmail, sendQueuedEmails } from "./mail";
 import { fmtDate, kampalaToday, ugx, ymd, dateOnly } from "./format";
 import { provider, verifyCharge } from "./momo";
 import { PdfWriter, embedLogo } from "./pdf";
+import { SITE } from "./seo";
 
 /** A booking holds its dates for this long while the guest approves the Mobile Money prompt. */
 export const HOLD_MINUTES = 30;
@@ -124,10 +125,9 @@ export async function confirmBooking(bookingId: number) {
   await audit(b.guestId, "booking.confirmed", "booking", b.id, `${where} ${ymd(b.checkIn)}→${ymd(b.checkOut)} ${ugx(b.total)}`);
   if (b.guest.emailReceipts) {
     const brand = await brandFor(b.unit.property.landlordId);
-    const app = process.env.APP_URL || "https://casavilla-production.up.railway.app";
     await queueEmail({
       to: b.guest.email, subject: `Booking confirmed — ${b.unit.property.name}, ${fmtDate(b.checkIn)}`, attachKind: "booking", attachId: b.id,
-      html: emailHtml({ accent: brand.accentColor, title: "Your stay is booked", lines: [`${where}`, `Check-in ${fmtDate(b.checkIn)} from ${b.unit.checkInFrom} · check-out ${fmtDate(b.checkOut)} by ${b.unit.checkOutBy}.`, `${b.nights} night${b.nights > 1 ? "s" : ""}, ${b.guests} guest${b.guests > 1 ? "s" : ""} — ${ugx(b.total)} paid. Receipt ${receiptNo} attached.`], button: { label: "View booking", href: `${app}/stays/bookings/${b.id}` }, footer: brand.displayName }),
+      html: emailHtml({ accent: brand.accentColor, title: "Your stay is booked", lines: [`${where}`, `Check-in ${fmtDate(b.checkIn)} from ${b.unit.checkInFrom} · check-out ${fmtDate(b.checkOut)} by ${b.unit.checkOutBy}.`, `${b.nights} night${b.nights > 1 ? "s" : ""}, ${b.guests} guest${b.guests > 1 ? "s" : ""} — ${ugx(b.total)} paid. Receipt ${receiptNo} attached.`], button: { label: "View booking", href: `${SITE}/stays/bookings/${b.id}` }, footer: brand.displayName }),
     });
     await sendQueuedEmails(3).catch(() => 0);
   }

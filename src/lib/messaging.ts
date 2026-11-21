@@ -1,6 +1,7 @@
 import "server-only";
 import { db } from "@/db";
-import { normalizePhone } from "./format";
+import { normalizePhone, isUgPhone } from "./format";
+import { SITE } from "./seo";
 
 /**
  * WhatsApp first, SMS as the fallback.
@@ -28,7 +29,7 @@ const TEMPLATES = {
   notice: () => process.env.WHATSAPP_NOTICE_TEMPLATE || "casavilla_notice",
 };
 const waDigits = (phone: string) => normalizePhone(phone).replace(/\D/g, "");
-const ugPhone = (phone: string) => /^\+256\d{9}$/.test(normalizePhone(phone));
+const ugPhone = (phone: string) => isUgPhone(normalizePhone(phone));
 
 type Result = { ok: true; channel: "whatsapp" | "sms"; ref?: string } | { ok: false; error: string };
 
@@ -146,4 +147,4 @@ export async function sendQueuedMessages(limit = 40) {
 }
 
 /** Public link for messages (they open outside the app). */
-export const appUrl = (path: string) => `${(process.env.APP_URL || "https://casavilla-production.up.railway.app").replace(/\/$/, "")}${path}`;
+export const appUrl = (path: string) => `${SITE}${path}`;

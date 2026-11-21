@@ -1,6 +1,7 @@
 import "server-only";
 import { Prisma } from "@prisma/client";
 import { db } from "@/db";
+import { kampalaStart } from "./format";
 
 /** "lease.refund_paid" → "Lease refund paid"; automatic entries read "Changed", "Created" or "Deleted". */
 export function actionLabel(action: string, entity: string) {
@@ -31,8 +32,8 @@ export function auditWhere(f: AuditFilter): Prisma.AuditLogWhereInput {
   if (f.actorId) and.push({ actorId: f.actorId });
   if (f.signed) and.push({ signed: true });
   if (!f.all) and.push({ NOT: { action: { startsWith: "data." } } });
-  if (f.from) and.push({ createdAt: { gte: new Date(`${f.from}T00:00:00+03:00`) } });
-  if (f.to) and.push({ createdAt: { lt: new Date(new Date(`${f.to}T00:00:00+03:00`).getTime() + 86400000) } });
+  if (f.from) and.push({ createdAt: { gte: kampalaStart(f.from) } });
+  if (f.to) and.push({ createdAt: { lt: new Date(kampalaStart(f.to).getTime() + 86400000) } });
   if (f.q) {
     const q = { contains: f.q, mode: "insensitive" as const };
     and.push({ OR: [{ action: q }, { entity: q }, { detail: q }, { reason: q }, { actorName: q }] });

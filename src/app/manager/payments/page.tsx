@@ -2,7 +2,7 @@ import Link from "next/link";
 import { ChevronRight, SlidersHorizontal } from "lucide-react";
 import { db } from "@/db";
 import { requireUser } from "@/lib/auth";
-import { fmtDate, kampalaToday, ugx } from "@/lib/format";
+import { fmtDate, kampalaToday, ugx, kampalaStart } from "@/lib/format";
 import { Avatar, Badge, Empty, PageHeader } from "@/components/ui";
 import { LocationPicker } from "@/components/LocationPicker";
 import { crumbText, insideFilter, trailFor } from "@/lib/geo";
@@ -35,7 +35,7 @@ export default async function ManagerPayments({ searchParams }: { searchParams: 
       status: sp.status || undefined,
       ...(inside ? { lease: { unit: { property: { place: inside } } } } : {}),
       createdAt: {
-        gte: sp.from ? new Date(`${sp.from}T00:00:00+03:00`) : undefined,
+        gte: sp.from ? kampalaStart(sp.from) : undefined,
         lte: sp.to ? new Date(`${sp.to}T23:59:59+03:00`) : undefined,
       },
     },

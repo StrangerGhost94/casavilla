@@ -3,7 +3,7 @@ import { BadgeCheck, Check, ChevronDown, MessageCircle, Phone, Plus, ShieldCheck
 import { notFound } from "next/navigation";
 import type { Prisma, Property } from "@prisma/client";
 import { db, type User } from "@/db";
-import { fmtDate, kampalaToday, ugx, ymd } from "@/lib/format";
+import { fmtDate, kampalaToday, ugx, ymd, kampalaStart } from "@/lib/format";
 import { SITE } from "@/lib/seo";
 import { Avatar, Badge, Empty, Field, Photo } from "./ui";
 import { Submit, ConfirmSubmit } from "./client";
@@ -26,7 +26,7 @@ import { marketRent, tenantScore } from "@/lib/insights";
 
 import { PROPERTY_TYPES } from "@/lib/property-types";
 import { fileUrl } from "@/lib/file-url";
-import { tel, waLink } from "@/lib/social";
+import { waLink } from "@/lib/social";
 export { PROPERTY_TYPES };
 
 /** Editing an existing property's details (its own screen, not repeated on the property page). */
@@ -787,7 +787,7 @@ export async function LeaseDetail({ id, viewer, base }: { id: number; viewer: Us
 export async function portfolioStats(landlordId?: number) {
   const today = kampalaToday();
   const month = today.slice(0, 7);
-  const monthStart = new Date(`${month}-01T00:00:00+03:00`);
+  const monthStart = kampalaStart(month);
   const byProp: Prisma.UnitWhereInput = { property: { archivedAt: null, ...(landlordId ? { landlordId } : {}) } };
   const byLease: Prisma.LeaseWhereInput = landlordId ? { landlordId } : {};
   const current: Prisma.LeaseWhereInput = { ...byLease, status: "active" };

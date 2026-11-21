@@ -1,5 +1,6 @@
 import "server-only";
 import { db } from "@/db";
+import { isEmail } from "./format";
 
 /**
  * Email is queued now and delivered when a provider is configured:
@@ -11,16 +12,21 @@ export const mailConfigured = () => !!process.env.RESEND_API_KEY && !!process.en
 /** Codes by email: live = Resend is set up; test = shown on screen (development only, OTP_TEST_MODE=1); off = no codes. */
 export const codeMode = (): "live" | "test" | "off" => mailConfigured() ? "live" : process.env.OTP_TEST_MODE === "1" && process.env.NODE_ENV !== "production" ? "test" : "off";
 
+/** One email through Resend. Throws with Resend's reason when it isn't accepted. */
+async function resend(o: { to: string; subject: string; html: string; attachments?: { filename: string; content: string }[] }) {
+  const res = await fetch("https://api.resend.com/emails", { signal: AbortSignal.timeout(20000),
+    method: "POST",
+    headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from: process.env.MAIL_FROM, to: [o.to], subject: o.subject, html: o.html, ...(o.attachments?.length ? { attachments: o.attachments } : {}) }),
+  });
+  if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
+}
+
 /** Sends one email straight away (sign-in codes can't wait in the queue). */
 export async function sendEmailNow(o: { to: string; subject: string; html: string }): Promise<{ ok: true } | { ok: false; error: string }> {
   if (!mailConfigured()) return { ok: false, error: "Email is not set up" };
   try {
-    const res = await fetch("https://api.resend.com/emails", { signal: AbortSignal.timeout(20000),
-      method: "POST",
-      headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: process.env.MAIL_FROM, to: [o.to], subject: o.subject, html: o.html }),
-    });
-    if (!res.ok) return { ok: false, error: `${res.status} ${(await res.text()).slice(0, 200)}` };
+    await resend(o);
     return { ok: true };
   } catch (e) {
     return { ok: false, error: String(e).slice(0, 200) };
@@ -28,7 +34,7 @@ export async function sendEmailNow(o: { to: string; subject: string; html: strin
 }
 
 export async function queueEmail(o: { to: string | null | undefined; subject: string; html: string; attachKind?: "receipt" | "booking"; attachId?: number }) {
-  if (!o.to || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(o.to)) return null;
+  if (!o.to || !isEmail(o.to)) return null;
   return db.emailOutbox.create({ data: { toEmail: o.to, subject: o.subject.slice(0, 200), html: o.html, attachKind: o.attachKind, attachId: o.attachId } });
 }
 
@@ -62,12 +68,7 @@ export async function sendQueuedEmails(limit = 20) {
         const b = await bookingData(m.attachId);
         if (b) attachments.push({ filename: `booking-${b.b.reference}.pdf`, content: Buffer.from(await bookingPdf(b)).toString("base64") });
       }
-      const res = await fetch("https://api.resend.com/emails", { signal: AbortSignal.timeout(20000),
-        method: "POST",
-        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, "Content-Type": "application/json" },
-        body: JSON.stringify({ from: process.env.MAIL_FROM, to: [m.toEmail], subject: m.subject, html: m.html, attachments }),
-      });
-      if (!res.ok) throw new Error(`${res.status} ${(await res.text()).slice(0, 200)}`);
+      await resend({ to: m.toEmail, subject: m.subject, html: m.html, attachments });
       await db.emailOutbox.update({ where: { id: m.id }, data: { status: "sent", sentAt: new Date(), attempts: { increment: 1 }, error: null } });
       sent++;
     } catch (e) {

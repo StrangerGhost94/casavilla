@@ -4,7 +4,7 @@ import { runHousekeeping } from "@/lib/housekeeping";
 import { LogOut } from "lucide-react";
 import { db, type User } from "@/db";
 import { logout } from "@/app/actions";
-import { menuFor, roleLabel, tabs } from "@/lib/nav";
+import { menuFor, roleLabel, tabs, type ActiveRole } from "@/lib/nav";
 import { CommandPalette, SearchButton } from "./CommandPalette";
 import { PullToRefresh } from "./Loaders";
 import { homeFor } from "@/lib/auth";
@@ -12,7 +12,7 @@ import { Avatar, Logo } from "./ui";
 import { BottomNav, MobileTitle, NavLinks } from "./NavLinks";
 import { InstallPrompt } from "./InstallApp";
 import { NotificationBell } from "./Notifications";
-import { autoActive, efrisProblems, missingCount } from "@/lib/efris";
+import { efrisProblems, missingCount } from "@/lib/efris";
 
 /** Sidebar badges: how many things wait behind each link. Kept to cheap counts, as this runs on every page. */
 async function navCounts(user: User): Promise<Record<string, number>> {
@@ -92,7 +92,7 @@ export async function PortalShell({ user, children }: { user: User; children: Re
           {children}
         </main>
       </div>
-      <BottomNav tabs={tabs[user.role]} />
+      <BottomNav tabs={tabs[user.role as ActiveRole]} />
       {office && <CommandPalette superAdmin={user.superAdmin} />}
       <InstallPrompt />
       <PullToRefresh />

@@ -24,7 +24,7 @@ export async function receiptData(paymentId: number, viewer?: User, allowReverse
     },
   });
   if (!p || !(p.status === "success" || (allowReversed && p.status === "reversed"))) return null;
-  // The tenant, the landlord, CasaVilla — and a caretaker for the cash they recorded themselves.
+  // The tenant, the landlord, CasaVilla, and whoever recorded the cash.
   if (viewer && viewer.role !== "manager" && viewer.id !== p.lease.tenantId && viewer.id !== p.lease.landlordId && viewer.id !== p.recordedById) return null;
   const lines = p.allocations.map((a) => ({
     description: a.charge.description,
