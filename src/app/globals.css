@@ -2,6 +2,8 @@
 @tailwind components;
 @tailwind utilities;
 
+/* One light design: stops phones in dark mode from auto-darkening the page (see viewport colorScheme). */
+:root { color-scheme: only light; }
 body { @apply bg-cream font-sans text-stone-800 antialiased; -webkit-tap-highlight-color: transparent; }
 /* Every page fills the whole screen, even with little content. On iPhone, a page shorter than the screen
    leaves fixed bars (the bottom menu) positioned against a shorter viewport, so the menu floats up. */

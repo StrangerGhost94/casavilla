@@ -26,7 +26,9 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "CasaVilla", statusBarStyle: "black-translucent", startupImage: startupImages },
   other: { "apple-mobile-web-app-capable": "yes" },
 };
-export const viewport: Viewport = { themeColor: "#0e3628", width: "device-width", initialScale: 1, viewportFit: "cover" };
+// "only light": the app has one (light) design. Without it, Chrome on Android (and so the Play Store app) and some
+// browsers in dark mode repaint the page with guessed dark colours, which looks broken.
+export const viewport: Viewport = { themeColor: "#0e3628", colorScheme: "only light", width: "device-width", initialScale: 1, viewportFit: "cover" };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
