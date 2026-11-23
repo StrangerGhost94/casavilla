@@ -52,6 +52,7 @@ export default function Privacy() {
         </Section>
         <Section title="Your rights">
           <p>Under Uganda&apos;s Data Protection and Privacy Act, 2019 you can ask to see the information we hold about you, have it corrected, or have it deleted where we no longer need it, and you can object to how it is used. Email <a href={`mailto:${CONTACT.email}`} className="link">{CONTACT.email}</a> and we will respond.</p>
+          <p>You can delete your account yourself in the app (Profile → Delete my account) or at <Link href="/delete-account" className="link">casavillaproperties.com/delete-account</Link>. Your name, email, phone and documents are erased; payment, receipt and tenancy records are kept without them, as the law requires.</p>
         </Section>
         <Section title="Keeping it safe">
           <p>Passwords are stored scrambled, private documents and photos are shown only to the people involved, and access by staff is limited to what they need.</p>

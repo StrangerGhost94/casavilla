@@ -10,6 +10,8 @@ import { Submit } from "@/components/client";
 import { Signature } from "@/components/Signature";
 import { Checklist } from "@/components/Checklist";
 import { History } from "@/components/History";
+import { deletionBlockers } from "@/lib/account-deletion";
+import { deleteAccountByOffice } from "@/app/account-actions";
 import { CollectedCard, MiniStat } from "@/components/Dashboard";
 import { PropertyList, TenantsTable, portfolioStats } from "@/components/Portfolio";
 import { landlordCodeFor } from "@/lib/landlord-code";
@@ -39,6 +41,8 @@ export default async function Person({ params }: { params: Promise<{ id: string 
     db.property.count({ where: { landlordId: u.id, archivedAt: null } }),
   ]) : null;
   const provider = u.role === "provider";
+  const deleted = u.email.endsWith("@deleted.casavillaproperties.com");
+  const blockers = me.superAdmin && u.id !== me.id && !deleted ? await deletionBlockers(u, true) : [];
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       <Link href="/manager/people" className="link text-sm">← People</Link>
@@ -194,6 +198,22 @@ export default async function Person({ params }: { params: Promise<{ id: string 
             <Link href={`/manager/statements?landlord=${u.id}`} className="btn-outline btn-sm">Statements</Link>
           </div>
         </section>
+      )}
+
+      {me.superAdmin && u.id !== me.id && !deleted && (
+        <details className="card text-sm">
+          <summary className="cursor-pointer font-semibold text-maroon-600">Delete this account (on their request)</summary>
+          {blockers.length ? (
+            <ul className="mt-3 list-disc space-y-1 pl-5 text-stone-700">{blockers.map((b) => <li key={b}>{b}</li>)}</ul>
+          ) : (
+            <form action={deleteAccountByOffice} className="mt-3 space-y-2">
+              <input type="hidden" name="id" value={u.id} />
+              <p className="text-xs text-stone-500">Erases their name, email, phone, password and documents. Payments, receipts, leases and bookings stay, without their details.</p>
+              <Signature reasonHint="e.g. requested by WhatsApp on 23 Nov" />
+              <Submit className="btn-outline btn-sm border-maroon-200 text-maroon-600">Delete account</Submit>
+            </form>
+          )}
+        </details>
       )}
 
       <History refs={[{ entity: "user", ids: [u.id] }]} />

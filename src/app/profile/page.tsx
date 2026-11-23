@@ -1,4 +1,4 @@
-import { BadgeCheck, BellRing, ChevronRight, Clock, KeyRound, LogOut, MapPin, MessageCircle } from "lucide-react";
+import { BadgeCheck, BellRing, ChevronRight, Clock, KeyRound, LogOut, MapPin, MessageCircle, Trash2 } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { grouped, menuFor, roleLabel } from "@/lib/nav";
 import { changePassword, logout, saveMessagePrefs } from "@/app/actions";
@@ -113,6 +113,11 @@ export default async function Profile() {
             <Submit className="btn-primary btn-sm">Change password</Submit>
           </form>
         </details>
+
+        <div className="card mt-4 p-0">
+          <ListRow href="/delete-account" title="Delete my account" detail="Erase your details and close the account"
+            icon={<span className="flex h-9 w-9 items-center justify-center rounded-xl bg-maroon-50 text-maroon-600"><Trash2 className="h-[18px] w-[18px]" /></span>} />
+        </div>
 
         <form action={logout} className="mt-5">
           <button className="btn w-full border border-maroon-100 bg-white py-3 text-maroon-600 hover:bg-maroon-50">
