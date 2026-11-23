@@ -56,6 +56,7 @@ const TEXT = {
   "#075985": "#a3d1f5", // sky-800
   "#b45309": "#e8c06a", // amber-700
   "#92400e": "#efcd80", // amber-800
+  "#9ca3af": "#7a8c82", // Tailwind's default placeholder colour
 };
 
 const BORDER = {
@@ -69,6 +70,8 @@ const BORDER = {
   "#e9d397": "#5a4a22", // gold-200
   "#f9d7d4": "#5a2a24", // maroon-100
   "#f4e8c9": "#3a3019", // gold-100 (rings)
+  "#f0eee9": "#1f3329", // phone table rows (globals.css)
+  "#e5e7eb": "#24392f", // Tailwind's default border colour (a plain "border" with no colour class)
 };
 
 const ROLE = {
@@ -76,7 +79,8 @@ const ROLE = {
   "--tw-gradient-from": "bg", "--tw-gradient-to": "bg", "--tw-gradient-via": "bg",
   color: "text", fill: "text", stroke: "text", "caret-color": "text", "text-decoration-color": "text",
   "-webkit-text-fill-color": "text",
-  "border-color": "border", "border-top-color": "border", "border-right-color": "border",
+  "border-color": "border", border: "border", "border-top": "border", "border-right": "border",
+  "border-bottom": "border", "border-left": "border", outline: "border", "border-top-color": "border", "border-right-color": "border",
   "border-bottom-color": "border", "border-left-color": "border", "border-x-color": "border", "border-y-color": "border",
   "outline-color": "border", "--tw-ring-color": "border", "--tw-ring-offset-color": "border",
 };
@@ -118,18 +122,23 @@ function findColours(value) {
   return out;
 }
 const isOpaque = (alpha) => alpha == null || /^var\(--tw-[a-z-]+opacity,\s*1\)$/.test(alpha) || alpha === "1";
+// How see-through a colour is: 1 for solid (including Tailwind's opacity variable), else the number given.
+const alphaOf = (alpha) => { if (isOpaque(alpha)) return 1; const n = parseFloat(alpha); return Number.isNaN(n) ? 1 : n; };
 
 function mapValue(prop, value) {
   const role = ROLE[prop];
   if (!role) return null;
   const table = TABLE[role];
   const found = findColours(value);
-  if (!found.length) return null;
+  // No colour to map (transparent, currentColor, inherit, a variable): still copy it, so it keeps winning over
+  // dark defaults the way it does in light mode (e.g. border-transparent against the default border colour).
+  if (!found.length) return { value, lightBg: null };
   let changed = false, lightBg = null, result = "", last = 0;
   for (const c of found) {
     let dark = table[c.hex];
-    // White (and black) see-through overlays sit on green or on photos: leave them alone.
-    if (dark && c.hex === "#ffffff" && !isOpaque(c.alpha)) dark = null;
+    // Faint white (under 50%) is a highlight on green headers or photos: leave it alone. Mostly-white
+    // (bg-white/70, /90, /95) is a surface - sticky bars, empty states, buttons over photos - so it turns dark too.
+    if (dark && c.hex === "#ffffff" && (role === "border" ? !isOpaque(c.alpha) : alphaOf(c.alpha) < 0.5)) dark = null;
     // Gradient end stops are the same colour at 0 opacity.
     if (dark && c.alpha === "0" && role === "bg") dark = table[c.hex];
     let rep = value.slice(c.start, c.end);
@@ -162,8 +171,26 @@ function insideSkipped(node) {
   return false;
 }
 
+// Anything inside an element with class "cv-light" keeps the light design (receipts are paper). The dark rules
+// skip those elements; the :not() goes before any pseudo-element (::placeholder, ::before), where it must sit.
+const NOT_LIGHT = ":not(.cv-light, .cv-light *)";
+function island(s) {
+  const at = s.indexOf("::");
+  return at === -1 ? s + NOT_LIGHT : s.slice(0, at) + NOT_LIGHT + s.slice(at);
+}
+// Splits a selector list on its top-level commas only (Tailwind writes :where(a, b) inside some selectors).
+function splitList(selector) {
+  const out = []; let depth = 0, cur = "";
+  for (const ch of selector) {
+    if (ch === "(" || ch === "[") depth++;
+    else if (ch === ")" || ch === "]") depth--;
+    if (ch === "," && depth === 0) { out.push(cur); cur = ""; } else cur += ch;
+  }
+  out.push(cur);
+  return out;
+}
 function prefix(selector, root) {
-  return selector.split(",").map((s) => s.trim()).filter((s) => !/^(html|:root)\b/.test(s)).map((s) => `${root} ${s}`).join(", ");
+  return splitList(selector).map((s) => s.trim()).filter((s) => !/^(html|:root)\b/.test(s)).map((s) => `${root} ${island(s)}`).join(", ");
 }
 
 module.exports = () => ({

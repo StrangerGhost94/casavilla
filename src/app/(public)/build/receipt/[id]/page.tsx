@@ -29,7 +29,7 @@ export default async function BuildReceipt({ params }: { params: Promise<{ id: s
         <Link href={`/build/my/${s.id}`} className="btn-ghost">← My project</Link>
         <PrintButton />
       </div>
-      <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8 print:border-0 print:shadow-none">
+      <div className="cv-light rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8 print:border-0 print:shadow-none">
         <div className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-brand-800 pb-5">
           <Logo size="md" />
           <div className="text-right text-xs text-stone-500">
@@ -59,7 +59,7 @@ export default async function BuildReceipt({ params }: { params: Promise<{ id: s
           <div className="flex justify-between border-t border-stone-100 px-3 py-2"><span className="text-stone-500">Balance on the contract</span><span>{ugx(Math.max(0, s.contractSum - upTo))}</span></div>
         </div>
         <div className="mt-8 w-56 border-t border-stone-800 pt-1 text-xs text-stone-500">For CasaVilla Property Management</div>
-        <p className="mt-6 text-center text-[11px] text-stone-400">Issued electronically by CasaVilla.</p>
+        <p className="mt-6 text-center text-[11px] text-stone-500">Issued electronically by CasaVilla.</p>
       </div>
     </main>
   );

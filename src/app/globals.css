@@ -12,14 +12,16 @@
 @media print { :root { color-scheme: light; } }
 /* Hand-written dark-theme exceptions (already prefixed, so postcss-dark.cjs leaves them alone). */
 @media screen and (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .cv-keep-light { background-color: #f6f4ee; }
-  :root:not([data-theme="light"]) .cv-logo-on-light { display: none; }
-  :root:not([data-theme="light"]) .cv-logo-on-dark { display: block; }
+  /* "Paper" (receipts, the logo tile): everything inside keeps the light design; postcss-dark.cjs skips it. */
+  :root:not([data-theme="light"]) .cv-light { color-scheme: light; color: #292524; }
+  /* The logo swaps to its white-lettered version, except on paper. */
+  :root:not([data-theme="light"]) .cv-logo-on-light:not(.cv-light *) { display: none; }
+  :root:not([data-theme="light"]) .cv-logo-on-dark:not(.cv-light *) { display: block; }
 }
 @media screen {
-  :root[data-theme="dark"] .cv-keep-light { background-color: #f6f4ee; }
-  :root[data-theme="dark"] .cv-logo-on-light { display: none; }
-  :root[data-theme="dark"] .cv-logo-on-dark { display: block; }
+  :root[data-theme="dark"] .cv-light { color-scheme: light; color: #292524; }
+  :root[data-theme="dark"] .cv-logo-on-light:not(.cv-light *) { display: none; }
+  :root[data-theme="dark"] .cv-logo-on-dark:not(.cv-light *) { display: block; }
 }
 body { @apply bg-cream font-sans text-stone-800 antialiased; -webkit-tap-highlight-color: transparent; }
 /* Every page fills the whole screen, even with little content. On iPhone, a page shorter than the screen

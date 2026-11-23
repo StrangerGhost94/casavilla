@@ -44,10 +44,11 @@ export default async function CashClose({ searchParams }: { searchParams: Promis
         {days.length === 0 && <span className="text-sm text-stone-500">No cash or bank payments recorded yet.</span>}
       </div>
 
-      <div className="grid grid-cols-3 gap-3 text-sm">
-        <div className="card"><div className="text-xs text-stone-500">Cash</div><div className="text-lg font-bold">{ugx(cash)}</div></div>
-        <div className="card"><div className="text-xs text-stone-500">Bank</div><div className="text-lg font-bold">{ugx(total - cash)}</div></div>
-        <div className="card"><div className="text-xs text-stone-500">Total · {mine.length} payment{mine.length === 1 ? "" : "s"}</div><div className="text-lg font-bold">{ugx(total)}</div></div>
+      {/* On phones the total runs full width first, so amounts never wrap mid-number. */}
+      <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+        <div className="card"><div className="text-xs text-stone-500">Cash</div><div className="whitespace-nowrap text-base font-bold sm:text-lg">{ugx(cash)}</div></div>
+        <div className="card"><div className="text-xs text-stone-500">Bank</div><div className="whitespace-nowrap text-base font-bold sm:text-lg">{ugx(total - cash)}</div></div>
+        <div className="card order-first col-span-2 sm:order-none sm:col-span-1"><div className="text-xs text-stone-500">Total · {mine.length} payment{mine.length === 1 ? "" : "s"}</div><div className="whitespace-nowrap text-base font-bold sm:text-lg">{ugx(total)}</div></div>
       </div>
 
       {[...groups.values()].length > 0 && (
@@ -66,7 +67,7 @@ export default async function CashClose({ searchParams }: { searchParams: Promis
           {mine.map((p) => (
             <Link key={p.id} href={`/receipts/${p.id}`} className="flex items-center justify-between gap-3 px-4 py-2.5 hover:bg-stone-50">
               <span>{p.tenant.name}<span className="block text-xs text-stone-500">{p.receiptNo} · {p.method} · {p.recordedBy?.name ?? "—"} · {fmtDateTime(p.paidAt)}</span></span>
-              <b>{ugx(p.amount)}</b>
+              <b className="shrink-0 whitespace-nowrap">{ugx(p.amount)}</b>
             </Link>
           ))}
         </div>

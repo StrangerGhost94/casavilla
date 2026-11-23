@@ -22,7 +22,7 @@ export function Logo({ tone = "dark", size = "md", className = "", tile = false 
   // On dark green the logo's own red and green get lost at small sizes, so it sits on a light tile.
   if (tile)
     return (
-      <span className={`cv-keep-light inline-flex items-center rounded-xl bg-cream px-2.5 py-1 shadow-sm ring-1 ring-black/5 ${className}`}>
+      <span className={`cv-light inline-flex items-center rounded-xl bg-cream px-2.5 py-1 shadow-sm ring-1 ring-black/5 ${className}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img {...sized("logo")} alt="CasaVilla Property Management" draggable={false} className={`${h} w-auto select-none`} />
       </span>
