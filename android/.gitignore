@@ -1,0 +1,12 @@
+# Never commit the signing key or its passwords. Back the keystore up somewhere safe instead.
+*.keystore
+*.jks
+*.pepk
+# Build outputs
+*.aab
+*.apk
+*.idsig
+build/
+app/build/
+.gradle/
+local.properties

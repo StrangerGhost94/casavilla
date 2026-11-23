@@ -1,0 +1,66 @@
+{
+  "packageId": "com.casavillaproperties.app",
+  "host": "casavillaproperties.com",
+  "name": "CasaVilla Property Management",
+  "launcherName": "CasaVilla",
+  "display": "standalone",
+  "themeColor": "#0E3628",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#0E3628",
+  "enableNotifications": true,
+  "startUrl": "/app",
+  "iconUrl": "https://casavillaproperties.com/icons/icon-512.png",
+  "maskableIconUrl": "https://casavillaproperties.com/icons/maskable-512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "/Users/ayebaleelijah/code/casavilla/android/android.keystore",
+    "alias": "android"
+  },
+  "appVersionName": "2",
+  "appVersionCode": 2,
+  "shortcuts": [
+    {
+      "name": "Pay rent",
+      "shortName": "Pay rent",
+      "url": "https://casavillaproperties.com/tenant/rent",
+      "chosenIconUrl": "https://casavillaproperties.com/icons/icon-192.png"
+    },
+    {
+      "name": "Report an issue",
+      "shortName": "Report an is",
+      "url": "https://casavillaproperties.com/tenant/requests/new",
+      "chosenIconUrl": "https://casavillaproperties.com/icons/icon-192.png"
+    },
+    {
+      "name": "Find a home",
+      "shortName": "Find a home",
+      "url": "https://casavillaproperties.com/listings",
+      "chosenIconUrl": "https://casavillaproperties.com/icons/icon-192.png"
+    }
+  ],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://casavillaproperties.com/manifest.webmanifest",
+  "fallbackType": "customtabs",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": true,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://casavillaproperties.com/",
+  "minSdkVersion": 24,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "",
+  "displayOverride": [],
+  "appVersion": "2"
+}

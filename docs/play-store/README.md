@@ -51,6 +51,8 @@ ALSO IN THE APP
 
 Questions: WhatsApp or call CasaVilla on +256 776 593 482.
 
+Developed by Ayebale Elijah for CasaVilla Property Management.
+
 **App category:** House & Home
 **Contact email:** info.casavilla026@gmail.com (confirm with the client)
 **Phone:** +256 776 593 482

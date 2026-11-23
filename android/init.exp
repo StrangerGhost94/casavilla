@@ -1,0 +1,43 @@
+#!/usr/bin/expect -f
+# Runs `bubblewrap init` for CasaVilla, answering every question from docs/PLAY_STORE.md.
+# It stops at the key store password: that is typed by the owner of the signing key, never by a script.
+set timeout -1
+array set done {}
+proc once {key reply} {
+  global done
+  if {![info exists done($key)]} { set done($key) 1; send -- $reply }
+}
+spawn npx --yes @bubblewrap/cli@1.27.0 init --manifest https://casavillaproperties.com/manifest.webmanifest
+expect {
+  -re {install the JDK}                    { once jdk "y\r"; exp_continue }
+  -re {install the Android SDK}            { once sdk "y\r"; exp_continue }
+  -re {terms and conditions}               { once terms "y\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Domain:}                            { once domain "casavillaproperties.com\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*URL path:}                          { once path "/app\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Application name:}                  { once name "CasaVilla Property Management\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Short name:}                        { once short "CasaVilla\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Application ID:}                    { once appid "com.casavillaproperties.app\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Starting version code}              { once version "1\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Display mode:}                      { once display "\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Orientation:}                       { once orient "\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Status bar color:}                  { once status "#0E3628\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Splash screen color:}               { once splash "#0E3628\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Maskable icon URL:}                 { once maskable "https://casavillaproperties.com/icons/maskable-512.png\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Include app shortcuts}  { once shortcuts "y\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Monochrome icon URL:}               { once mono "\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Icon URL:}                          { once icon "https://casavillaproperties.com/icons/icon-512.png\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Play Billing}                       { once billing "n\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*location permission}                { once location "n\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Key store location:}                { once ks "\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Key name:}                          { once kn "\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*create one now}                     { once create "y\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*First and Last names}               { once first "Ayebale Elijah\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Organizational Unit}                { once unit "Eliherd Engineers\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Organization \(}                    { once org "CasaVilla Property Management\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Country}                            { once country "UG\r"; exp_continue }
+  -re {\?(\x1b\[[0-9;]*m)* [^\n?]*Password for the Key Store}         {
+    send_user "\n\n>>> Your turn: type a strong key store password, press Enter, then the key password. Save both in a password manager. <<<\n\n"
+    interact
+  }
+  eof
+}
