@@ -22,17 +22,27 @@ export function Logo({ tone = "dark", size = "md", className = "", tile = false 
   // On dark green the logo's own red and green get lost at small sizes, so it sits on a light tile.
   if (tile)
     return (
-      <span className={`inline-flex items-center rounded-xl bg-cream px-2.5 py-1 shadow-sm ring-1 ring-black/5 ${className}`}>
+      <span className={`cv-keep-light inline-flex items-center rounded-xl bg-cream px-2.5 py-1 shadow-sm ring-1 ring-black/5 ${className}`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img {...sized("logo")} alt="CasaVilla Property Management" draggable={false} className={`${h} w-auto select-none`} />
       </span>
     );
   const light = tone === "light";
+  if (light)
+    return (
+      <span className={`inline-flex ${className}`}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img {...sized("logo-light")} alt="CasaVilla Property Management" draggable={false}
+          className={`${h} w-auto select-none drop-shadow-[0_3px_10px_rgba(0,0,0,0.45)]`} />
+      </span>
+    );
+  // On light pages the normal logo; in the dark theme (globals.css) it swaps to the one with white lettering.
   return (
     <span className={`inline-flex ${className}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img {...sized(light ? "logo-light" : "logo")} alt="CasaVilla Property Management" draggable={false}
-        className={`${h} w-auto select-none ${light ? "drop-shadow-[0_3px_10px_rgba(0,0,0,0.45)]" : ""}`} />
+      <img {...sized("logo")} alt="CasaVilla Property Management" draggable={false} className={`cv-logo-on-light ${h} w-auto select-none`} />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img {...sized("logo-light")} alt="" aria-hidden loading="lazy" draggable={false} className={`cv-logo-on-dark hidden ${h} w-auto select-none`} />
     </span>
   );
 }

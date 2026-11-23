@@ -26,13 +26,18 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: "CasaVilla", statusBarStyle: "black-translucent", startupImage: startupImages },
   other: { "apple-mobile-web-app-capable": "yes" },
 };
-// "only light": the app has one (light) design. Without it, Chrome on Android (and so the Play Store app) and some
-// browsers in dark mode repaint the page with guessed dark colours, which looks broken.
-export const viewport: Viewport = { themeColor: "#0e3628", colorScheme: "only light", width: "device-width", initialScale: 1, viewportFit: "cover" };
+// Light and dark (see globals.css). Declaring both stops Chrome on Android from auto-darkening the page.
+export const viewport: Viewport = { themeColor: "#0e3628", colorScheme: "light dark", width: "device-width", initialScale: 1, viewportFit: "cover" };
+
+const THEME_SCRIPT = `try{var t=localStorage.getItem("cv-theme");if(t==="light"||t==="dark")document.documentElement.dataset.theme=t}catch(e){}`;
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en-UG">
+    <html lang="en-UG" suppressHydrationWarning>
+      <head>
+        {/* Applies the Appearance choice (Profile) before the page draws, so it never flashes the wrong theme. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_SCRIPT }} />
+      </head>
       <body>{children}<Suspense fallback={null}><Flash /></Suspense><RegisterSW /><StandaloneFileLinks /><ViewportFix /><WebVitals /></body>
     </html>
   );

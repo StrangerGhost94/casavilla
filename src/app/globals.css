@@ -2,8 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
-/* One light design: stops phones in dark mode from auto-darkening the page (see viewport colorScheme). */
-:root { color-scheme: only light; }
+/* Light and dark themes. Dark follows the phone unless the person picks Light or Dark in Profile → Appearance
+   (stored on the device; layout.tsx sets data-theme on <html> before the page draws). The dark colours themselves
+   are generated from the light ones by postcss-dark.cjs. Saying we support dark also stops Chrome on Android from
+   auto-darkening the page with guessed colours. */
+:root { color-scheme: light dark; }
+:root[data-theme="light"] { color-scheme: light; }
+:root[data-theme="dark"] { color-scheme: dark; }
+@media print { :root { color-scheme: light; } }
+/* Hand-written dark-theme exceptions (already prefixed, so postcss-dark.cjs leaves them alone). */
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .cv-keep-light { background-color: #f6f4ee; }
+  :root:not([data-theme="light"]) .cv-logo-on-light { display: none; }
+  :root:not([data-theme="light"]) .cv-logo-on-dark { display: block; }
+}
+@media screen {
+  :root[data-theme="dark"] .cv-keep-light { background-color: #f6f4ee; }
+  :root[data-theme="dark"] .cv-logo-on-light { display: none; }
+  :root[data-theme="dark"] .cv-logo-on-dark { display: block; }
+}
 body { @apply bg-cream font-sans text-stone-800 antialiased; -webkit-tap-highlight-color: transparent; }
 /* Every page fills the whole screen, even with little content. On iPhone, a page shorter than the screen
    leaves fixed bars (the bottom menu) positioned against a shorter viewport, so the menu floats up. */
