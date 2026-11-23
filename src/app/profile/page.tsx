@@ -37,7 +37,9 @@ export default async function Profile() {
           </div>
         </div>
 
-        <div className="card mt-4 divide-y divide-stone-100 p-0 empty:hidden">
+        <section className="mt-4">
+          <h2 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Settings</h2>
+        <div className="card divide-y divide-stone-100 p-0">
           {u.role !== "manager" && (
             // Same row style as the menu below; the picker only opens when tapped.
             <details className="group">
@@ -84,9 +86,11 @@ export default async function Profile() {
             </div>
           </details>}
         </div>
+        </section>
 
         {/* The full menu, in the same groups as the computer sidebar */}
-        {grouped(items).map((g, gi) => (
+        {/* The first block has no heading in the menu itself (tenants, providers), so name it here. */}
+        {grouped(items).map((g, gi) => ({ ...g, title: g.title ?? (gi === 0 ? (u.role === "tenant" ? "My home" : u.role === "provider" ? "My business" : "Menu") : undefined) })).map((g, gi) => (
           <section key={g.title ?? gi} className="mt-4">
             {g.title && <h2 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">{g.title}</h2>}
             <div className="card divide-y divide-stone-100 p-0">
@@ -98,12 +102,18 @@ export default async function Profile() {
           </section>
         ))}
 
-        <div className="card mt-4 p-0">
+        <section className="mt-4">
+          <h2 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Help</h2>
+        <div className="card p-0">
           <ListRow href={CONTACT.whatsapp} title="Contact CasaVilla" detail="WhatsApp +256 776 593 482"
             icon={<span className="flex h-9 w-9 items-center justify-center rounded-xl bg-gold-50 text-gold-600"><MessageCircle className="h-[18px] w-[18px]" /></span>} />
         </div>
+        </section>
 
-        <details className="card group mt-4 p-0">
+        <section className="mt-4">
+          <h2 className="mb-1.5 px-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-stone-500">Account</h2>
+        <div className="card divide-y divide-stone-100 p-0">
+        <details className="group">
           <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3 transition hover:bg-stone-50">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-brand-50 text-brand-700"><KeyRound className="h-[18px] w-[18px]" /></span>
             <span className="min-w-0 flex-1 text-sm font-medium text-stone-800">Change password</span>
@@ -115,11 +125,10 @@ export default async function Profile() {
             <Submit className="btn-primary btn-sm">Change password</Submit>
           </form>
         </details>
-
-        <div className="card mt-4 p-0">
           <ListRow href="/delete-account" title="Delete my account" detail="Erase your details and close the account"
             icon={<span className="flex h-9 w-9 items-center justify-center rounded-xl bg-maroon-50 text-maroon-600"><Trash2 className="h-[18px] w-[18px]" /></span>} />
         </div>
+        </section>
 
         <form action={logout} className="mt-5">
           <button className="btn w-full border border-maroon-100 bg-white py-3 text-maroon-600 hover:bg-maroon-50">
